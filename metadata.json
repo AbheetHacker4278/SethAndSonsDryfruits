@@ -1,0 +1,6 @@
+{
+  "name": "Royal Harvest — Luxury Dry Fruits",
+  "description": "Artisanal collection of handpicked dry fruits and pure Kashmiri saffron with cinematic storytelling and bespoke request-based ordering.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
