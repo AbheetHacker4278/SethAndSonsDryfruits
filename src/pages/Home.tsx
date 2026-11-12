@@ -71,6 +71,7 @@ export default function Home({ onNavigateToRequest, onNavigateToCatalog }: HomeP
       <ProductShowcase
         products={orderedProducts}
         onRequestPurchase={(productId) => onNavigateToRequest(productId)}
+        onViewCatalog={onNavigateToCatalog}
       />
 
       {/* 4. Artisanal Harvest Motion Reels: High-definition craft & texture cinema */}

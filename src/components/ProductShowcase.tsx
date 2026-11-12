@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { Product } from '../types/product';
 import ProductCard from './ProductCard';
 import ScrollReveal from './ScrollReveal';
@@ -5,9 +7,18 @@ import ScrollReveal from './ScrollReveal';
 interface ProductShowcaseProps {
   products: Product[];
   onRequestPurchase: (productId: string) => void;
+  onViewCatalog?: () => void;
 }
 
-export default function ProductShowcase({ products, onRequestPurchase }: ProductShowcaseProps) {
+export default function ProductShowcase({
+  products,
+  onRequestPurchase,
+  onViewCatalog,
+}: ProductShowcaseProps) {
+  // Display only the first 6 signature products on the Home page
+  const displayProducts = products.slice(0, 6);
+  const remainingCount = Math.max(0, products.length - 6);
+
   return (
     <section id="collection" className="relative py-24 sm:py-32 bg-[#0d0805] text-[#ede4dc] overflow-hidden">
       {/* Decorative ambient backdrop */}
@@ -33,9 +44,9 @@ export default function ProductShowcase({ products, onRequestPurchase }: Product
           </div>
         </ScrollReveal>
 
-        {/* 3-Column Luxury Product Grid with ScrollReveal Animations */}
+        {/* 3-Column Luxury Product Grid with ScrollReveal Animations (Max 6 Products) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-9">
-          {products.map((product, index) => (
+          {displayProducts.map((product, index) => (
             <ScrollReveal
               key={product.id}
               delay={(index % 3) * 0.12}
@@ -50,6 +61,37 @@ export default function ProductShowcase({ products, onRequestPurchase }: Product
             </ScrollReveal>
           ))}
         </div>
+
+        {/* Action Button for Full Catalog */}
+        <ScrollReveal delay={0.15} className="mt-14 sm:mt-16 text-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {onViewCatalog ? (
+              <button
+                type="button"
+                onClick={onViewCatalog}
+                className="group inline-flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-widest bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#b99225]/20 active:scale-95 transition-all duration-300 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-[#0d0805]" />
+                <span>View Full Catalog</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </button>
+            ) : (
+              <Link
+                to="/catalog"
+                className="group inline-flex items-center gap-3 px-8 sm:px-10 py-4 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-widest bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#b99225]/20 active:scale-95 transition-all duration-300 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-[#0d0805]" />
+                <span>View Full Catalog</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            )}
+          </div>
+          {remainingCount > 0 && (
+            <p className="mt-3 text-xs text-[#d5c4b4]/60 font-sans tracking-wide">
+              Showing 6 signature selections • Explore all {products.length}+ authentic Jammu harvests in the full catalog
+            </p>
+          )}
+        </ScrollReveal>
 
         {/* Reassurance banner below collection with ScrollReveal */}
         <ScrollReveal delay={0.2} className="mt-16">
