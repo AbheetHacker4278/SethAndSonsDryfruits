@@ -2,7 +2,6 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
-import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig(({ mode }) => {
   const apiPort = process.env.API_PORT || '8001';
@@ -13,12 +12,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      visualizer({
-        filename: 'dist/bundle-report.html',
-        open: false,
-        gzipSize: true,
-        brotliSize: true,
-      }),
     ],
     cacheDir: isAdminVite ? 'node_modules/.vite-admin' : 'node_modules/.vite-storefront',
     resolve: {
