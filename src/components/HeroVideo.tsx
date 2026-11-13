@@ -9,20 +9,13 @@ if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-// Hero Video Playlist: 1st and 3rd videos are kept for extended duration (~20s and ~16s).
-// Product display video waits for 5 seconds upon reaching the end, then smoothly crossfades to next video.
+// Hero Video Playlist: Seamless dual-player video loop
 export const HERO_PLAYLIST = [
   {
     url: '/assets/aistudio/Woman_picking_dry_fruits_777f06bb_1080p_747221ce.mp4',
     title: 'Woman Picking Dry Fruits',
     repeatCount: 2, // Extended duration: 2 full seamless cycles (~20s total)
     holdAtEndMs: 0,
-  },
-  {
-    url: '/assets/aistudio/Harvesting_and_packaging_dry_fruits_eea79562_t1.3-8_1080p_9a241cbd.mp4',
-    title: 'Packaging & Product Display',
-    repeatCount: 1, // Plays naturally to the end
-    holdAtEndMs: 5000, // Wait for 5 seconds when product display video ends, then smooth faded transition
   },
   {
     url: '/assets/aistudio/Dry_fruits_bowl_showcase_49c88bee_1080p_faf9591c.mp4',

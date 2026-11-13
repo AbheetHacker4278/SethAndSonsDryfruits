@@ -4260,7 +4260,6 @@ export const BRAND_CONFIG = {
   videoUrl: '/assets/aistudio/Woman_picking_dry_fruits_777f06bb_1080p_747221ce.mp4',
   heroVideos: [
     '/assets/aistudio/Woman_picking_dry_fruits_777f06bb_1080p_747221ce.mp4',
-    '/assets/aistudio/Harvesting_and_packaging_dry_fruits_eea79562_t1.3-8_1080p_9a241cbd.mp4',
     '/assets/aistudio/Dry_fruits_bowl_showcase_49c88bee_1080p_faf9591c.mp4'
   ],
   heroPoster: '/assets/products/hero_poster.jpg'
