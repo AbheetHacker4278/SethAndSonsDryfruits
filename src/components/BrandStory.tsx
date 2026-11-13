@@ -22,11 +22,11 @@ export default function BrandStory() {
               </span>
             </h2>
 
-            <p className="mt-8 text-base sm:text-lg text-[#d5c4b4] leading-relaxed font-sans font-light">
+            <p className="mt-8 text-base sm:text-lg text-[#ede4dc] leading-relaxed font-sans font-light">
               We believe true luxury begins in the soil. Unlike commercial mass retailers who rely on industrial sulfur bleaching and prolonged cold-storage decay, Seth And Sons DryFruits celebrates the seasonal rhythm of genuine harvests.
             </p>
 
-            <p className="mt-4 text-base text-[#d5c4b4]/80 leading-relaxed font-sans">
+            <p className="mt-4 text-base text-[#ede4dc]/90 leading-relaxed font-sans">
               From the pristine high-altitude saffron fields of Pampore to sun-kissed cashew orchards of Konkan, our connoisseurs personally inspect every single lot before it is hand-packed into nitrogen-flushed, airtight moisture-lock glass and tin keepsakes.
             </p>
 
@@ -37,7 +37,7 @@ export default function BrandStory() {
                   <Award className="w-5 h-5" />
                 </div>
                 <h4 className="font-serif text-lg text-[#f9f6f2]">Origin-Specific Sourcing</h4>
-                <p className="mt-1 text-xs text-[#d5c4b4]/70 leading-relaxed font-sans">
+                <p className="mt-1 text-xs text-[#ede4dc]/85 leading-relaxed font-sans">
                   Zero blending. Single-source geographical verification for each variety.
                 </p>
               </div>
@@ -47,7 +47,7 @@ export default function BrandStory() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <h4 className="font-serif text-lg text-[#f9f6f2]">Rigorous Grade Selection</h4>
-                <p className="mt-1 text-xs text-[#d5c4b4]/70 leading-relaxed font-sans">
+                <p className="mt-1 text-xs text-[#ede4dc]/85 leading-relaxed font-sans">
                   Kernel size, moisture equilibrium, and natural oil content audited by hand.
                 </p>
               </div>

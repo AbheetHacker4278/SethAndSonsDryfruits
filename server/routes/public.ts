@@ -80,6 +80,16 @@ function parseProductRow(row: Record<string, any>) {
   };
 }
 
+let cachedSettings: { data: any; expiresAt: number } | null = null;
+let cachedCategories: { data: any; expiresAt: number } | null = null;
+let cachedProducts: { data: any; expiresAt: number } | null = null;
+
+export function invalidatePublicCache() {
+  cachedSettings = null;
+  cachedCategories = null;
+  cachedProducts = null;
+}
+
 export function createPublicRouter(
   db: MongoDatabase,
   config: AppConfig,
@@ -123,9 +133,14 @@ export function createPublicRouter(
   });
 
   router.get('/settings/public', async (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+    const now = Date.now();
+    if (cachedSettings && cachedSettings.expiresAt > now) {
+      return res.json(cachedSettings.data);
+    }
     const website = await getWebsiteSettingsDoc(db);
     const biz = await getBusinessSettingsDoc(db);
-    res.json({
+    const data = {
       website,
       currency: biz.currency || 'INR ₹',
       business: {
@@ -136,20 +151,34 @@ export function createPublicRouter(
         contactNumber: biz.contactNumber,
         businessEmail: biz.businessEmail,
       },
-    });
+    };
+    cachedSettings = { data, expiresAt: now + 60000 };
+    res.json(data);
   });
 
   router.get('/categories', async (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+    const now = Date.now();
+    if (cachedCategories && cachedCategories.expiresAt > now) {
+      return res.json(cachedCategories.data);
+    }
     const categories = await db.models.Category.find(
       { active: true },
       { id: 1, name: 1, slug: 1, description: 1, sortOrder: 1, _id: 0 }
     )
       .sort({ sortOrder: 1, name: 1 })
       .lean();
-    res.json({ categories });
+    const data = { categories };
+    cachedCategories = { data, expiresAt: now + 60000 };
+    res.json(data);
   });
 
   router.get('/products', async (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+    const now = Date.now();
+    if (cachedProducts && cachedProducts.expiresAt > now) {
+      return res.json(cachedProducts.data);
+    }
     const [rows, variantsAll, categories] = await Promise.all([
       db.models.Product.find({ status: 'published' }).sort({ createdAt: 1 }).lean(),
       db.models.ProductVariant.find(
@@ -191,7 +220,9 @@ export function createPublicRouter(
       };
     });
 
-    res.json({ products });
+    const data = { products };
+    cachedProducts = { data, expiresAt: now + 60000 };
+    res.json(data);
   });
 
   router.post('/coupons/validate', async (req, res) => {

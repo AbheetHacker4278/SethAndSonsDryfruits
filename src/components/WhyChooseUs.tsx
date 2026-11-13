@@ -47,7 +47,7 @@ export default function WhyChooseUs() {
             Why Discerning Patrons Choose Seth And Sons DryFruits
           </h2>
 
-          <p className="mt-4 text-base text-[#d5c4b4]/80 font-sans leading-relaxed">
+          <p className="mt-4 text-base text-[#ede4dc]/90 font-sans leading-relaxed">
             Our uncompromising attention to origin, harvest timing, and protective curing makes every single bite an unforgettable luxury.
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function WhyChooseUs() {
                   {pillar.title}
                 </h3>
 
-                <p className="mt-3 text-sm text-[#d5c4b4]/75 font-sans leading-relaxed">
+                <p className="mt-3 text-sm text-[#ede4dc]/90 font-sans leading-relaxed">
                   {pillar.description}
                 </p>
               </div>

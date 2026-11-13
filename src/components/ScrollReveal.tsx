@@ -37,6 +37,15 @@ export default function ScrollReveal({
     }
   };
 
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   const initial = {
     opacity: 0,
     ...getInitialPosition(),
@@ -50,12 +59,13 @@ export default function ScrollReveal({
         x: 0,
         y: 0,
       }}
-      viewport={{ once, margin: '-60px' }}
+      viewport={{ once, margin: '-40px' }}
       transition={{
         duration,
         delay,
         ease: [0.21, 0.47, 0.32, 0.98],
       }}
+      style={{ willChange: 'opacity, transform' }}
       className={className}
       {...rest}
     >

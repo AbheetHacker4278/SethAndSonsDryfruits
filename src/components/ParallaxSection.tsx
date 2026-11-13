@@ -163,10 +163,14 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
 
                 <div className={`aspect-[4/3] w-full overflow-hidden relative ${isCenter ? 'bg-[#251a13]' : 'bg-[#1c120c]'}`}>
                   <img
-                    src={currentImg}
+                    src={currentImg.endsWith('.jpg') ? currentImg.replace('.jpg', '.webp') : currentImg}
                     alt={prod.name}
+                    width="400"
+                    height="300"
+                    loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108 will-change-transform"
                   />
 
                   {/* Side Navigation Buttons */}
@@ -175,7 +179,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
                       <button
                         type="button"
                         onClick={(e) => cycleCardImage(cardIdx, cardGallery.length, 'prev', e)}
-                        className="absolute left-2.5 top-1/2 -translate-y-1/2 z-25 w-8 h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
                         title="Previous photo"
                         aria-label="Previous photo"
                       >
@@ -185,7 +189,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
                       <button
                         type="button"
                         onClick={(e) => cycleCardImage(cardIdx, cardGallery.length, 'next', e)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 z-25 w-8 h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
                         title="Next photo"
                         aria-label="Next photo"
                       >

@@ -147,7 +147,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer"
+            className="lg:hidden p-2.5 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Toggle navigation menu"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

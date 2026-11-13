@@ -15,27 +15,60 @@ export default function HarvestVideoShowcase({
   // Only products with active video show in this carousel
   const videoProducts = PRODUCTS.filter(p => !!p.videoUrl && !!p.videoDetails);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [isInView, setIsInView] = useState(false);
+  const [userInteracted, setUserInteracted] = useState(false);
 
+  const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentProduct: CatalogProduct | undefined = videoProducts[selectedIndex] || videoProducts[0];
   const videoDetails = currentProduct?.videoDetails;
 
-  // Handle video playback synchronization on product change
+  // IntersectionObserver to prevent downloading ~5MB video until user scrolls near
   useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        } else {
+          // Pause when offscreen to save battery and main-thread work
+          if (videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+          }
+        }
+      },
+      { rootMargin: '250px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Handle video playback synchronization on product change or when scrolled into view
+  useEffect(() => {
+    if (!isInView) return;
     const video = videoRef.current;
     if (!video) return;
 
     video.currentTime = 0;
     video.playbackRate = 1.0;
-    video.play().then(() => {
-      setIsPlaying(true);
-    }).catch(() => {
-      setIsPlaying(false);
-    });
-  }, [selectedIndex]);
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
+    }
+  }, [selectedIndex, isInView]);
 
   if (!currentProduct || !videoDetails) {
     return null;
@@ -51,6 +84,7 @@ export default function HarvestVideoShowcase({
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
+    setUserInteracted(true);
     if (video.paused) {
       video.play().then(() => setIsPlaying(true)).catch(() => {});
     } else {
@@ -66,8 +100,16 @@ export default function HarvestVideoShowcase({
     setIsMuted(video.muted);
   };
 
+  const posterImage = currentProduct.image.endsWith('.jpg')
+    ? currentProduct.image.replace('.jpg', '.webp')
+    : currentProduct.image;
+
   return (
-    <section id="harvest-reels" className="relative w-full py-24 sm:py-32 bg-[#0d0805] text-[#ede4dc] overflow-hidden border-t border-[#38281d]/60">
+    <section
+      id="harvest-reels"
+      ref={sectionRef}
+      className="relative w-full py-24 sm:py-32 bg-[#0d0805] text-[#ede4dc] overflow-hidden border-t border-[#38281d]/60"
+    >
       {/* Subtle ambient golden gradient background highlights */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(223,196,113,0.06)_0%,transparent_70%)] pointer-events-none" />
 
@@ -103,12 +145,16 @@ export default function HarvestVideoShowcase({
               return (
                 <button
                   key={product.id}
-                  onClick={() => setSelectedIndex(idx)}
+                  onClick={() => {
+                    setUserInteracted(true);
+                    setSelectedIndex(idx);
+                  }}
                   className={`shrink-0 flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-gradient-to-r from-[#dfc471] via-[#faeaad] to-[#c79d2b] text-[#1c120c] font-bold shadow-xl shadow-[#dfc471]/30 scale-105'
                       : 'bg-[#1c120c]/80 text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] border border-[#38281d] hover:border-[#dfc471]/40'
                   }`}
+                  aria-label={`Select harvest video for ${product.name}`}
                 >
                   <span className="w-2 h-2 rounded-full bg-current opacity-80" />
                   <span>{product.name}</span>
@@ -128,13 +174,17 @@ export default function HarvestVideoShowcase({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch bg-[#140e0a]/90 border border-[#38281d] rounded-3xl p-6 sm:p-8 lg:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.9)] backdrop-blur-md">
             {/* Left Column: 1080p Cinema Player */}
             <div className="lg:col-span-7 flex flex-col justify-between">
-              <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#0d0805] border border-[#dfc471]/30 shadow-2xl group">
+              <div
+                onClick={togglePlay}
+                className="relative aspect-video w-full rounded-2xl overflow-hidden bg-[#0d0805] border border-[#dfc471]/30 shadow-2xl group cursor-pointer"
+              >
                 <video
                   ref={videoRef}
                   key={currentProduct.videoUrl}
-                  src={currentProduct.videoUrl}
-                  poster={currentProduct.image}
-                  autoPlay
+                  src={isInView || userInteracted ? currentProduct.videoUrl : undefined}
+                  poster={posterImage}
+                  preload="none"
+                  autoPlay={isInView}
                   muted={isMuted}
                   playsInline
                   onTimeUpdate={handleTimeUpdate}
@@ -145,9 +195,29 @@ export default function HarvestVideoShowcase({
                 {/* Subtle Cinematic Vignette */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0d0805]/80 via-transparent to-[#0d0805]/30 pointer-events-none" />
 
+                {/* Big Center Play/Pause Indicator when paused */}
+                {!isPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <div className="w-16 h-16 rounded-full bg-[#1c120c]/80 border border-[#dfc471]/70 backdrop-blur-md flex items-center justify-center text-[#dfc471] shadow-2xl transform transition-transform group-hover:scale-110">
+                      <Play className="w-7 h-7 ml-1" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Bottom Overlay Controls */}
-                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 z-20">
+                <div
+                  className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 z-20"
+                  onClick={e => e.stopPropagation()}
+                >
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={togglePlay}
+                      className="p-2.5 rounded-full bg-[#1c120c]/85 hover:bg-[#dfc471] text-[#dfc471] hover:text-[#0d0805] border border-[#dfc471]/40 backdrop-blur-md transition-all shadow-xl cursor-pointer"
+                      title={isPlaying ? 'Pause video' : 'Play video'}
+                      aria-label={isPlaying ? 'Pause video' : 'Play video'}
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
                     <button
                       onClick={toggleMute}
                       className="p-2.5 rounded-full bg-[#1c120c]/85 hover:bg-[#dfc471] text-[#dfc471] hover:text-[#0d0805] border border-[#dfc471]/40 backdrop-blur-md transition-all shadow-xl cursor-pointer"

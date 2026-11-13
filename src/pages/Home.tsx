@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { LifeBuoy, ArrowRight } from 'lucide-react';
 import HeroVideo from '../components/HeroVideo';
@@ -16,26 +17,30 @@ interface HomeProps {
 
 export default function Home({ onNavigateToRequest, onNavigateToCatalog }: HomeProps) {
   const { products, publicSettings } = useAuth();
-  const featuredIds = publicSettings?.website?.featuredProductIds || [];
-  const orderedProducts =
-    featuredIds.length > 0
-      ? [
-          ...featuredIds
-            .map(id => products.find(p => p.id === id))
-            .filter((p): p is NonNullable<typeof p> => Boolean(p)),
-          ...products.filter(p => !featuredIds.includes(p.id)),
-        ]
-      : products;
-  const activePromos = (publicSettings?.website?.promotionalSections || []).filter(
-    s => s.active && (s.title || s.subtitle)
-  );
+  const featuredIds = publicSettings?.website?.featuredProductIds;
 
-  const handleScrollToCollection = () => {
+  const orderedProducts = useMemo(() => {
+    if (!featuredIds || featuredIds.length === 0) return products;
+    return [
+      ...featuredIds
+        .map(id => products.find(p => p.id === id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p)),
+      ...products.filter(p => !featuredIds.includes(p.id)),
+    ];
+  }, [products, featuredIds]);
+
+  const activePromos = useMemo(() => {
+    return (publicSettings?.website?.promotionalSections || []).filter(
+      s => s.active && (s.title || s.subtitle)
+    );
+  }, [publicSettings?.website?.promotionalSections]);
+
+  const handleScrollToCollection = useCallback(() => {
     const el = document.getElementById('collection');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, []);
 
   return (
     <div className="w-full bg-[#0d0805] text-[#ede4dc] selection:bg-[#dfc471] selection:text-[#0d0805]">

@@ -172,9 +172,13 @@ export default function AdminLayout({
       <div className="px-4 py-5 border-b border-[#245746] flex items-center justify-between gap-2">
         <Link to="/admin/dashboard" className="flex items-center gap-2.5 overflow-hidden">
           <img
-            src="/assets/seth_and_sons_logo.jpg"
+            src="/assets/seth_and_sons_logo-96.webp"
             alt="Seth And Sons DryFruits"
+            width="36"
+            height="36"
             className="h-9 w-9 rounded-full object-cover shrink-0 border border-[#C8A96B]/45"
+            loading="lazy"
+            decoding="async"
           />
           {!collapsed && (
             <div className="leading-tight truncate">

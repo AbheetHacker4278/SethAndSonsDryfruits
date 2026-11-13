@@ -43,7 +43,7 @@ import {
   validatePasswordStrength,
 } from '../utils/crypto.ts';
 import { hydrateOrder } from './orders.ts';
-import { parseProductRow } from './public.ts';
+import { invalidatePublicCache, parseProductRow } from './public.ts';
 
 function makeUploader(allowPdf = false) {
   return multer({
@@ -3035,6 +3035,7 @@ export function createAdminErpRouter(
       );
     }
 
+    invalidatePublicCache();
     await logAudit(db, {
       actorId: req.user!.id,
       actorEmail: req.user!.email,
@@ -3083,6 +3084,7 @@ export function createAdminErpRouter(
       { upsert: true }
     );
 
+    invalidatePublicCache();
     await logAudit(db, {
       actorId: req.user!.id,
       actorEmail: req.user!.email,

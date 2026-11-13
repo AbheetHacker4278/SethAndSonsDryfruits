@@ -188,13 +188,13 @@ export default function ClientTestimonials() {
                   <h4 className="font-serif text-lg font-semibold text-[#f9f6f2]">
                     {current.author}
                   </h4>
-                  <p className="text-xs text-[#d5c4b4]/75 font-sans">
+                  <p className="text-xs text-[#ede4dc]/90 font-sans">
                     {current.role} • <span className="text-[#ede4dc]">{current.location}</span>
                   </p>
                 </div>
 
                 <div className="text-left sm:text-right text-xs">
-                  <span className="text-[#d5c4b4]/50 uppercase tracking-wider block text-[10px]">
+                  <span className="text-[#ede4dc]/70 uppercase tracking-wider block text-[10px]">
                     Verified Batch Selection
                   </span>
                   <span className="text-[#dfc471] font-medium font-sans">
@@ -208,7 +208,7 @@ export default function ClientTestimonials() {
           {/* Carousel Navigation Bar (Bottom Controls) */}
           <div className="mt-8 pt-6 border-t border-[#251a13] flex items-center justify-between">
             {/* Step Indicators */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {TESTIMONIALS.map((t, idx) => (
                 <button
                   key={t.id}
@@ -216,15 +216,19 @@ export default function ClientTestimonials() {
                     setDirection(idx > currentIndex ? 1 : -1);
                     setCurrentIndex(idx);
                   }}
-                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                    currentIndex === idx
-                      ? 'w-8 bg-[#dfc471]'
-                      : 'w-2 bg-[#38281d] hover:bg-[#d5c4b4]/40'
-                  }`}
-                  aria-label={`Go to slide ${idx + 1}`}
-                />
+                  className="py-2.5 px-1 cursor-pointer flex items-center justify-center min-h-[44px]"
+                  aria-label={`Go to testimonial slide ${idx + 1}`}
+                >
+                  <span
+                    className={`h-1.5 rounded-full transition-all duration-300 block ${
+                      currentIndex === idx
+                        ? 'w-8 bg-[#dfc471]'
+                        : 'w-2 bg-[#38281d] hover:bg-[#d5c4b4]/40'
+                    }`}
+                  />
+                </button>
               ))}
-              <span className="ml-3 text-xs text-[#d5c4b4]/60 font-sans tabular-nums">
+              <span className="ml-3 text-xs text-[#ede4dc]/80 font-sans tabular-nums">
                 0{currentIndex + 1} / 0{total}
               </span>
             </div>
@@ -233,7 +237,7 @@ export default function ClientTestimonials() {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={prevTestimonial}
-                className="w-10 h-10 rounded-full bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-11 h-11 rounded-full bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="Previous testimonial"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -241,7 +245,7 @@ export default function ClientTestimonials() {
 
               <button
                 onClick={nextTestimonial}
-                className="w-10 h-10 rounded-full bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-11 h-11 rounded-full bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="Next testimonial"
               >
                 <ChevronRight className="w-4 h-4" />

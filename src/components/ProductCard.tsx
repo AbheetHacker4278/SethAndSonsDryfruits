@@ -37,8 +37,10 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         {/* Clean, authentic product image */}
         {!imageError ? (
           <img
-            src={activeImg}
+            src={activeImg.endsWith('.jpg') ? activeImg.replace('.jpg', '.webp') : activeImg}
             alt={product.name}
+            width="400"
+            height="400"
             referrerPolicy="no-referrer"
             onError={() => {
               if (product.fallbackImage) {
@@ -47,6 +49,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             }}
             className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108 will-change-transform"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#251a13] to-[#150d09] p-6 text-center">
@@ -78,7 +81,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             <button
               type="button"
               onClick={handlePrev}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 z-25 w-8 h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
               title="Previous photo"
               aria-label="Previous photo"
             >
@@ -88,7 +91,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             <button
               type="button"
               onClick={handleNext}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 z-25 w-8 h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
               title="Next photo"
               aria-label="Next photo"
             >

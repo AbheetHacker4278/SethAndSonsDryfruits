@@ -13,13 +13,22 @@ export default function AnimatedLogo({
   className = ''
 }: AnimatedLogoProps) {
   const { publicSettings } = useAuth();
-  const logoSrc = publicSettings?.website?.logoUrl || '/assets/seth_and_sons_logo.jpg';
+  const rawLogo = publicSettings?.website?.logoUrl || '/assets/seth_and_sons_logo-96.webp';
+  const logoSrc = rawLogo.endsWith('seth_and_sons_logo.jpg')
+    ? '/assets/seth_and_sons_logo-96.webp'
+    : rawLogo;
+  const isDefaultLogo = logoSrc.includes('seth_and_sons_logo');
   const brandAlt = publicSettings?.website?.brandName || 'Seth And Sons DryFruits';
   // Circular medallion dimensions tailored for mobile, tablet, and desktop
   const sizeClasses = {
     sm: 'h-9 w-9',
     md: 'h-11 w-11 sm:h-12 sm:w-12',
     lg: 'h-20 w-20 sm:h-24 sm:w-24',
+  };
+  const pixelDims = {
+    sm: 36,
+    md: 48,
+    lg: 96,
   };
 
   return (
@@ -35,9 +44,18 @@ export default function AnimatedLogo({
 
         <img
           src={logoSrc}
+          srcSet={
+            isDefaultLogo
+              ? '/assets/seth_and_sons_logo-96.webp 96w, /assets/seth_and_sons_logo-192.webp 192w'
+              : undefined
+          }
+          sizes={isDefaultLogo ? '(max-width: 640px) 48px, 96px' : undefined}
           alt={brandAlt}
+          width={pixelDims[size]}
+          height={pixelDims[size]}
           className={`${sizeClasses[size]} rounded-full object-cover border border-[#dfc471]/40 transition-transform duration-300 drop-shadow-[0_4px_14px_rgba(0,0,0,0.85)] group-hover:brightness-105`}
           loading="eager"
+          decoding="async"
         />
       </motion.div>
 

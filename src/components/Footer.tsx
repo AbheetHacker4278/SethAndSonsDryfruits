@@ -124,8 +124,8 @@ export default function Footer() {
                     href={instagramUrl}
                     target={instagramUrl.startsWith('http') ? '_blank' : undefined}
                     rel={instagramUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    aria-label="Instagram"
-                    className="w-8 h-8 rounded-full bg-[#1c120c] border border-[#38281d] flex items-center justify-center text-[#d5c4b4] hover:text-[#dfc471] hover:border-[#dfc471] transition-colors"
+                    aria-label="Visit Seth And Sons on Instagram"
+                    className="w-11 h-11 rounded-full bg-[#1c120c] border border-[#38281d] flex items-center justify-center text-[#d5c4b4] hover:text-[#dfc471] hover:border-[#dfc471] transition-colors"
                   >
                     <Instagram className="w-4 h-4" />
                   </a>
@@ -135,8 +135,8 @@ export default function Footer() {
                     href={facebookUrl}
                     target={facebookUrl.startsWith('http') ? '_blank' : undefined}
                     rel={facebookUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    aria-label="Facebook"
-                    className="w-8 h-8 rounded-full bg-[#1c120c] border border-[#38281d] flex items-center justify-center text-[#d5c4b4] hover:text-[#dfc471] hover:border-[#dfc471] transition-colors"
+                    aria-label="Visit Seth And Sons on Facebook"
+                    className="w-11 h-11 rounded-full bg-[#1c120c] border border-[#38281d] flex items-center justify-center text-[#d5c4b4] hover:text-[#dfc471] hover:border-[#dfc471] transition-colors"
                   >
                     <Facebook className="w-4 h-4" />
                   </a>

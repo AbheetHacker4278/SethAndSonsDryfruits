@@ -75,9 +75,9 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
     return HERO_PLAYLIST[followingIdx].url;
   };
 
-  // Standby player initially preloads Video 0's second repeat
+  // Standby player initially does not download to save ~7MB network bandwidth on initial page load
   const [srcA, setSrcA] = useState(HERO_PLAYLIST[0].url);
-  const [srcB, setSrcB] = useState(getUpcomingUrl(0, 2));
+  const [srcB, setSrcB] = useState<string>('');
 
   // Perform a smooth 1200ms faded transition to the specified video and iteration
   const executeSmoothCrossfade = (nextIdx: number, nextIteration: number) => {
@@ -97,6 +97,14 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
 
     const currentPlayer = activePlayerRef.current;
     const nextPlayer: 'A' | 'B' = currentPlayer === 'A' ? 'B' : 'A';
+    const upcomingUrl = getUpcomingUrl(nextIdx, nextIteration);
+
+    if (nextPlayer === 'B' && srcB !== upcomingUrl) {
+      setSrcB(upcomingUrl);
+    } else if (nextPlayer === 'A' && srcA !== upcomingUrl) {
+      setSrcA(upcomingUrl);
+    }
+
     const currentVideoEl = currentPlayer === 'A' ? videoRefA.current : videoRefB.current;
     const nextVideoEl = nextPlayer === 'B' ? videoRefB.current : videoRefA.current;
 
@@ -249,6 +257,16 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
         const timeLeft = current.duration - current.currentTime;
         const currentItem = HERO_PLAYLIST[currentIdxRef.current];
 
+        // Just-in-time buffering: load standby video source only 2.5s before transition
+        if (timeLeft <= 2.5) {
+          const upcoming = getUpcomingUrl(currentIdxRef.current, currentIterationRef.current + 1);
+          if (activePlayerRef.current === 'A' && !srcB) {
+            setSrcB(upcoming);
+          } else if (activePlayerRef.current === 'B' && !srcA) {
+            setSrcA(upcoming);
+          }
+        }
+
         if (currentItem.holdAtEndMs && currentItem.holdAtEndMs > 0) {
           // Product display video: pause on end frame and wait for 5 seconds
           if (timeLeft <= 0.05 || current.ended) {
@@ -400,10 +418,11 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
         <video
           ref={videoRefA}
           src={srcA}
+          poster="/assets/products/hero_poster.webp"
           autoPlay
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           onEnded={handleVideoEnded}
           style={{
             opacity: opacityA,
@@ -414,10 +433,11 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
         />
         <video
           ref={videoRefB}
-          src={srcB}
+          src={srcB || undefined}
+          poster="/assets/products/hero_poster.webp"
           muted
           playsInline
-          preload="auto"
+          preload="none"
           onEnded={handleVideoEnded}
           style={{
             opacity: opacityB,
@@ -536,7 +556,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
       <div className="absolute bottom-8 left-6 sm:left-10 z-20 flex items-center gap-3">
         <button
           onClick={handleTogglePlay}
-          className="p-3 rounded-full bg-[#1c120c]/85 border border-[#dfc471]/40 text-[#dfc471] hover:text-[#0d0805] hover:bg-[#dfc471] backdrop-blur-md transition-all shadow-xl cursor-pointer"
+          className="w-11 h-11 rounded-full bg-[#1c120c]/85 border border-[#dfc471]/40 text-[#dfc471] hover:text-[#0d0805] hover:bg-[#dfc471] backdrop-blur-md transition-all shadow-xl cursor-pointer flex items-center justify-center"
           title={isPlaying ? 'Pause video' : 'Play video'}
           aria-label={isPlaying ? 'Pause video' : 'Play video'}
         >
@@ -545,19 +565,23 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
 
         {/* Video Chapter Indicator & Interactive Pills */}
         <div className="flex items-center gap-2.5 bg-[#1c120c]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#dfc471]/35 shadow-xl">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {HERO_PLAYLIST.map((item, i) => (
               <button
                 key={i}
                 onClick={() => handleSelectVideo(i)}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                  currentIdx === i
-                    ? 'w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
-                    : 'w-2 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
-                }`}
+                className="py-2 px-1 cursor-pointer flex items-center justify-center"
                 title={`Switch to: ${item.title}`}
                 aria-label={`Switch to: ${item.title}`}
-              />
+              >
+                <span
+                  className={`h-2 rounded-full transition-all duration-300 block ${
+                    currentIdx === i
+                      ? 'w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
+                      : 'w-2.5 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
+                  }`}
+                />
+              </button>
             ))}
           </div>
           <span className="text-[11px] text-[#ecdda7] font-sans font-medium hidden sm:inline tracking-wide">
@@ -569,7 +593,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
       {/* Animated Scroll Down Indicator */}
       <button
         onClick={onExplore}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 text-[#ecdda7]/80 hover:text-[#dfc471] transition-colors cursor-pointer group"
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 p-2 text-[#ecdda7]/80 hover:text-[#dfc471] transition-colors cursor-pointer group"
         aria-label="Scroll to explore collection"
       >
         <span className="text-[11px] tracking-[0.25em] uppercase font-sans font-medium">

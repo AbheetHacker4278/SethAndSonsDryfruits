@@ -1,40 +1,60 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import Catalog from './pages/Catalog';
-import CustomOrder from './pages/CustomOrder';
-import OrderHistory from './pages/OrderHistory';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import VerifyEmail from './pages/VerifyEmail';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Unsubscribe from './pages/Unsubscribe';
-import Account from './pages/Account';
-import OrderTracking from './pages/OrderTracking';
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminOrders from './pages/admin/AdminOrders';
-import AdminProducts from './pages/admin/AdminProducts';
-import AdminCategories from './pages/admin/AdminCategories';
-import AdminInventory from './pages/admin/AdminInventory';
-import AdminCustomers from './pages/admin/AdminCustomers';
-import AdminSuppliers from './pages/admin/AdminSuppliers';
-import AdminPurchases from './pages/admin/AdminPurchases';
-import AdminSales from './pages/admin/AdminSales';
-import AdminExpenses from './pages/admin/AdminExpenses';
-import AdminCoupons from './pages/admin/AdminCoupons';
-import AdminReports from './pages/admin/AdminReports';
-import AdminStaff from './pages/admin/AdminStaff';
-import AdminWebsiteSettings from './pages/admin/AdminWebsiteSettings';
-import AdminBusinessSettings from './pages/admin/AdminBusinessSettings';
-import AdminCommunications from './pages/admin/AdminCommunications';
-import AdminMarketing from './pages/admin/AdminMarketing';
-import AdminSupport from './pages/admin/AdminSupport';
-import CustomerService from './pages/CustomerService';
+
+// Route-level code splitting: secondary storefront pages
+const Catalog = lazy(() => import('./pages/Catalog'));
+const CustomOrder = lazy(() => import('./pages/CustomOrder'));
+const OrderHistory = lazy(() => import('./pages/OrderHistory'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
+const Account = lazy(() => import('./pages/Account'));
+const OrderTracking = lazy(() => import('./pages/OrderTracking'));
+const CustomerService = lazy(() => import('./pages/CustomerService'));
+
+// Route-level code splitting: Admin pages (avoids bundling recharts, exceljs, pdf viewer into storefront)
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
+const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
+const AdminInventory = lazy(() => import('./pages/admin/AdminInventory'));
+const AdminCustomers = lazy(() => import('./pages/admin/AdminCustomers'));
+const AdminSuppliers = lazy(() => import('./pages/admin/AdminSuppliers'));
+const AdminPurchases = lazy(() => import('./pages/admin/AdminPurchases'));
+const AdminSales = lazy(() => import('./pages/admin/AdminSales'));
+const AdminExpenses = lazy(() => import('./pages/admin/AdminExpenses'));
+const AdminCoupons = lazy(() => import('./pages/admin/AdminCoupons'));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports'));
+const AdminStaff = lazy(() => import('./pages/admin/AdminStaff'));
+const AdminWebsiteSettings = lazy(() => import('./pages/admin/AdminWebsiteSettings'));
+const AdminBusinessSettings = lazy(() => import('./pages/admin/AdminBusinessSettings'));
+const AdminCommunications = lazy(() => import('./pages/admin/AdminCommunications'));
+const AdminMarketing = lazy(() => import('./pages/admin/AdminMarketing'));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
 import { AuthProvider, useAuth } from './context/AuthContext';
+
+function RouteLoadingFallback({ isAdmin }: { isAdmin: boolean }) {
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#F8F6F0] text-[#183D32] flex items-center justify-center text-sm font-medium">
+        Loading Admin Module...
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen bg-[#0d0805] text-[#dfc471] flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-[#dfc471] border-t-transparent animate-spin" />
+      <span className="text-xs uppercase tracking-[0.2em] font-sans text-[#d5c4b4]">Loading...</span>
+    </div>
+  );
+}
 
 const DEFAULT_CART: Record<string, number> = {
   kaju: 1,
@@ -248,7 +268,8 @@ function AppRoutes() {
       {!isAdminPath && <Navbar selectedCount={activeSelectedCount} onOpenCart={handleOpenCart} />}
 
       <main className="flex-grow">
-        <Routes>
+        <Suspense fallback={<RouteLoadingFallback isAdmin={isAdminPath} />}>
+          <Routes>
           {isDedicatedAdminOrigin ? (
             <>
               <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
@@ -490,7 +511,8 @@ function AppRoutes() {
             element={<Navigate to={isDedicatedAdminOrigin ? '/admin/dashboard' : '/'} replace />}
           />
         </Routes>
-      </main>
+      </Suspense>
+    </main>
 
       {!isAdminPath && <Footer />}
     </div>
