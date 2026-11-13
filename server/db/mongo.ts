@@ -109,7 +109,7 @@ export const DEFAULT_WEBSITE_SETTINGS = {
   faviconUrl: BRAND_CONFIG.logoPath,
   brandName: BRAND_CONFIG.name,
   tagline: 'A Legacy of Quality & Taste',
-  heroBanners: BRAND_CONFIG.heroBanners,
+  heroBanners: BRAND_CONFIG.heroVideos,
   featuredProductIds: ['kaju', 'badam', 'kesar'],
   promotionalSections: [
     {

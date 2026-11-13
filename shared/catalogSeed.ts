@@ -4257,8 +4257,12 @@ export const BRAND_CONFIG = {
   dispatchLocation: 'Heritage Dry Fruit Mandi, Jammu, J&K - 180001',
   logoPath: '/assets/seth_and_sons_logo.jpg',
   emailLogoUrl: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794500281/asulesh-seth/branding/seth_and_sons_logo_emblem_3f4e8923.jpg',
-  heroImage: '/assets/hero_luxury_dryfruits.webp',
-  heroBanners: ['/assets/hero_luxury_dryfruits.webp'],
-  heroPoster: '/assets/hero_luxury_dryfruits.webp'
+  videoUrl: '/assets/aistudio/Woman_picking_dry_fruits_777f06bb_1080p_747221ce.mp4',
+  heroVideos: [
+    '/assets/aistudio/Woman_picking_dry_fruits_777f06bb_1080p_747221ce.mp4',
+    '/assets/aistudio/Harvesting_and_packaging_dry_fruits_eea79562_t1.3-8_1080p_9a241cbd.mp4',
+    '/assets/aistudio/Dry_fruits_bowl_showcase_49c88bee_1080p_faf9591c.mp4'
+  ],
+  heroPoster: '/assets/products/hero_poster.jpg'
 };
 
