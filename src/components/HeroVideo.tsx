@@ -120,7 +120,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
     if (nextVideoEl) {
       nextVideoEl.currentTime = 0;
       nextVideoEl.playbackRate = 1.0;
-      nextVideoEl.play().catch(() => {});
+      nextVideoEl.play().catch(() => { });
     }
 
     // Smoothly dissolve in incoming video (1200ms cubic-bezier transition)
@@ -243,7 +243,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
     const startActive = () => {
       const active = activePlayerRef.current === 'A' ? videoA : videoB;
       active.playbackRate = 1.0;
-      active.play().then(() => setIsPlaying(true)).catch(() => {});
+      active.play().then(() => setIsPlaying(true)).catch(() => { });
     };
 
     startActive();
@@ -397,7 +397,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
     if (!active) return;
     if (active.paused && !isWaitingAtEndRef.current) {
       active.playbackRate = 1.0;
-      active.play().then(() => setIsPlaying(true)).catch(() => {});
+      active.play().then(() => setIsPlaying(true)).catch(() => { });
     } else {
       videoRefA.current?.pause();
       videoRefB.current?.pause();
@@ -575,11 +575,10 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
                 aria-label={`Switch to: ${item.title}`}
               >
                 <span
-                  className={`h-2 rounded-full transition-all duration-300 block ${
-                    currentIdx === i
-                      ? 'w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
-                      : 'w-2.5 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-300 block ${currentIdx === i
+                    ? 'w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
+                    : 'w-2.5 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
+                    }`}
                 />
               </button>
             ))}

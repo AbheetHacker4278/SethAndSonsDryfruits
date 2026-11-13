@@ -54,11 +54,12 @@ async function withTransientRetry<T>(fn: () => Promise<T>, isCancelled?: () => b
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const [products, setProducts] = useState<CatalogProduct[]>(PRODUCTS);
   const [categories, setCategories] = useState<PublicCategory[]>([]);
   const [publicSettings, setPublicSettings] = useState<PublicSettingsPayload | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   const applyBrowserBranding = useCallback((settings: PublicSettingsPayload | null) => {
     if (typeof document === 'undefined' || !settings?.website) return;
