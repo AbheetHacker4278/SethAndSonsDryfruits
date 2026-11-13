@@ -115,3 +115,4 @@ Once Render finishes deploying:
 3. **Patron Login**: Test customer login at `/login`.
 4. **Admin ERP Portal**: Navigate to `/admin/login` and log in with your admin credentials. Test inventory, orders, and reports.
 5. **Custom Domain (Optional)**: In Render settings, click **Custom Domains** and add `sethandsonsdryfruits.com` with the CNAME record provided.
+
