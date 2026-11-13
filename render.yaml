@@ -18,9 +18,9 @@ services:
       - key: COOKIE_SECRET
         generateValue: true
       - key: APP_URL
-        sync: false
+        value: https://sethandsonsdryfruits.onrender.com
       - key: ADMIN_URL
-        sync: false
+        value: https://sethandsonsdryfruits.onrender.com
       - key: EMAIL_FROM
         value: abheetseth203@gmail.com
       - key: EMAIL_FROM_NAME

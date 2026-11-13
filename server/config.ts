@@ -81,8 +81,34 @@ export function loadConfig(): AppConfig {
       ? rawProvider
       : 'smtp';
 
-  const appUrl = get('APP_URL', 'http://localhost:3000').replace(/\/+$/, '');
-  const adminUrl = get('ADMIN_URL', nodeEnv === 'production' ? appUrl : 'http://localhost:8000').replace(/\/+$/, '');
+  const rawAppUrl = get('APP_URL', '').replace(/\/+$/, '');
+  const renderExternalUrl = (process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.replace(/\/+$/, '')}` : '';
+
+  let appUrl: string;
+  if (nodeEnv === 'production') {
+    if (rawAppUrl && !rawAppUrl.includes('localhost') && !rawAppUrl.includes('127.0.0.1')) {
+      appUrl = rawAppUrl;
+    } else {
+      appUrl = renderExternalUrl || vercelUrl || 'https://sethandsonsdryfruits.onrender.com';
+    }
+  } else {
+    appUrl = rawAppUrl || 'http://localhost:3000';
+  }
+  appUrl = appUrl.replace(/\/+$/, '');
+
+  const rawAdminUrl = get('ADMIN_URL', '').replace(/\/+$/, '');
+  let adminUrl: string;
+  if (nodeEnv === 'production') {
+    if (rawAdminUrl && !rawAdminUrl.includes('localhost') && !rawAdminUrl.includes('127.0.0.1')) {
+      adminUrl = rawAdminUrl;
+    } else {
+      adminUrl = appUrl;
+    }
+  } else {
+    adminUrl = rawAdminUrl || 'http://localhost:8000';
+  }
+  adminUrl = adminUrl.replace(/\/+$/, '');
   const emailFrom = get('EMAIL_FROM', 'abheetseth203@gmail.com');
 
   return {

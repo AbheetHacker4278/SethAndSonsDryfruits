@@ -328,10 +328,12 @@ export function createEmailService(db: MongoDatabase, config: AppConfig, queue: 
       customer: { id: string; name: string; email: string },
       rawToken: string,
       targetEmail?: string,
-      purpose: 'email_verify' | 'email_change' = 'email_verify'
+      purpose: 'email_verify' | 'email_change' = 'email_verify',
+      baseUrl?: string
     ) {
       const recipient = targetEmail || customer.email;
-      const verificationUrl = `${config.appUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
+      const rootUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : config.appUrl;
+      const verificationUrl = `${rootUrl}/verify-email?token=${encodeURIComponent(rawToken)}`;
       const isEmailChange = purpose === 'email_change';
       return queueRenderedTemplate({
         templateKey: isEmailChange ? 'email_change_verification' : 'email_verification',
@@ -350,7 +352,8 @@ export function createEmailService(db: MongoDatabase, config: AppConfig, queue: 
       });
     },
 
-    async sendWelcomeEmail(customer: { id: string; name: string; email: string }) {
+    async sendWelcomeEmail(customer: { id: string; name: string; email: string }, baseUrl?: string) {
+      const rootUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : config.appUrl;
       return queueRenderedTemplate({
         templateKey: 'welcome',
         recipient: customer.email,
@@ -360,13 +363,14 @@ export function createEmailService(db: MongoDatabase, config: AppConfig, queue: 
           customer_email: customer.email,
         },
         ctaLabel: 'Explore Jammu Harvests',
-        ctaUrl: `${config.appUrl}/catalog`,
+        ctaUrl: `${rootUrl}/catalog`,
         idempotencyKey: `welcome_${customer.id}`,
       });
     },
 
-    async sendPasswordResetEmail(customer: { id: string; name: string; email: string }, rawToken: string) {
-      const resetUrl = `${config.appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    async sendPasswordResetEmail(customer: { id: string; name: string; email: string }, rawToken: string, baseUrl?: string) {
+      const rootUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : config.appUrl;
+      const resetUrl = `${rootUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
       return queueRenderedTemplate({
         templateKey: 'password_reset',
         recipient: customer.email,

@@ -22,6 +22,15 @@ import {
   verifyPassword,
 } from '../utils/crypto.ts';
 
+function getRequestOrigin(req: any, fallback: string): string {
+  const forwardedHost = (req.headers?.['x-forwarded-host'] || req.headers?.host || '').toString();
+  if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
+    const proto = (req.headers?.['x-forwarded-proto'] || (req.secure ? 'https' : 'http')).toString();
+    return `${proto}://${forwardedHost}`.replace(/\/+$/, '');
+  }
+  return fallback;
+}
+
 const avatarUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -47,7 +56,7 @@ const addressSchema = z.object({
 
 export function createAccountRouter(
   db: MongoDatabase,
-  _config: AppConfig,
+  config: AppConfig,
   emailService: EmailService,
   mediaStorage: MediaStorageService
 ) {
@@ -235,12 +244,14 @@ export function createAccountRouter(
       { new: true }
     ).lean();
 
+    const changeBaseUrl = getRequestOrigin(req, config.appUrl);
     try {
       await emailService.sendVerificationEmail(
         { id: cust.id, name: cust.name, email: cust.email },
         raw,
         cleanNewEmail,
-        'email_change'
+        'email_change',
+        changeBaseUrl
       );
     } catch {
       // queued

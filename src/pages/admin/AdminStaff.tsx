@@ -285,7 +285,7 @@ export default function AdminStaff() {
       <AdminModal
         open={modalOpen}
         title={editingId ? `Update Staff: ${form.name}` : 'Create Admin / Staff Account'}
-        subtitle="Admin & staff accounts sign in via passwordless Email OTP at localhost:8000; permissions are enforced per API request."
+        subtitle="Admin & staff accounts sign in via passwordless Email OTP; permissions are enforced per API request."
         onClose={() => setModalOpen(false)}
       >
         <form onSubmit={handleSave} className="space-y-4 text-xs">

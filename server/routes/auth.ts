@@ -26,6 +26,15 @@ import {
   verifyPassword,
 } from '../utils/crypto.ts';
 
+function getRequestOrigin(req: any, fallback: string): string {
+  const forwardedHost = (req.headers?.['x-forwarded-host'] || req.headers?.host || '').toString();
+  if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
+    const proto = (req.headers?.['x-forwarded-proto'] || (req.secure ? 'https' : 'http')).toString();
+    return `${proto}://${forwardedHost}`.replace(/\/+$/, '');
+  }
+  return fallback;
+}
+
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name must be at least 2 characters').max(100),
   email: z.string().trim().email('Please enter a valid email address'),
@@ -187,10 +196,14 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
     });
 
     let verificationEmailResult: Record<string, unknown> = {};
+    const requestBaseUrl = getRequestOrigin(req, config.appUrl);
     try {
       verificationEmailResult = await emailService.sendVerificationEmail(
         { id: customerId, name: fullName, email: cleanEmail },
-        raw
+        raw,
+        undefined,
+        'email_verify',
+        requestBaseUrl
       );
     } catch {
       verificationEmailResult = { queued: false };
@@ -672,12 +685,14 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
       { $set: { lastVerificationSentAt: now, updatedAt: now } }
     );
 
+    const resendBaseUrl = getRequestOrigin(req, config.appUrl);
     try {
       await emailService.sendVerificationEmail(
         { id: customer.id, name: customer.name, email: customer.email },
         raw,
         targetEmail,
-        targetPurpose
+        targetPurpose,
+        resendBaseUrl
       );
     } catch {
       // non-fatal; queued
@@ -723,8 +738,9 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
       createdAt: now,
     });
 
+    const resetBaseUrl = getRequestOrigin(req, config.appUrl);
     try {
-      await emailService.sendPasswordResetEmail(customer, raw);
+      await emailService.sendPasswordResetEmail(customer, raw, resetBaseUrl);
     } catch {
       // queued
     }
