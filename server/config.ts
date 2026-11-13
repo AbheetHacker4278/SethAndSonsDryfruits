@@ -82,7 +82,7 @@ export function loadConfig(): AppConfig {
       : 'smtp';
 
   const appUrl = get('APP_URL', 'http://localhost:3000').replace(/\/+$/, '');
-  const adminUrl = get('ADMIN_URL', 'http://localhost:8000').replace(/\/+$/, '');
+  const adminUrl = get('ADMIN_URL', nodeEnv === 'production' ? appUrl : 'http://localhost:8000').replace(/\/+$/, '');
   const emailFrom = get('EMAIL_FROM', 'abheetseth203@gmail.com');
 
   return {
