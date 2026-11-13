@@ -60,18 +60,24 @@ async function main() {
   };
 
   if (config.isProduction) {
-    const storefrontServer = http.createServer(requestListener).listen(config.port, '0.0.0.0', () => {
+    const mainServer = http.createServer(requestListener).listen(config.port, '0.0.0.0', () => {
       console.log(
-        `[Seth And Sons Storefront] Listening on http://localhost:${config.port} (env=${config.nodeEnv})`
+        `[Seth And Sons Application] Listening on port ${config.port} (env=${config.nodeEnv})`
       );
     });
-    servers.push(storefrontServer);
+    servers.push(mainServer);
 
-    if (config.adminPort !== config.port) {
-      const adminServer = http.createServer(requestListener).listen(config.adminPort, '0.0.0.0', () => {
-        console.log(`[Seth And Sons Admin Portal] Listening on http://localhost:${config.adminPort}`);
-      });
-      servers.push(adminServer);
+    // Only start a separate admin listener in production if ADMIN_PORT is explicitly set and distinct
+    const hasExplicitAdminPort = Boolean(process.env.ADMIN_PORT && Number(process.env.ADMIN_PORT) !== config.port);
+    if (hasExplicitAdminPort) {
+      try {
+        const adminServer = http.createServer(requestListener).listen(config.adminPort, '0.0.0.0', () => {
+          console.log(`[Seth And Sons Admin Portal] Listening on http://localhost:${config.adminPort}`);
+        });
+        servers.push(adminServer);
+      } catch (err) {
+        console.warn('[Seth And Sons Admin Portal] Could not bind separate admin port:', err);
+      }
     }
   } else {
     const apiServer = http.createServer(requestListener).listen(config.apiPort, '0.0.0.0', () => {

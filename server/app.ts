@@ -141,13 +141,25 @@ export async function createApp(overrides?: {
 
   // Production static SPA serving when dist exists
   const distDir = path.resolve(process.cwd(), 'dist');
-  if (fs.existsSync(distDir) && config.isProduction) {
-    app.use(express.static(distDir));
+  if (fs.existsSync(distDir)) {
+    app.use(
+      express.static(distDir, {
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+          if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+          }
+        },
+      })
+    );
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
         next();
         return;
       }
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }
