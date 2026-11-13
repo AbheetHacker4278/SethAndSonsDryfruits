@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PRODUCTS, type CatalogProduct } from '../data/products';
 import {
   ApiError,
@@ -188,21 +189,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    googleOAuthEnabled,
+    products,
+    categories,
+    publicSettings,
+    refreshProducts,
+    refreshPublicSettings,
+    refreshUser,
+    setUser,
+    logout,
+  }), [user, loading, googleOAuthEnabled, products, categories, publicSettings, refreshProducts, refreshPublicSettings, refreshUser, setUser, logout]);
+
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        googleOAuthEnabled,
-        products,
-        categories,
-        publicSettings,
-        refreshProducts,
-        refreshPublicSettings,
-        refreshUser,
-        setUser,
-        logout,
-      }}
+      value={contextValue}
     >
       {children}
     </AuthContext.Provider>
