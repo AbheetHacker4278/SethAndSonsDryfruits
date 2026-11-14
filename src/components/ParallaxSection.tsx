@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Sparkles, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PRODUCTS } from '../data/products';
+import { useAuth } from '../context/AuthContext';
+import { formatINR } from '../utils/priceCalculator';
 
 // Register GSAP plugins
 if (typeof window !== 'undefined') {
@@ -97,11 +99,24 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
     return () => ctx.revert();
   }, []);
 
-  const featured = [
-    PRODUCTS.find(p => p.id === 'kaju')!,
-    PRODUCTS.find(p => p.id === 'kesar')!,
-    PRODUCTS.find(p => p.id === 'pista')!
-  ];
+  const { products } = useAuth();
+
+  const featured = useMemo(() => {
+    const catalog = products && products.length > 0 ? products : PRODUCTS;
+    // Filter published products and sort descending by selling price
+    const sorted = [...catalog]
+      .filter(p => !p.status || p.status === 'published')
+      .sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+
+    const top1 = sorted[0]; // #1 highest selling price
+    const top2 = sorted[1]; // #2 highest selling price
+    const top3 = sorted[2]; // #3 highest selling price
+
+    // Position highest selling price product in center card (index 1) for elevated visual prominence
+    const list = [top2, top1, top3].filter(Boolean);
+    if (list.length >= 3) return list;
+    return sorted.slice(0, 3);
+  }, [products]);
 
   return (
     <section
@@ -128,7 +143,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
             ref={headlineRef}
             className="font-serif text-3xl sm:text-5xl lg:text-6xl font-normal text-[#f9f6f2] tracking-tight leading-tight"
           >
-            Top Selling Product
+            Top Selling Products
           </h2>
 
           <p className="mt-4 text-base sm:text-lg text-[#d5c4b4]/80 font-sans leading-relaxed">
@@ -228,7 +243,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
                   <p className="text-xs text-[#d5c4b4]/80 mt-2 line-clamp-2">{prod.description}</p>
                   <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#38281d]">
                     <span className="text-base font-bold text-[#dfc471] tabular-nums">
-                      ₹{prod.price} / {prod.unit}
+                      {formatINR(prod.price)} / {prod.unit}
                     </span>
                     <button
                       onClick={() => onRequestPurchase(prod.id)}
