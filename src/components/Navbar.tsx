@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ShoppingBag, User, Clock } from 'lucide-react';
+import { Menu, X, ShoppingBag, User, Clock, LogOut, ChevronDown } from 'lucide-react';
 import AnimatedLogo from './AnimatedLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,15 +14,46 @@ interface NavbarProps {
 export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileMenuOpen]);
+
+  // Close menus on route change
+  useEffect(() => {
+    setIsProfileMenuOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const handleLogout = async () => {
+    setIsProfileMenuOpen(false);
+    setIsMobileMenuOpen(false);
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
+  };
 
   const isHome = location.pathname === '/';
 
@@ -112,18 +143,78 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <Link
-            to={user ? '/account' : '/login'}
-            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${user || location.pathname === '/login' || location.pathname === '/account'
-              ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
-              : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
+          {user ? (
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen(prev => !prev)}
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                  isProfileMenuOpen || location.pathname === '/account'
+                    ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]'
+                    : 'bg-[#251a13]/80 text-[#dfc471] border-[#dfc471]/50 hover:border-[#dfc471]'
+                }`}
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="true"
+                aria-label="User profile menu"
+              >
+                <User className="w-3.5 h-3.5 text-[#dfc471]" />
+                <span className="hidden sm:inline whitespace-nowrap">
+                  {user.name.split(' ')[0]}
+                </span>
+                <ChevronDown
+                  className={`w-3 h-3 text-[#dfc471]/80 transition-transform duration-200 ${
+                    isProfileMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {isProfileMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-2 w-48 sm:w-56 rounded-2xl bg-[#150d09] border border-[#dfc471]/40 shadow-[0_12px_40px_rgba(0,0,0,0.95)] backdrop-blur-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+                >
+                  <div className="px-3 py-2 border-b border-[#251a13]">
+                    <p className="text-xs font-semibold text-[#f9f6f2] truncate">{user.name}</p>
+                    <p className="text-[11px] text-[#d5c4b4]/70 truncate">{user.email}</p>
+                  </div>
+
+                  <div className="pt-1 space-y-0.5">
+                    <Link
+                      to="/account"
+                      role="menuitem"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-[#ede4dc] hover:text-[#dfc471] hover:bg-[#251a13] transition-colors"
+                    >
+                      <User className="w-4 h-4 text-[#dfc471]" />
+                      <span>Profile</span>
+                    </Link>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-950/40 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${
+                location.pathname === '/login'
+                  ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
+                  : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
               }`}
-          >
-            <User className="w-3.5 h-3.5 text-[#dfc471]" />
-            <span className="hidden sm:inline whitespace-nowrap">
-              {user ? user.name.split(' ')[0] : 'Sign In'}
-            </span>
-          </Link>
+            >
+              <User className="w-3.5 h-3.5 text-[#dfc471]" />
+              <span className="hidden sm:inline whitespace-nowrap">Sign In</span>
+            </Link>
+          )}
 
           <button
             type="button"
@@ -209,13 +300,34 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           <Link to="/customer-service" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 border-b border-[#251a13] text-[#d5c4b4]">
             Customer Service
           </Link>
-          <Link
-            to={user ? '/account' : '/login'}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="block py-2 text-[#dfc471]"
-          >
-            {user ? `Account (${user.name})` : 'Sign In / Register'}
-          </Link>
+          {user ? (
+            <div className="pt-2 border-t border-[#251a13] space-y-1">
+              <Link
+                to="/account"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-2 py-2 text-[#dfc471]"
+              >
+                <User className="w-4 h-4" />
+                <span>Profile ({user.name})</span>
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 py-2 text-red-400 w-full text-left cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block py-2 text-[#dfc471]"
+            >
+              Sign In / Register
+            </Link>
+          )}
         </div>
       )}
     </header>
