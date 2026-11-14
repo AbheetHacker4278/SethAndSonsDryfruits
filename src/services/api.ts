@@ -118,6 +118,10 @@ export interface PersistedOrder {
   items: PersistedOrderItem[];
   shipment: OrderShipment | null;
   statusHistory: OrderStatusHistoryEntry[];
+  orderSource?: string;
+  paymentReference?: string | null;
+  paymentScreenshotUrl?: string | null;
+  internalNotes?: string | null;
   emailLogs?: EmailLogItem[];
 }
 

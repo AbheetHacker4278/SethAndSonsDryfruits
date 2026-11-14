@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { BRAND_CONFIG, parseWeightGrams } from '../../shared/catalogSeed.ts';
+import { BRAND_CONFIG, parseWeightGrams, calculateOrderShippingCharge, getVariantStockUnits } from '../../shared/catalogSeed.ts';
 import {
   ALL_ADMIN_PERMISSIONS,
   DEFAULT_BUSINESS_SETTINGS,
@@ -66,6 +66,7 @@ function makeUploader(allowPdf = false) {
 const productImgUpload = makeUploader(false);
 const invoiceDocUpload = makeUploader(true);
 const receiptUpload = makeUploader(true);
+const paymentProofUpload = makeUploader(true);
 
 const erpProductSchema = z.object({
   name: z.string().trim().min(2, 'Product name is required'),
@@ -1555,6 +1556,343 @@ export function createAdminErpRouter(
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${hydrated.orderNumber}.pdf"`);
     res.send(pdfBuf);
+  });
+
+  router.post(
+    '/orders/upload-payment-proof',
+    requirePermission('orders'),
+    paymentProofUpload.single('paymentProof'),
+    async (req, res) => {
+      if (!req.file) {
+        res.status(400).json({ error: 'Please upload a valid image or PDF payment receipt.' });
+        return;
+      }
+      try {
+        const uploaded = await mediaStorage.uploadBuffer({
+          buffer: req.file.buffer,
+          filename: `payment_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+          folder: 'sethandsons/orders/payments',
+          mimeType: req.file.mimetype,
+          resourceType: req.file.mimetype === 'application/pdf' ? 'raw' : 'image',
+        });
+        res.json({ paymentScreenshotUrl: uploaded.url, publicId: uploaded.publicId });
+      } catch (err) {
+        res.status(500).json({ error: err instanceof Error ? err.message : 'Upload failed.' });
+      }
+    }
+  );
+
+  router.post('/orders', requirePermission('orders'), async (req, res) => {
+    const body = req.body || {};
+    const orderSource = ['whatsapp', 'phone', 'direct', 'instagram', 'manual'].includes(body.orderSource)
+      ? body.orderSource
+      : 'whatsapp';
+
+    const customerName = typeof body.customerName === 'string' ? body.customerName.trim() : '';
+    const customerPhone = typeof body.customerPhone === 'string' ? body.customerPhone.trim() : '';
+    const customerEmail = typeof body.customerEmail === 'string' && body.customerEmail.trim()
+      ? normalizeEmail(body.customerEmail.trim())
+      : '';
+
+    if (!customerName || customerName.length < 2) {
+      res.status(400).json({ error: 'Customer name is required (min 2 characters).' });
+      return;
+    }
+    if (!customerPhone || customerPhone.length < 5) {
+      res.status(400).json({ error: 'Customer contact/phone number is required.' });
+      return;
+    }
+
+    const deliveryAddress = typeof body.deliveryAddress === 'string' ? body.deliveryAddress.trim() : '';
+    const city = typeof body.city === 'string' ? body.city.trim() : '';
+    const state = typeof body.state === 'string' ? body.state.trim() : '';
+    const pincode = typeof body.pincode === 'string' ? body.pincode.trim() : '';
+
+    if (!deliveryAddress || !city || !state || !pincode) {
+      res.status(400).json({ error: 'Complete delivery address, city, state, and pincode are required.' });
+      return;
+    }
+
+    const rawItems = Array.isArray(body.items) ? body.items : [];
+    if (rawItems.length === 0) {
+      res.status(400).json({ error: 'Please select at least one product from the catalog.' });
+      return;
+    }
+
+    const paymentMethodRaw = typeof body.paymentMethod === 'string' ? body.paymentMethod.toLowerCase() : 'upi';
+    const paymentMethod = paymentMethodRaw === 'cash' ? 'Cash' : paymentMethodRaw === 'card' ? 'Card' : 'UPI';
+    const paymentStatus = ['paid', 'pending', 'cod'].includes(body.paymentStatus) ? body.paymentStatus : 'paid';
+    const paymentReference = typeof body.paymentReference === 'string' ? body.paymentReference.trim() : '';
+    const paymentScreenshotUrl = typeof body.paymentScreenshotUrl === 'string' ? body.paymentScreenshotUrl.trim() : '';
+    const internalNotes = typeof body.internalNotes === 'string' ? body.internalNotes.trim() : '';
+    const instructions = typeof body.instructions === 'string' ? body.instructions.trim() : '';
+
+    const now = new Date().toISOString();
+
+    // 1. Lookup or create Customer
+    let customer = await db.models.Customer.findOne({
+      $or: [{ phone: customerPhone }, ...(customerEmail ? [{ email: customerEmail }] : [])],
+    }).lean();
+
+    if (!customer) {
+      const generatedEmail = customerEmail || `patron-${customerPhone.replace(/\D/g, '') || Date.now()}@sethandsons.store`;
+      const newCustDoc = await db.models.Customer.create({
+        id: `cust_${crypto.randomUUID()}`,
+        name: customerName,
+        phone: customerPhone,
+        email: generatedEmail,
+        role: 'customer',
+        status: 'active',
+        verified: true,
+        source: orderSource,
+        totalOrders: 0,
+        totalSpent: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      customer = newCustDoc.toObject ? newCustDoc.toObject() : newCustDoc;
+    }
+
+    // 2. Resolve items
+    const resolvedItems: Array<{
+      productId: string;
+      variantId: string | null;
+      weightLabel: string | null;
+      productName: string;
+      productImage: string;
+      category: string;
+      unit: string;
+      purchasePrice: number;
+      unitPrice: number;
+      quantity: number;
+      stockQuantity: number | null;
+      subtotal: number;
+      currentStock: number;
+      variantStockRemaining: number | null;
+    }> = [];
+
+    let totalCostOfGoods = 0;
+
+    for (const rawItem of rawItems) {
+      const prodId = String(rawItem.productId || '').trim();
+      const qty = Math.max(0.1, Number(rawItem.quantity || 1));
+      if (!prodId) continue;
+
+      const product = await db.models.Product.findOne({ id: prodId }).lean();
+      if (!product) {
+        res.status(400).json({ error: `Selected product '${prodId}' not found in catalog.` });
+        return;
+      }
+
+      let variantId: string | null = null;
+      let weightLabel: string | null = rawItem.weightLabel || null;
+      let unitPrice = typeof rawItem.unitPrice === 'number' && rawItem.unitPrice > 0 ? rawItem.unitPrice : Number(product.price);
+      let purchasePrice = Number(product.purchasePrice || 0);
+      let variantStockRemaining: number | null = null;
+
+      if (rawItem.variantId) {
+        const variant = await db.models.ProductVariant.findOne({ id: rawItem.variantId, productId: prodId }).lean();
+        if (variant) {
+          variantId = variant.id;
+          weightLabel = variant.weightLabel;
+          if (!rawItem.unitPrice) {
+            unitPrice = Number(variant.sellingPrice || product.price);
+          }
+          if (variant.purchasePrice) {
+            purchasePrice = Number(variant.purchasePrice);
+          }
+          variantStockRemaining = Math.max(0, Number(((variant.stock || 0) - qty).toFixed(2)));
+        }
+      }
+
+      const itemSubtotal = Math.round(unitPrice * qty);
+      const itemCost = Math.round(purchasePrice * qty);
+      totalCostOfGoods += itemCost;
+
+      const baseUnitsToDeduct = weightLabel
+        ? getVariantStockUnits(weightLabel, (product.unit as any) || 'kg') * qty
+        : qty;
+
+      resolvedItems.push({
+        productId: product.id,
+        variantId,
+        weightLabel,
+        productName: product.name,
+        productImage: product.image || '/assets/products/akhrot.jpg',
+        category: product.category || 'nuts',
+        unit: product.unit || 'kg',
+        purchasePrice,
+        unitPrice,
+        quantity: qty,
+        stockQuantity: baseUnitsToDeduct,
+        subtotal: itemSubtotal,
+        currentStock: Number(product.stock || 0),
+        variantStockRemaining,
+      });
+    }
+
+    if (resolvedItems.length === 0) {
+      res.status(400).json({ error: 'Please select valid items from the catalog.' });
+      return;
+    }
+
+    // 3. Compute totals
+    const subtotal = resolvedItems.reduce((acc, it) => acc + it.subtotal, 0);
+    const shippingCharge =
+      typeof body.shippingCharge === 'number' && Number.isFinite(body.shippingCharge)
+        ? Math.max(0, body.shippingCharge)
+        : calculateOrderShippingCharge(resolvedItems, subtotal);
+    const discountAmount = Math.max(0, Math.min(subtotal, Number(body.discountAmount || 0)));
+    const totalAmount = Math.max(0, subtotal - discountAmount + shippingCharge);
+
+    // 4. Create Order
+    const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${crypto.randomInt(100, 999)}`;
+    const orderId = `ord_${crypto.randomUUID()}`;
+
+    const deliveryAddressObj = {
+      fullName: customerName,
+      mobileNumber: customerPhone,
+      email: customerEmail || customer.email || '',
+      deliveryAddress,
+      city,
+      state,
+      pincode,
+    };
+
+    const customerSnapshot = {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+    };
+
+    const createdOrder = await db.models.Order.create({
+      id: orderId,
+      orderNumber,
+      customerId: customer.id,
+      orderType: 'standard',
+      status: 'confirmed',
+      orderSource,
+      paymentMethod,
+      paymentStatus,
+      paymentReference: paymentReference || null,
+      paymentScreenshotUrl: paymentScreenshotUrl || null,
+      subtotal,
+      discountAmount,
+      couponCode: body.couponCode ? String(body.couponCode).trim() : null,
+      shippingCharge,
+      taxAmount: 0,
+      totalAmount,
+      costOfGoods: totalCostOfGoods,
+      deliveryAddress: deliveryAddressObj,
+      customerSnapshot,
+      instructions,
+      internalNotes: internalNotes || `Manual order placed via ${orderSource.toUpperCase()} (logged by admin ${req.user!.email}).`,
+      estimatedDeliveryEstimate: '2-4 Business Days',
+      confirmedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // 5. Create OrderItems & Deduct Stock
+    for (const ri of resolvedItems) {
+      await db.models.OrderItem.create({
+        id: `oi_${crypto.randomUUID()}`,
+        orderId,
+        productId: ri.productId,
+        variantId: ri.variantId,
+        weightLabel: ri.weightLabel,
+        productName: ri.productName,
+        productImage: ri.productImage,
+        category: ri.category,
+        unit: ri.unit,
+        purchasePrice: ri.purchasePrice,
+        unitPrice: ri.unitPrice,
+        quantity: ri.quantity,
+        stockQuantity: ri.stockQuantity,
+        subtotal: ri.subtotal,
+      });
+
+      const deductAmt = ri.stockQuantity !== null ? ri.stockQuantity : ri.quantity;
+      const newStock = Math.max(0, Number((ri.currentStock - deductAmt).toFixed(2)));
+      await db.models.Product.updateOne(
+        { id: ri.productId },
+        { $set: { stock: newStock, inStock: newStock > 0, updatedAt: now } }
+      );
+
+      if (ri.variantId && ri.variantStockRemaining !== null) {
+        await db.models.ProductVariant.updateOne(
+          { id: ri.variantId },
+          { $set: { stock: ri.variantStockRemaining, updatedAt: now } }
+        );
+      }
+
+      await syncInventoryRecord(db, ri.productId);
+
+      await db.models.InventoryTransaction.create({
+        id: `invtx_${crypto.randomUUID()}`,
+        productId: ri.productId,
+        variantId: ri.variantId,
+        movementType: 'sale',
+        quantity: -deductAmt,
+        previousStock: ri.currentStock,
+        updatedStock: newStock,
+        unitCost: ri.purchasePrice,
+        reason: `Manual Order #${orderNumber} (${orderSource.toUpperCase()})`,
+        adminId: req.user!.id,
+        adminName: req.user!.email,
+        timestamp: now,
+      });
+    }
+
+    // 6. Create Initial Status History
+    await db.models.OrderStatusHistory.create({
+      id: `osh_${crypto.randomUUID()}`,
+      orderId,
+      previousStatus: null,
+      newStatus: 'confirmed',
+      notes: `Manual order created and confirmed via ${orderSource.toUpperCase()}.`,
+      updatedBy: req.user!.email,
+      timestamp: now,
+    });
+
+    // 7. Update Customer Metrics
+    await db.models.Customer.updateOne(
+      { id: customer.id },
+      {
+        $inc: { totalOrders: 1, totalSpent: totalAmount },
+        $set: { lastOrderDate: now, updatedAt: now },
+      }
+    );
+
+    // 8. Audit Log
+    await logAudit(db, {
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'manual_order_created',
+      entityType: 'order',
+      entityId: orderNumber,
+      details: {
+        orderNumber,
+        orderSource,
+        paymentMethod,
+        paymentStatus,
+        paymentReference,
+        hasScreenshot: Boolean(paymentScreenshotUrl),
+        totalAmount,
+        itemCount: resolvedItems.length,
+      },
+      ipAddress: req.ip || '',
+    });
+
+    const hydrated = (await hydrateOrder(db, createdOrder.toObject ? createdOrder.toObject() : createdOrder)) as any;
+
+    res.status(201).json({
+      ok: true,
+      message: `Manual order #${orderNumber} created successfully.`,
+      order: hydrated,
+      invoiceUrl: `/api/admin/orders/${encodeURIComponent(orderNumber)}/invoice.pdf`,
+    });
   });
 
   // =============================================
