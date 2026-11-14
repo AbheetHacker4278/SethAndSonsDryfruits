@@ -100,7 +100,7 @@ export default function HarvestVideoShowcase({
     setIsMuted(video.muted);
   };
 
-  const posterImage = currentProduct.image.endsWith('.jpg')
+  const posterImage = (currentProduct.image.startsWith('/assets/') && currentProduct.image.endsWith('.jpg'))
     ? currentProduct.image.replace('.jpg', '.webp')
     : currentProduct.image;
 

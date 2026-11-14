@@ -13,15 +13,12 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
   const [imageError, setImageError] = useState(false);
   const [fallbackAttempted, setFallbackAttempted] = useState(false);
 
-  // Clean gallery by filtering any unreachable dummy links and falling back to provided images
-  const rawGallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image];
-  const cleanGallery = rawGallery.filter(img => typeof img === 'string' && img.trim().length > 0 && !img.includes('shreeramdryfruits'));
-  const gallery = cleanGallery.length > 0
-    ? cleanGallery
-    : [product.fallbackImage || product.image || '/assets/products/akhrot.jpg'];
+  const gallery = (product.gallery && product.gallery.length > 0)
+    ? product.gallery
+    : [product.image];
 
   const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const activeImg = gallery[activeImgIndex] || product.image || product.fallbackImage || '';
+  const activeImg = gallery[activeImgIndex] || product.image || '';
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -33,11 +30,12 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
     setActiveImgIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1));
   };
 
+  const fallback = product.fallbackImage || '/assets/products/akhrot.jpg';
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.currentTarget;
-    if (!fallbackAttempted && product.fallbackImage && target.src !== product.fallbackImage) {
+    if (!fallbackAttempted && fallback && !target.src.endsWith(fallback)) {
       setFallbackAttempted(true);
-      target.src = product.fallbackImage;
+      target.src = fallback;
       return;
     }
     setImageError(true);
@@ -52,10 +50,10 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         {/* Subtle background glow */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#150d09] via-transparent to-transparent z-10 opacity-70 group-hover:opacity-40 transition-opacity pointer-events-none" />
 
-        {/* Clean, authentic product image */}
+        {/* Clean product image */}
         {!imageError && activeImg ? (
           <picture className="w-full h-full block">
-            {activeImg.endsWith('.jpg') && (
+            {activeImg.startsWith('/assets/') && activeImg.endsWith('.jpg') && (
               <source srcSet={activeImg.replace(/\.jpg$/, '.webp')} type="image/webp" />
             )}
             <img

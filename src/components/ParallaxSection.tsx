@@ -163,7 +163,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
 
                 <div className={`aspect-[4/3] w-full overflow-hidden relative ${isCenter ? 'bg-[#251a13]' : 'bg-[#1c120c]'}`}>
                   <img
-                    src={currentImg.endsWith('.jpg') ? currentImg.replace('.jpg', '.webp') : currentImg}
+                    src={currentImg.startsWith('/assets/') && currentImg.endsWith('.jpg') ? currentImg.replace('.jpg', '.webp') : currentImg}
                     alt={prod.name}
                     width="400"
                     height="300"

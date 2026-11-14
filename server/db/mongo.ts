@@ -1307,17 +1307,9 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         { upsert: true }
       );
 
-      // Ensure existing documents with obsolete external dummy image URLs are updated to the provided images
+      // Sync product image and gallery to seed
       await models.Product.updateOne(
-        {
-          id: p.id,
-          $or: [
-            { image: { $regex: 'shreeramdryfruits' } },
-            { gallery: { $elemMatch: { $regex: 'shreeramdryfruits' } } },
-            { fallbackImage: { $regex: 'shreeramdryfruits' } },
-            { image: { $in: [null, ''] } },
-          ],
-        },
+        { id: p.id },
         {
           $set: {
             image: p.image,
@@ -1469,25 +1461,6 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
       await syncInventoryRecord(db, prod.id);
     }
   }
-
-  // Catch-all: update any remaining product in DB with legacy dummy images to local authentic fallback
-  await models.Product.updateMany(
-    {
-      $or: [
-        { image: { $regex: 'shreeramdryfruits' } },
-        { gallery: { $elemMatch: { $regex: 'shreeramdryfruits' } } },
-        { fallbackImage: { $regex: 'shreeramdryfruits' } },
-      ],
-    },
-    {
-      $set: {
-        image: '/assets/products/akhrot.jpg',
-        fallbackImage: '/assets/products/akhrot.jpg',
-        gallery: ['/assets/products/akhrot.jpg'],
-        images: ['/assets/products/akhrot.jpg'],
-      },
-    }
-  );
 
   // 5. Seed all Email Templates (customer & admin transactional + marketing)
   for (const tpl of DEFAULT_EMAIL_TEMPLATES) {
