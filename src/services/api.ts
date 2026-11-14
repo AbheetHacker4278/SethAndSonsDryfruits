@@ -377,9 +377,37 @@ export function validateSupportFiles(
   return { accepted: next, error };
 }
 
+let memoryCsrf = '';
+
+export function setMemoryCsrfToken(token: string): void {
+  if (token && token.length >= 16) {
+    memoryCsrf = token;
+  }
+}
+
+export function getApiBaseUrl(): string {
+  const envUrl = (
+    (typeof import.meta !== 'undefined' && import.meta.env
+      ? import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL
+      : '') || ''
+  ).trim();
+  return envUrl ? envUrl.replace(/\/+$/, '') : '';
+}
+
+export function toApiUrl(path: string): string {
+  if (!path || path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = getApiBaseUrl();
+  if (!base) return path;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${cleanPath}`;
+}
+
 function getCsrfToken(): string {
-  const match = document.cookie.match(/(?:^|;\s*)as_csrf=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : '';
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|;\s*)as_csrf=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return memoryCsrf;
 }
 
 function getPortalScope(): 'admin' | 'storefront' {
@@ -434,12 +462,18 @@ export async function apiRequest<T = any>(
     if (csrf) headers['X-CSRF-Token'] = csrf;
   }
 
-  const res = await fetch(path, {
+  const fullUrl = toApiUrl(path);
+  const res = await fetch(fullUrl, {
     method,
     headers,
     credentials: 'include',
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+
+  const serverCsrf = res.headers.get('x-csrf-token');
+  if (serverCsrf) {
+    setMemoryCsrfToken(serverCsrf);
+  }
 
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
@@ -471,12 +505,18 @@ export async function apiUpload<T = any>(path: string, formData: FormData): Prom
   };
   if (csrf) headers['X-CSRF-Token'] = csrf;
 
-  const res = await fetch(path, {
+  const fullUrl = toApiUrl(path);
+  const res = await fetch(fullUrl, {
     method: 'POST',
     headers,
     credentials: 'include',
     body: formData,
   });
+
+  const serverCsrf = res.headers.get('x-csrf-token');
+  if (serverCsrf) {
+    setMemoryCsrfToken(serverCsrf);
+  }
 
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) {

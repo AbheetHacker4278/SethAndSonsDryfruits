@@ -168,17 +168,21 @@ function shouldUseSecureCookie(config: AppConfig, req?: Request): boolean {
 export function ensureCsrfCookie(config: AppConfig) {
   return (req: Request, res: Response, next: NextFunction) => {
     let csrfToken = req.cookies?.[CSRF_COOKIE_NAME] as string | undefined;
+    const isHttps = shouldUseSecureCookie(config, req);
     if (!csrfToken) {
       csrfToken = crypto.randomBytes(24).toString('hex');
       res.cookie(CSRF_COOKIE_NAME, csrfToken, {
         httpOnly: false,
-        sameSite: 'lax',
-        secure: shouldUseSecureCookie(config, req),
+        sameSite: isHttps ? 'none' : 'lax',
+        secure: isHttps,
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
-      req.cookies[CSRF_COOKIE_NAME] = csrfToken;
+      if (req.cookies) {
+        req.cookies[CSRF_COOKIE_NAME] = csrfToken;
+      }
     }
+    res.setHeader('X-CSRF-Token', csrfToken);
     next();
   };
 }
@@ -384,10 +388,11 @@ export function setSessionCookie(
 ) {
   const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
   const cookieName = getSessionCookieName(res.req);
+  const isHttps = shouldUseSecureCookie(config, res.req);
   res.cookie(cookieName, rawToken, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: shouldUseSecureCookie(config, res.req),
+    sameSite: isHttps ? 'none' : 'lax',
+    secure: isHttps,
     path: '/',
     maxAge,
   });
@@ -395,10 +400,11 @@ export function setSessionCookie(
 
 export function clearSessionCookie(res: Response, config: AppConfig) {
   const cookieName = getSessionCookieName(res.req);
+  const isHttps = shouldUseSecureCookie(config, res.req);
   res.clearCookie(cookieName, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: shouldUseSecureCookie(config, res.req),
+    sameSite: isHttps ? 'none' : 'lax',
+    secure: isHttps,
     path: '/',
   });
 }

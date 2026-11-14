@@ -107,6 +107,24 @@ export async function createApp(overrides?: {
   app.set('trust proxy', 1);
 
   app.use(securityHeaders);
+
+  // Cross-origin resource sharing (CORS) for separate frontend deployments (e.g. Render Static Site)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Portal-Scope, Authorization');
+      res.setHeader('Access-Control-Expose-Headers', 'X-CSRF-Token');
+    }
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
   app.use(cookieParser(config.cookieSecret));
   app.use(
     express.json({

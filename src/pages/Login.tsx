@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import ScrollReveal from '../components/ScrollReveal';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest, ApiError, AuthUser } from '../services/api';
+import { apiRequest, ApiError, AuthUser, toApiUrl } from '../services/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -178,7 +178,7 @@ export default function Login() {
                   <div className="border-t border-[#38281d] w-full" />
                 </div>
                 <a
-                  href="/api/auth/google"
+                  href={toApiUrl('/api/auth/google')}
                   className="w-full py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#1c120c] hover:bg-[#251a13] text-[#f9f6f2] border border-[#38281d] hover:border-[#dfc471]/50 transition-colors flex items-center justify-center gap-2"
                 >
                   <span>Continue with Google</span>

@@ -1,118 +1,95 @@
 # Deploying Seth And Sons Dryfruits to Render
 
-This guide outlines how to deploy the **Seth And Sons Dryfruits** full-stack application (Vite React Storefront + Admin ERP Portal + Express API + MongoDB) onto **Render**.
+This guide outlines how to deploy **Seth And Sons Dryfruits** onto **Render** to achieve **zero cold starts** on the frontend while maintaining the full Express & MongoDB backend.
 
 ---
 
-## Architecture Overview on Render
+## ⚡ Zero Cold Start Architecture
 
-- **Web Service Type**: Single unified Node.js Web Service.
-- **Frontend**: Pre-built via Vite (`npm run build`), served with high-performance static asset caching (1-year immutable for `/assets/`, fresh revalidation for `index.html`).
-- **Backend & ERP**: Express 4 server running on Node 20+ with automatic connection retry and preflight health checks.
-- **Health Check Endpoint**: `/api/health` (returns database and service status).
+Render Free-tier Web Services go to sleep after 15 minutes of inactivity and take ~50 seconds to wake up (showing the *"Service Waking Up"* screen). 
 
----
-
-## Option 1: Automatic Blueprint Deployment (Recommended)
-
-The repository includes a ready-to-use [`render.yaml`](./render.yaml) blueprint specification.
-
-1. Log in to your [Render Dashboard](https://dashboard.render.com/).
-2. Click **New +** in the top right corner and choose **Blueprint**.
-3. Connect your GitHub repository: `AbheetHacker4278/SethAndSonsDryfruits`.
-4. Render will read `render.yaml` and configure the web service automatically:
-   - **Service Name**: `seth-and-sons-dryfruits`
-   - **Runtime**: `Node`
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npm start`
-   - **Health Check Path**: `/api/health`
-5. Fill in the required environment variables prompted by Render (see list below).
-6. Click **Apply** to trigger the initial build and deployment.
+To completely eliminate this:
+1. **Frontend (Render Static Site)**:
+   - Hosted on Render's global **Edge CDN**.
+   - **Never sleeps** — 0ms cold start, 100% instant initial page loads for all visitors.
+   - Serves the luxury black-and-gold storefront, hero videos, product catalog, and brand story immediately.
+2. **Backend (Render Web Service)**:
+   - Runs the Express API and connects to MongoDB Atlas at `https://sethandsonsdryfruits.onrender.com`.
+   - Wakes up in the background for authenticated/dynamic requests while the user is already browsing the site.
 
 ---
 
-## Option 2: Manual Web Service Setup
+## Deploying the Frontend as a Render Static Site (No Cold Start)
 
-If you prefer to configure the Web Service manually via the Render UI:
-
-1. In Render Dashboard, click **New +** → **Web Service**.
-2. Connect your GitHub repository: `AbheetHacker4278/SethAndSonsDryfruits`.
-3. Configure the following fields:
-   - **Name**: `seth-and-sons-dryfruits` (or your preferred name)
-   - **Region**: `Singapore` (optimal latency for India / Jammu visitors) or `Frankfurt` / `Oregon`
+### Step 1: Create Static Site on Render
+1. Open your [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** in the top right → select **Static Site**.
+3. Connect your repository: **`AbheetHacker4278/SethAndSonsDryfruits`**.
+4. Configure the settings:
+   - **Name**: `seth-and-sons-dryfruits-web` (or any preferred name)
    - **Branch**: `main`
-   - **Root Directory**: Leave blank (repo root)
+   - **Build Command**: `npm install && npm run build`
+   - **Publish Directory**: `dist`
+5. **Add Client-Side Routing Rewrite Rule (Important for SPAs)**:
+   - Scroll down to **Redirects / Rewrites**.
+   - Click **Add Rule**:
+     - **Type**: `Rewrite`
+     - **Source**: `/*`
+     - **Destination**: `/index.html`
+   > *This ensures routes like `/catalog`, `/orders`, `/login`, and `/admin/*` load cleanly on page refreshes.*
+6. **Set Environment Variable**:
+   - In the **Environment** tab of the Static Site, add:
+     - `VITE_API_URL` = `https://sethandsonsdryfruits.onrender.com` *(or your Backend Web Service URL)*
+7. Click **Create Static Site**.
+
+Once built, Render will give you a public URL (e.g. `https://seth-and-sons-dryfruits-web.onrender.com`) that **loads instantly without ever spinning down**!
+
+---
+
+## Deploying the Backend API as a Render Web Service
+
+If you haven't already deployed the backend Web Service:
+
+1. Click **New +** → **Web Service**.
+2. Connect `AbheetHacker4278/SethAndSonsDryfruits`.
+3. Configure:
+   - **Name**: `seth-and-sons-dryfruits`
    - **Runtime**: `Node`
+   - **Region**: `Singapore`
+   - **Branch**: `main`
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm start`
-   - **Instance Type**: `Free` or `Starter`
-4. Expand **Advanced**:
    - **Health Check Path**: `/api/health`
-   - **Auto-Deploy**: `Yes` (deploys on every `git push origin main`)
-5. Add the **Environment Variables** (listed below).
-6. Click **Create Web Service**.
+4. Add the Environment Variables:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000`
+   - `MONGODB_URI`: Your MongoDB Atlas connection string
+   - `COOKIE_SECRET`: Any random 32+ character string
+   - `APP_URL`: Your Frontend URL (e.g. `https://seth-and-sons-dryfruits-web.onrender.com` or custom domain)
+   - `ADMIN_URL`: `https://seth-and-sons-dryfruits-web.onrender.com`
+   - `EMAIL_FROM`: `abheetseth203@gmail.com`
+   - `EMAIL_PROVIDER`: `brevo` or `smtp`
+   - `BREVO_API_KEY` / `SMTP_*`: Your email credentials
+5. Whitelist `0.0.0.0/0` in **MongoDB Atlas** → **Network Access**.
 
 ---
 
-## Environment Variables Reference
+## Option: 1-Click Blueprint (`render.yaml`)
 
-Add these under the **Environment** tab of your Render service:
+Both the **Static Site** and the **Web Service** are pre-configured in [`render.yaml`](./render.yaml).
 
-| Variable | Required | Description / Example Value |
-|---|---|---|
-| `NODE_ENV` | **Yes** | `production` |
-| `PORT` | Auto | Render assigns `10000` automatically. |
-| `MONGODB_URI` | **Yes** | `mongodb+srv://<user>:<password>@cluster0.xxx.mongodb.net/seth_and_sons?retryWrites=true&w=majority` |
-| `COOKIE_SECRET` | **Yes** | Random 32+ character string (e.g. `seth-sons-prod-session-secret-2026!`) |
-| `APP_URL` | **Yes** | Your Render service URL: `https://seth-and-sons-dryfruits.onrender.com` |
-| `ADMIN_URL` | Optional | Defaults to `APP_URL`. Set if using a custom admin domain. |
-| `EMAIL_FROM` | **Yes** | `abheetseth203@gmail.com` |
-| `EMAIL_FROM_NAME` | Optional | `Seth And Sons DryFruits` |
-| `EMAIL_PROVIDER` | Optional | `smtp`, `brevo`, or `resend` (default: `smtp`) |
-| `SMTP_HOST` | If SMTP | e.g. `smtp.gmail.com` or your transactional mail provider |
-| `SMTP_PORT` | If SMTP | `587` (or `465` for SSL) |
-| `SMTP_USER` | If SMTP | Your SMTP login username or email |
-| `SMTP_PASS` | If SMTP | Your SMTP app password or API key |
-| `CLOUDINARY_CLOUD_NAME` | Optional | For customer/admin image uploads |
-| `CLOUDINARY_API_KEY` | Optional | Cloudinary API Key |
-| `CLOUDINARY_API_SECRET` | Optional | Cloudinary API Secret |
-| `GOOGLE_CLIENT_ID` | Optional | If enabling Google One-Tap/OAuth sign-in |
-| `GOOGLE_CLIENT_SECRET` | Optional | Google OAuth client secret |
-| `ADMIN_SEED_EMAIL` | Optional | Default: `aseth9588@gmail.com` |
-| `ADMIN_SEED_PASSWORD` | Optional | Default: `RoyalAdmin@2026!` |
+1. In Render Dashboard, click **New +** → **Blueprint**.
+2. Select your repository.
+3. Render will automatically create both:
+   - `seth-and-sons-dryfruits-web` (Static Site with SPA rewrite & `VITE_API_URL`)
+   - `seth-and-sons-dryfruits` (API Web Service)
+4. Provide secret credentials when prompted and click **Apply**.
 
 ---
 
-## CRITICAL: MongoDB Atlas Network Access Configuration
+## Keeping the Backend Warm (Optional)
 
-Render utilizes dynamic IP addresses. If you use MongoDB Atlas, you **must allow connections from Render**:
-
-1. Log into [cloud.mongodb.com](https://cloud.mongodb.com/).
-2. Go to **Security** → **Network Access**.
-3. Click **Add IP Address**.
-4. Choose **Allow Access from Anywhere** (`0.0.0.0/0`).
-5. Click **Confirm**.
-
-> *Without this step, MongoDB Atlas will reject the incoming connection from Render and the application will fail health checks.*
-
----
-
-## Verification After Deployment
-
-Once Render finishes deploying:
-
-1. **Check Health**: Navigate to `https://<your-render-url>/api/health`.
-   - Expected JSON response:
-     ```json
-     {
-       "status": "ok",
-       "database": "mongodb-connected",
-       "emailProvider": "smtp",
-       "timestamp": "2026-..."
-     }
-     ```
-2. **Storefront**: Open `https://<your-render-url>/`. Verify the hero video, collections, and fast initial load.
-3. **Patron Login**: Test customer login at `/login`.
-4. **Admin ERP Portal**: Navigate to `/admin/login` and log in with your admin credentials. Test inventory, orders, and reports.
-5. **Custom Domain (Optional)**: In Render settings, click **Custom Domains** and add `sethandsonsdryfruits.com` with the CNAME record provided.
-
+To keep your free-tier Backend API awake so even dynamic login/checkout requests respond instantly:
+- Set up a free monitor on [UptimeRobot](https://uptimerobot.com/) or [BetterStack](https://betterstack.com/).
+- Set it to send an HTTP GET request to `https://sethandsonsdryfruits.onrender.com/api/health` every **10 minutes**.
+- This completely prevents the free-tier backend from sleeping!
