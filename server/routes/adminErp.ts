@@ -1583,7 +1583,14 @@ export function createAdminErpRouter(
   );
 
   router.post('/orders', requirePermission('orders'), async (req, res) => {
-    const body = req.body || {};
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = {};
+      }
+    }
     const orderSource = ['whatsapp', 'phone', 'direct', 'instagram', 'manual'].includes(body.orderSource)
       ? body.orderSource
       : 'whatsapp';

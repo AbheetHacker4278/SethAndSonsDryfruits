@@ -458,7 +458,7 @@ export async function apiRequest<T = any>(
     'X-Portal-Scope': getPortalScope(),
   };
 
-  if (options.body !== undefined) {
+  if (options.body !== undefined && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
@@ -471,7 +471,12 @@ export async function apiRequest<T = any>(
     method,
     headers,
     credentials: 'include',
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body:
+      options.body instanceof FormData || typeof options.body === 'string'
+        ? (options.body as any)
+        : options.body !== undefined
+        ? JSON.stringify(options.body)
+        : undefined,
   });
 
   const serverCsrf = res.headers.get('x-csrf-token');

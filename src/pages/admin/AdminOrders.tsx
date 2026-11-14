@@ -35,7 +35,7 @@ import {
   StatusBadge,
   ToastBanner,
 } from '../../components/admin/AdminUI';
-import { apiRequest, ApiError, PersistedOrder, fetchPublishedProducts, CatalogProduct } from '../../services/api';
+import { apiRequest, apiUpload, ApiError, PersistedOrder, fetchPublishedProducts, CatalogProduct } from '../../services/api';
 import { formatINR } from '../../utils/priceCalculator';
 import { calculateOrderShippingCharge } from '../../../shared/catalogSeed';
 
@@ -250,10 +250,10 @@ export default function AdminOrders() {
     try {
       const fd = new FormData();
       fd.append('paymentProof', file);
-      const res = await apiRequest<{ paymentScreenshotUrl: string }>('/api/admin/orders/upload-payment-proof', {
-        method: 'POST',
-        body: fd,
-      });
+      const res = await apiUpload<{ paymentScreenshotUrl: string }>(
+        '/api/admin/orders/upload-payment-proof',
+        fd
+      );
       setPaymentScreenshotUrl(res.paymentScreenshotUrl);
       setToast({ type: 'ok', text: 'Payment receipt / screenshot uploaded successfully.' });
     } catch (err) {
@@ -315,7 +315,7 @@ export default function AdminOrders() {
         '/api/admin/orders',
         {
           method: 'POST',
-          body: JSON.stringify(payload),
+          body: payload,
         }
       );
 
