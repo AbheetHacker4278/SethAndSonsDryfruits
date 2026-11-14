@@ -234,9 +234,9 @@ export default function Catalog({
     fullName: user?.name || '',
     mobileNumber: user?.phone || '',
     deliveryAddress: '',
-    city: 'Jammu',
-    state: 'Jammu & Kashmir',
-    pincode: '180001',
+    city: '',
+    state: '',
+    pincode: '',
     instructions: '',
   });
 

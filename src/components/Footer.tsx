@@ -74,7 +74,7 @@ export default function Footer() {
 
           <div className="lg:col-span-3">
             <h4 className="font-serif text-base text-[#f9f6f2] font-semibold tracking-wide uppercase mb-4 text-[13px]">
-              Signature Jammu Harvests
+              Signature Harvests
             </h4>
             <ul className="space-y-2.5 text-sm">
               {products.slice(0, 6).map(product => (
@@ -96,7 +96,7 @@ export default function Footer() {
 
           <div className="lg:col-span-3">
             <h4 className="font-serif text-base text-[#f9f6f2] font-semibold tracking-wide uppercase mb-4 text-[13px]">
-              Jammu Concierge
+              Concierge
             </h4>
             <div className="space-y-3 text-sm text-[#d5c4b4]/85">
               <div className="flex items-start gap-2.5">
@@ -113,7 +113,7 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-2.5 text-xs text-[#d5c4b4]/60 pt-2">
                 <ShieldCheck className="w-4 h-4 text-[#dfc471] shrink-0" />
-                <span>100% Genuine Jammu &amp; Kashmir Origin</span>
+                {/* <span>100% Genuine Jammu &amp; Kashmir Origin</span> */}
               </div>
             </div>
 
@@ -147,9 +147,9 @@ export default function Footer() {
         </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#d5c4b4]/60">
-          <p>© {currentYear} {brandName}. All rights reserved. Sourced from Jammu.</p>
+          <p>© {currentYear} {brandName}. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <span>Jammu Provenance</span>
+            <span>Pure Mountain Harvest</span>
             <span>·</span>
             <span>Earthen Shade Cured</span>
           </div>
