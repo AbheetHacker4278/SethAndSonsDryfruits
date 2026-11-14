@@ -90,17 +90,48 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
 
   const featured = useMemo(() => {
     const catalog = products && products.length > 0 ? products : PRODUCTS;
-    // Filter published products and sort descending by selling price
-    const sorted = [...catalog]
-      .filter(p => !p.status || p.status === 'published')
-      .sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    const published = catalog.filter(p => !p.status || p.status === 'published');
+    const sorted = [...published].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 
-    const top1 = sorted[0]; // #1 highest selling price
-    const top2 = sorted[1]; // #2 highest selling price
-    const top3 = sorted[2]; // #3 highest selling price
+    // 1st Product: Walnut with highest selling price
+    const highestWalnut =
+      [...published]
+        .filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const c = (p.category || '').toLowerCase();
+          const id = (p.id || '').toLowerCase();
+          return (
+            (n.includes('walnut') || n.includes('akhrot') || c.includes('walnut') || id.includes('akhrot') || id.includes('walnut')) &&
+            !n.includes('cracker') &&
+            !n.includes('oil')
+          );
+        })
+        .sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0))[0] ||
+      catalog.find(p => p.id === 'akhrot-7star-kernels') ||
+      sorted[1] ||
+      sorted[0];
 
-    // Position highest selling price product in center card (index 1) for elevated visual prominence
-    const list = [top2, top1, top3].filter(Boolean);
+    // 3rd Product: Cashew with highest selling price
+    const highestCashew =
+      [...published]
+        .filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const c = (p.category || '').toLowerCase();
+          const id = (p.id || '').toLowerCase();
+          return (
+            n.includes('cashew') || n.includes('kaju') || c.includes('cashew') || id.includes('kaju') || id.includes('cashew')
+          );
+        })
+        .sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0))[0] ||
+      catalog.find(p => p.id === 'kaju-super-jumbo') ||
+      sorted[2] ||
+      sorted[0];
+
+    // Center Product: Overall highest selling price product from catalog (distinct from walnut and cashew)
+    const centerProduct = sorted.find(p => p.id !== highestWalnut?.id && p.id !== highestCashew?.id) || sorted[0];
+
+    // Order: 1st = Walnut, 2nd (Center) = Top Selling Product, 3rd = Cashew
+    const list = [highestWalnut, centerProduct, highestCashew].filter(Boolean);
     if (list.length >= 3) return list;
     return sorted.slice(0, 3);
   }, [products]);
