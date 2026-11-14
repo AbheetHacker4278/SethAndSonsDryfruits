@@ -154,7 +154,7 @@ export async function createApp(overrides?: {
   app.use('/api/orders', wrapRouterAsync(createOrdersRouter(db, emailService)));
   app.use('/api/support', wrapRouterAsync(createSupportRouter(db, mediaStorage, emailService)));
   app.use('/api/admin', wrapRouterAsync(createAdminRouter(db, config, transport, queue, emailService, mediaStorage)));
-  app.use('/api/admin', wrapRouterAsync(createAdminErpRouter(db, transport, queue, mediaStorage, emailService)));
+  app.use('/api/admin', wrapRouterAsync(createAdminErpRouter(db, transport, queue, mediaStorage, emailService, config)));
   app.use('/api/admin/support', wrapRouterAsync(createAdminSupportRouter(db, mediaStorage, emailService)));
 
   // Production static SPA serving when dist exists

@@ -28,6 +28,11 @@ export interface MediaStorageService {
     resourceType?: 'image' | 'raw' | 'video' | 'auto';
   }): Promise<UploadMediaResult>;
   isAllowedMediaUrl?(url: string): boolean;
+  deleteAsset?(opts: {
+    url?: string;
+    publicId?: string;
+    resourceType?: 'image' | 'raw' | 'video';
+  }): Promise<boolean>;
   downloadAsset?(opts: {
     url: string;
     publicId?: string;
@@ -174,6 +179,35 @@ export function createCloudinaryStorage(config: AppConfig): MediaStorageService 
           parsed.hostname === 'res.cloudinary.com' &&
           parsed.pathname.startsWith(`/${creds.cloudName}/`)
         );
+      } catch {
+        return false;
+      }
+    },
+
+    async deleteAsset(opts) {
+      if (!creds) return false;
+      try {
+        cloudinary.config({
+          cloud_name: creds.cloudName,
+          api_key: creds.apiKey,
+          api_secret: creds.apiSecret,
+          secure: true,
+        });
+        let publicId = opts.publicId;
+        if (!publicId && opts.url) {
+          const m = opts.url.match(
+            /^https:\/\/res\.cloudinary\.com\/[^/]+\/(image|raw|video)\/(?:upload|authenticated|private)\/(?:v\d+\/)?([^?]+)/
+          );
+          if (m) {
+            publicId = decodeURIComponent(m[2]).replace(/\.[^/.]+$/, '');
+          }
+        }
+        if (!publicId) return false;
+        const res = (await cloudinary.uploader.destroy(publicId, {
+          resource_type: opts.resourceType || 'image',
+          invalidate: true,
+        })) as { result?: string } | undefined;
+        return res?.result === 'ok';
       } catch {
         return false;
       }

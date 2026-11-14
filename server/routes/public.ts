@@ -248,6 +248,10 @@ export function createPublicRouter(
       res.status(400).json({ error: 'This coupon code has expired.' });
       return;
     }
+    if (coupon.usageLimit && (coupon.usedCount || 0) >= coupon.usageLimit) {
+      res.status(400).json({ error: 'This coupon code has reached its maximum usage limit.' });
+      return;
+    }
     if (subtotal < coupon.minOrderValue) {
       res.status(400).json({
         error: `Minimum order value of ₹${coupon.minOrderValue} is required for code ${coupon.code}.`,

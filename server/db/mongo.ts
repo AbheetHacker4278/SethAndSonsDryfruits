@@ -694,6 +694,8 @@ function createModels(conn: Connection) {
       applicableProducts: { type: [String], default: [] },
       usageLimit: { type: Number, default: null },
       usedCount: { type: Number, default: 0 },
+      targetCustomerId: { type: String, default: null, index: true },
+      targetEmail: { type: String, default: null, index: true },
       active: { type: Boolean, default: true, index: true },
       createdAt: { type: String, required: true },
     },

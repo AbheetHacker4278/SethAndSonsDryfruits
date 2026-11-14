@@ -36,12 +36,16 @@ import {
   type ReportTableData,
 } from '../services/exportService.ts';
 import {
+  escapeHtml,
+  generateSecureToken,
   hashPassword,
   isValidEmail,
   normalizeEmail,
   normalizeMobile,
   validatePasswordStrength,
 } from '../utils/crypto.ts';
+import { AppConfig } from '../config.ts';
+import { ctaButtonHtml, wrapInBrandEmailLayout } from '../emails/brandLayout.ts';
 import { hydrateOrder } from './orders.ts';
 import { invalidatePublicCache, parseProductRow } from './public.ts';
 
@@ -109,10 +113,29 @@ export function createAdminErpRouter(
   transport: EmailTransport,
   queue: EmailQueueService,
   mediaStorage: MediaStorageService,
-  emailService?: EmailService
+  emailService?: EmailService,
+  config?: AppConfig
 ) {
   const router = Router();
   router.use(requireAdmin);
+
+  function getRequestOrigin(req: any, fallback: string): string {
+    const forwardedHost = (req.headers?.['x-forwarded-host'] || req.headers?.host || '').toString();
+    if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
+      const proto = (req.headers?.['x-forwarded-proto'] || (req.secure ? 'https' : 'http')).toString();
+      return `${proto}://${forwardedHost}`.replace(/\/+$/, '');
+    }
+    return fallback;
+  }
+
+  async function getBrandLogoUrl(): Promise<string> {
+    const row = await db.models.SiteSetting.findOne({ key: 'brand_logo_url' }).lean();
+    let logoPath = BRAND_CONFIG.emailLogoUrl;
+    if (typeof row?.value === 'string' && row.value.trim().length > 0) {
+      logoPath = row.value.trim();
+    }
+    return logoPath;
+  }
 
   async function syncVariants(
     productId: string,
@@ -1585,6 +1608,8 @@ export function createAdminErpRouter(
       .filter(c => {
         if (segment === 'new' && String(c.createdAt) < thirtyDaysAgo) return false;
         if (segment === 'returning' && c.totalOrders < 2) return false;
+        if (segment === 'frequent' && c.totalOrders < 2) return false;
+        if (segment === 'unverified' && c.emailVerified) return false;
         if (segment === 'vip' && c.totalSpent < 10000 && c.totalOrders < 3) return false;
         if (segment === 'inactive') {
           const last = c.lastOrderAt ? String(c.lastOrderAt) : '';
@@ -1608,6 +1633,360 @@ export function createAdminErpRouter(
         total,
         totalPages: limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1,
       },
+    });
+  });
+
+  router.get('/customers/stats', requirePermission('customers'), async (_req, res) => {
+    const [customers, orders] = await Promise.all([
+      db.models.Customer.find({ role: 'customer' }, { passwordHash: 0, _id: 0 }).lean(),
+      db.models.Order.find({}, { customerId: 1, status: 1, totalAmount: 1, createdAt: 1, _id: 0 }).lean(),
+    ]);
+
+    const orderStats = new Map<string, { totalOrders: number; totalSpent: number; lastOrderAt: string | null }>();
+    for (const o of orders) {
+      const cur = orderStats.get(o.customerId) || { totalOrders: 0, totalSpent: 0, lastOrderAt: null };
+      if (o.status !== 'cancelled') cur.totalOrders += 1;
+      if (o.status !== 'cancelled' && o.status !== 'returned') cur.totalSpent += Number(o.totalAmount || 0);
+      if (!cur.lastOrderAt || o.createdAt > cur.lastOrderAt) cur.lastOrderAt = o.createdAt;
+      orderStats.set(o.customerId, cur);
+    }
+
+    const twoDaysAgo = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const totalCustomers = customers.length;
+    let verifiedCount = 0;
+    let unverifiedCount = 0;
+    let unverifiedEligibleForPurge = 0;
+    let frequentBuyersCount = 0;
+    let frequentBuyersRevenue = 0;
+    let totalRepeatOrders = 0;
+    let vipCount = 0;
+
+    const frequentList: any[] = [];
+
+    for (const c of customers) {
+      const isVerified = Boolean(c.emailVerified);
+      if (isVerified) {
+        verifiedCount++;
+      } else {
+        unverifiedCount++;
+        if (c.createdAt <= twoDaysAgo) {
+          unverifiedEligibleForPurge++;
+        }
+      }
+
+      const st = orderStats.get(c.id) || { totalOrders: 0, totalSpent: 0, lastOrderAt: null };
+      if (st.totalOrders >= 2) {
+        frequentBuyersCount++;
+        frequentBuyersRevenue += st.totalSpent;
+        totalRepeatOrders += st.totalOrders;
+        frequentList.push({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone || '',
+          tier: c.tier || 'Privileged Patron',
+          totalOrders: st.totalOrders,
+          totalSpent: st.totalSpent,
+          averageOrderValue: st.totalOrders > 0 ? Math.round(st.totalSpent / st.totalOrders) : 0,
+          lastOrderAt: st.lastOrderAt,
+          createdAt: c.createdAt,
+        });
+      }
+
+      if (st.totalSpent >= 10000 || st.totalOrders >= 3) {
+        vipCount++;
+      }
+    }
+
+    frequentList.sort((a, b) => b.totalOrders - a.totalOrders || b.totalSpent - a.totalSpent);
+
+    const repeatPurchaseRate = totalCustomers > 0 ? Math.round((frequentBuyersCount / totalCustomers) * 100) : 0;
+    const frequentBuyersAov = totalRepeatOrders > 0 ? Math.round(frequentBuyersRevenue / totalRepeatOrders) : 0;
+
+    res.json({
+      totalCustomers,
+      verifiedCount,
+      unverifiedCount,
+      unverifiedEligibleForPurge,
+      frequentBuyersCount,
+      frequentBuyersRevenue,
+      frequentBuyersAov,
+      repeatPurchaseRate,
+      vipCount,
+      topFrequentBuyers: frequentList.slice(0, 20),
+    });
+  });
+
+  router.post('/customers/mass-email', requirePermission('customers'), async (req, res) => {
+    const massSchema = z.object({
+      segment: z.enum(['all', 'frequent', 'vip', 'unverified', 'inactive', 'selected']),
+      customerIds: z.array(z.string()).optional(),
+      subject: z.string().trim().min(2, 'Subject must be at least 2 characters'),
+      message: z.string().trim().min(5, 'Message body must be at least 5 characters'),
+      previewText: z.string().trim().optional(),
+      ctaText: z.string().trim().optional(),
+      ctaUrl: z.string().trim().optional(),
+    });
+
+    const parsed = massSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid parameters.' });
+      return;
+    }
+
+    const { segment, customerIds, subject, message, previewText, ctaText, ctaUrl } = parsed.data;
+
+    let targetDocs: any[] = [];
+    if (segment === 'selected' && customerIds && customerIds.length > 0) {
+      targetDocs = await db.models.Customer.find({ id: { $in: customerIds }, role: 'customer' }).lean();
+    } else if (segment === 'unverified') {
+      targetDocs = await db.models.Customer.find({ role: 'customer', emailVerified: { $ne: true } }).lean();
+    } else {
+      const allCustomers = await db.models.Customer.find({ role: 'customer' }).lean();
+      if (segment === 'all') {
+        targetDocs = allCustomers;
+      } else {
+        const orders = await db.models.Order.find({}, { customerId: 1, status: 1, totalAmount: 1, createdAt: 1, _id: 0 }).lean();
+        const counts = new Map<string, { count: number; spend: number; lastOrder: string }>();
+        for (const o of orders) {
+          const cur = counts.get(o.customerId) || { count: 0, spend: 0, lastOrder: '' };
+          if (o.status !== 'cancelled') cur.count++;
+          if (o.status !== 'cancelled' && o.status !== 'returned') cur.spend += Number(o.totalAmount || 0);
+          if (o.createdAt > cur.lastOrder) cur.lastOrder = o.createdAt;
+          counts.set(o.customerId, cur);
+        }
+
+        if (segment === 'frequent') {
+          targetDocs = allCustomers.filter(c => (counts.get(c.id)?.count || 0) >= 2);
+        } else if (segment === 'vip') {
+          targetDocs = allCustomers.filter(c => (counts.get(c.id)?.spend || 0) >= 10000 || (counts.get(c.id)?.count || 0) >= 3);
+        } else if (segment === 'inactive') {
+          const sixtyDaysAgo = new Date(Date.now() - 60 * 86400_000).toISOString();
+          targetDocs = allCustomers.filter(c => {
+            const last = counts.get(c.id)?.lastOrder || '';
+            return !last || last < sixtyDaysAgo;
+          });
+        }
+      }
+    }
+
+    if (targetDocs.length === 0) {
+      res.status(400).json({ error: 'No recipients matched the selected segment criteria.' });
+      return;
+    }
+
+    const brandLogoUrl = await getBrandLogoUrl();
+
+    let dispatched = 0;
+    for (const cust of targetDocs) {
+      let bodyHtml = `
+        <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+          Namaste ${escapeHtml(cust.name)},
+        </p>
+        <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:24px;">
+          ${escapeHtml(message).replace(/\n/g, '<br/>')}
+        </div>
+      `;
+
+      if (ctaText && ctaUrl) {
+        bodyHtml += `
+          <div style="margin:28px 0;text-align:center;">
+            ${ctaButtonHtml(ctaText, ctaUrl)}
+          </div>
+        `;
+      }
+
+      const html = wrapInBrandEmailLayout({
+        brandLogoUrl,
+        brandName: BRAND_CONFIG.name,
+        supportEmail: BRAND_CONFIG.supportEmail,
+        preheader: previewText || subject,
+        bodyHtml,
+      });
+
+      const job = await queue.enqueue({
+        recipient: cust.email,
+        customerId: cust.id,
+        emailType: 'admin_broadcast',
+        subject,
+        html,
+        text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}Warm regards,\nSeth And Sons DryFruits`,
+      });
+
+      if (job.jobId) {
+        await queue.processJobNow(job.jobId);
+      }
+      dispatched++;
+    }
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'customer_mass_email_sent',
+      entityType: 'customer',
+      entityId: segment,
+      details: { segment, recipientsCount: dispatched, subject },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      dispatchedCount: dispatched,
+      message: `Mass broadcast successfully delivered to ${dispatched} patrons.`,
+    });
+  });
+
+  router.post('/customers/unverified/remind', requirePermission('customers'), async (req, res) => {
+    const unverifiedList = await db.models.Customer.find({
+      role: 'customer',
+      emailVerified: { $ne: true },
+    }).lean();
+
+    if (unverifiedList.length === 0) {
+      res.json({ count: 0, message: 'All customer accounts are already verified.' });
+      return;
+    }
+
+    const brandLogoUrl = await getBrandLogoUrl();
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 48 * 3600_000).toISOString();
+
+    let sent = 0;
+    for (const patron of unverifiedList) {
+      const { raw, hash } = generateSecureToken(32);
+
+      await db.models.VerificationToken.deleteMany({ customerId: patron.id, purpose: 'email_verify' });
+      await db.models.VerificationToken.create({
+        id: `vtok_${crypto.randomUUID()}`,
+        customerId: patron.id,
+        emailTarget: patron.email,
+        purpose: 'email_verify',
+        tokenHash: hash,
+        expiresAt,
+        createdAt: now,
+      });
+
+      const verifyUrl = `${origin}/verify-email?token=${raw}`;
+
+      const bodyHtml = `
+        <div style="background-color:#FFF8EE;border-left:4px solid #C8A96B;padding:16px;margin-bottom:20px;border-radius:4px;">
+          <strong style="color:#8F6C2B;font-size:14px;">Urgent Security Notice: 48-Hour Verification Window</strong>
+        </div>
+        <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+          Namaste ${escapeHtml(patron.name)},
+        </p>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:24px;color:#27332D;">
+          Our patron registry indicates that your email address (<strong style="color:#183D32;">${escapeHtml(patron.email)}</strong>) remains unverified.
+        </p>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:24px;color:#27332D;">
+          To safeguard patron security and ensure pristine order fulfillment, <strong>accounts unverified within 48 hours are automatically purged</strong> along with all associated profile data.
+        </p>
+        <p style="margin:0 0 24px 0;font-size:15px;line-height:24px;color:#27332D;">
+          Please confirm your email address immediately by clicking the verification button below:
+        </p>
+        <div style="margin:28px 0;text-align:center;">
+          ${ctaButtonHtml('Verify Email Address Now', verifyUrl)}
+        </div>
+        <p style="font-size:12px;color:#888B83;line-height:18px;">
+          This link is valid for 48 hours. If the button does not work, copy and paste this link into your browser:<br/>
+          <a href="${verifyUrl}" style="color:#183D32;word-break:break-all;">${verifyUrl}</a>
+        </p>
+      `;
+
+      const html = wrapInBrandEmailLayout({
+        brandLogoUrl,
+        brandName: BRAND_CONFIG.name,
+        supportEmail: BRAND_CONFIG.supportEmail,
+        preheader: 'Action Required: Verify your email address within 48 hours',
+        bodyHtml,
+      });
+
+      const job = await queue.enqueue({
+        recipient: patron.email,
+        customerId: patron.id,
+        emailType: 'verification_reminder_urgent',
+        subject: 'Action Required: Verify Your Seth And Sons DryFruits Account within 48 Hours',
+        html,
+        text: `Namaste ${patron.name},\n\nPlease verify your email address within 48 hours or your unverified account will be permanently cleared.\nVerify now: ${verifyUrl}`,
+      });
+
+      if (job.jobId) {
+        await queue.processJobNow(job.jobId);
+      }
+      sent++;
+    }
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'unverified_reminders_sent',
+      entityType: 'customer',
+      entityId: 'unverified_all',
+      details: { recipientsCount: sent },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      remindedCount: sent,
+      message: `Dispatched 48-hour verification reminders to ${sent} unverified patron(s).`,
+    });
+  });
+
+  router.post('/customers/unverified/purge', requirePermission('customers'), async (req, res) => {
+    const twoDaysAgo = new Date(Date.now() - 48 * 3600_000).toISOString();
+
+    const expiredUnverified = await db.models.Customer.find({
+      role: 'customer',
+      emailVerified: { $ne: true },
+      createdAt: { $lte: twoDaysAgo },
+    }).lean();
+
+    if (expiredUnverified.length === 0) {
+      res.json({
+        purgedCount: 0,
+        message: 'No expired unverified accounts found older than 48 hours.',
+      });
+      return;
+    }
+
+    const ids = expiredUnverified.map(c => c.id);
+    const emails = expiredUnverified.map(c => c.email);
+
+    // Delete uploaded avatars from Cloudinary
+    for (const u of expiredUnverified) {
+      if (u.profilePicture) {
+        try {
+          await mediaStorage.deleteAsset?.({ url: u.profilePicture });
+        } catch {}
+      }
+    }
+
+    // Cascade delete all data related to these unverified accounts
+    await Promise.all([
+      db.models.CustomerAddress.deleteMany({ customerId: { $in: ids } }),
+      db.models.Session.deleteMany({ customerId: { $in: ids } }),
+      db.models.VerificationToken.deleteMany({
+        $or: [{ customerId: { $in: ids } }, { emailTarget: { $in: emails } }],
+      }),
+      db.models.CustomerNotification.deleteMany({ customerId: { $in: ids } }),
+      db.models.WishlistItem.deleteMany({ customerId: { $in: ids } }),
+      db.models.Coupon.deleteMany({ targetCustomerId: { $in: ids } }),
+      db.models.Customer.deleteMany({ id: { $in: ids } }),
+    ]);
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'unverified_accounts_purged',
+      entityType: 'customer',
+      entityId: 'purge_batch',
+      details: { purgedCount: expiredUnverified.length, purgedCustomerIds: ids },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      purgedCount: expiredUnverified.length,
+      message: `Permanently purged ${expiredUnverified.length} expired unverified account(s) and all associated data.`,
     });
   });
 
@@ -1716,6 +2095,266 @@ export function createAdminErpRouter(
       { $set: { name, phone, tier, isActive, internalNotes, updatedAt: new Date().toISOString() } }
     );
     res.json({ message: 'Customer record updated.' });
+  });
+
+  router.get('/customers/:id/orders', requirePermission('customers'), async (req, res) => {
+    const orders = await db.models.Order.find({ customerId: req.params.id }, { _id: 0 })
+      .sort({ createdAt: -1 })
+      .lean();
+    const hydrated = await Promise.all(orders.map(o => hydrateOrder(db, o)));
+    res.json({ orders: hydrated });
+  });
+
+  router.delete('/customers/:id', requirePermission('customers'), async (req, res) => {
+    const target = await db.models.Customer.findOne({ id: req.params.id }).lean();
+    if (!target) {
+      res.status(404).json({ error: 'Customer not found.' });
+      return;
+    }
+    if (target.role === 'admin') {
+      res.status(403).json({ error: 'Cannot delete an administrator account via the customer directory.' });
+      return;
+    }
+
+    if (target.profilePicture) {
+      try {
+        await mediaStorage.deleteAsset?.({ url: target.profilePicture });
+      } catch {}
+    }
+
+    await Promise.all([
+      db.models.CustomerAddress.deleteMany({ customerId: target.id }),
+      db.models.Session.deleteMany({ customerId: target.id }),
+      db.models.VerificationToken.deleteMany({
+        $or: [{ customerId: target.id }, { emailTarget: target.email }],
+      }),
+      db.models.CustomerNotification.deleteMany({ customerId: target.id }),
+      db.models.WishlistItem.deleteMany({ customerId: target.id }),
+      db.models.Coupon.deleteMany({ targetCustomerId: target.id }),
+    ]);
+
+    await db.models.Order.updateMany(
+      { customerId: target.id },
+      { $set: { customerSnapshot: JSON.stringify({ name: '[Deleted Patron]', email: target.email, id: target.id }) } }
+    );
+
+    await db.models.Customer.deleteOne({ id: target.id });
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'customer_deleted',
+      entityType: 'customer',
+      entityId: target.id,
+      details: { name: target.name, email: target.email },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      message: `Patron "${target.name}" and all associated data have been permanently deleted.`,
+    });
+  });
+
+  router.post('/customers/:id/send-email', requirePermission('customers'), async (req, res) => {
+    const target = await db.models.Customer.findOne({ id: req.params.id, role: 'customer' }).lean();
+    if (!target) {
+      res.status(404).json({ error: 'Customer not found.' });
+      return;
+    }
+
+    const emailSchema = z.object({
+      subject: z.string().trim().min(2, 'Subject must be at least 2 characters'),
+      message: z.string().trim().min(5, 'Message body must be at least 5 characters'),
+      previewText: z.string().trim().optional(),
+      ctaText: z.string().trim().optional(),
+      ctaUrl: z.string().trim().optional(),
+    });
+
+    const parsed = emailSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid email parameters.' });
+      return;
+    }
+
+    const { subject, message, previewText, ctaText, ctaUrl } = parsed.data;
+    const brandLogoUrl = await getBrandLogoUrl();
+
+    let bodyHtml = `
+      <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+        Namaste ${escapeHtml(target.name)},
+      </p>
+      <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:24px;">
+        ${escapeHtml(message).replace(/\n/g, '<br/>')}
+      </div>
+    `;
+
+    if (ctaText && ctaUrl) {
+      bodyHtml += `
+        <div style="margin:28px 0;text-align:center;">
+          ${ctaButtonHtml(ctaText, ctaUrl)}
+        </div>
+      `;
+    }
+
+    const html = wrapInBrandEmailLayout({
+      brandLogoUrl,
+      brandName: BRAND_CONFIG.name,
+      supportEmail: BRAND_CONFIG.supportEmail,
+      preheader: previewText || subject,
+      bodyHtml,
+    });
+
+    const job = await queue.enqueue({
+      recipient: target.email,
+      customerId: target.id,
+      emailType: 'admin_direct_message',
+      subject,
+      html,
+      text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}Warm regards,\nSeth And Sons DryFruits`,
+    });
+
+    if (job.jobId) {
+      await queue.processJobNow(job.jobId);
+    }
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'customer_email_sent',
+      entityType: 'customer',
+      entityId: target.id,
+      details: { email: target.email, subject },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({ message: `Custom email dispatched to ${target.name} (${target.email}).` });
+  });
+
+  router.post('/customers/:id/coupon', requirePermission('customers'), async (req, res) => {
+    const cust = await db.models.Customer.findOne({ id: req.params.id, role: 'customer' }).lean();
+    if (!cust) {
+      res.status(404).json({ error: 'Customer not found.' });
+      return;
+    }
+
+    const couponSchema = z.object({
+      code: z.string().trim().optional(),
+      title: z.string().trim().min(2).default('Exclusive Patron Privilege'),
+      description: z.string().trim().optional().default(''),
+      discountType: z.enum(['percentage', 'flat']),
+      discountValue: z.number().positive('Discount value must be greater than zero'),
+      minOrderValue: z.number().min(0).default(0),
+      maxDiscount: z.number().positive().optional().nullable(),
+      usageLimit: z.number().min(1).default(1),
+      endDate: z.string().trim().optional().nullable(),
+      sendEmail: z.boolean().default(false),
+    });
+
+    const parsed = couponSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid coupon details.' });
+      return;
+    }
+
+    const data = parsed.data;
+    const cleanCode = data.code
+      ? data.code.toUpperCase().replace(/[^A-Z0-9_-]/g, '')
+      : `SETH-${cust.name.split(' ')[0].toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+    const existingCoupon = await db.models.Coupon.findOne({ code: cleanCode }).lean();
+    if (existingCoupon) {
+      res.status(400).json({ error: `Coupon code "${cleanCode}" already exists. Please choose a different code.` });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const newCoupon = await db.models.Coupon.create({
+      id: `coup_${crypto.randomUUID()}`,
+      code: cleanCode,
+      title: data.title,
+      description: data.description || `Personal discount exclusively granted to ${cust.name}`,
+      discountType: data.discountType,
+      discountValue: data.discountValue,
+      minOrderValue: data.minOrderValue,
+      maxDiscount: data.maxDiscount || null,
+      startDate: now,
+      endDate: data.endDate || null,
+      applicableProducts: [],
+      usageLimit: data.usageLimit,
+      usedCount: 0,
+      targetCustomerId: cust.id,
+      targetEmail: cust.email,
+      active: true,
+      createdAt: now,
+    });
+
+    if (data.sendEmail) {
+      const brandLogoUrl = await getBrandLogoUrl();
+      const discountLabel = data.discountType === 'percentage' ? `${data.discountValue}% OFF` : `₹${data.discountValue} OFF`;
+      const expiryText = data.endDate ? `Valid through: ${new Date(data.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'No expiry date';
+      const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+
+      const bodyHtml = `
+        <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+          Namaste ${escapeHtml(cust.name)},
+        </p>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:24px;color:#27332D;">
+          We are pleased to present you with an exclusive private coupon created specifically for your account.
+        </p>
+        <div style="background-color:#F8F6F0;border:2px dashed #C8A96B;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+          <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#888B83;margin-bottom:8px;">Your Private Code</div>
+          <div style="font-size:28px;font-weight:bold;letter-spacing:3px;color:#183D32;font-family:monospace;">${cleanCode}</div>
+          <div style="font-size:18px;font-weight:600;color:#C8A96B;margin-top:10px;">${discountLabel}</div>
+          <div style="font-size:12px;color:#5C6058;margin-top:8px;">
+            ${data.minOrderValue > 0 ? `Minimum order: ₹${data.minOrderValue} • ` : ''}Usage limit: ${data.usageLimit} time(s) • ${expiryText}
+          </div>
+        </div>
+        <div style="margin:28px 0;text-align:center;">
+          ${ctaButtonHtml('Shop Our Reserve Now', `${origin}/catalog`)}
+        </div>
+      `;
+
+      const html = wrapInBrandEmailLayout({
+        brandLogoUrl,
+        brandName: BRAND_CONFIG.name,
+        supportEmail: BRAND_CONFIG.supportEmail,
+        preheader: `Exclusive Coupon: Use code ${cleanCode} for ${discountLabel}`,
+        bodyHtml,
+      });
+
+      const job = await queue.enqueue({
+        recipient: cust.email,
+        customerId: cust.id,
+        emailType: 'targeted_coupon',
+        subject: `A Special Gift For You: ${discountLabel} With Code ${cleanCode}`,
+        html,
+        text: `Namaste ${cust.name},\n\nEnjoy an exclusive discount code: ${cleanCode} (${discountLabel}).\n${expiryText}\n\nShop now: ${origin}/catalog`,
+      });
+
+      if (job.jobId) {
+        await queue.processJobNow(job.jobId);
+      }
+    }
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'targeted_coupon_created',
+      entityType: 'coupon',
+      entityId: newCoupon.id,
+      details: {
+        customerId: cust.id,
+        code: cleanCode,
+        discountType: data.discountType,
+        discountValue: data.discountValue,
+      },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      coupon: newCoupon,
+      message: `Exclusive coupon "${cleanCode}" generated for ${cust.name}${data.sendEmail ? ' and emailed to patron' : ''}.`,
+    });
   });
 
   // =============================================

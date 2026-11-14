@@ -219,6 +219,18 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         res.status(400).json({ error: `Coupon code "${cleanCode}" is invalid or expired.` });
         return;
       }
+      if (coupon.usageLimit && (coupon.usedCount || 0) >= coupon.usageLimit) {
+        res.status(400).json({ error: `Coupon code "${cleanCode}" has reached its maximum usage limit.` });
+        return;
+      }
+      if (
+        coupon.targetCustomerId &&
+        coupon.targetCustomerId !== customer.id &&
+        (!coupon.targetEmail || coupon.targetEmail.toLowerCase() !== customer.email.toLowerCase())
+      ) {
+        res.status(403).json({ error: `Coupon "${cleanCode}" is exclusively reserved for an invited patron account.` });
+        return;
+      }
       if (subtotal < coupon.minOrderValue) {
         res.status(400).json({
           error: `Coupon "${cleanCode}" requires a minimum order of ₹${coupon.minOrderValue}.`,
