@@ -1603,7 +1603,6 @@ export default function Catalog({
                               type="button"
                               onClick={() => {
                                 handleAddPackToCart(product, selectedPack);
-                                setIsCartDrawerOpen(true);
                               }}
                               className={`w-full py-3 rounded-full text-xs font-semibold tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${
                                 isJustAdded
@@ -2437,11 +2436,10 @@ export default function Catalog({
                     onClick={() => {
                       handleAddPackToCart(detailProduct, detailSelectedPack);
                       setDetailProduct(null);
-                      setIsCartDrawerOpen(true);
                     }}
                     className="w-full py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 cursor-pointer"
                   >
-                    Add {detailSelectedPack.weightLabel} Pack to Bag &amp; Checkout
+                    Add {detailSelectedPack.weightLabel} Pack to Bag
                   </button>
                 </div>
               </div>
