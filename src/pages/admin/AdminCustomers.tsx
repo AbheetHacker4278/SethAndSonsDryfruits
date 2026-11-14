@@ -17,6 +17,10 @@ import {
   Sparkles,
   RefreshCw,
   ShoppingBag,
+  Phone,
+  MessageCircle,
+  ExternalLink,
+  User as UserIcon,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import {
@@ -32,6 +36,7 @@ import { formatINR } from '../../utils/priceCalculator';
 
 interface CustomerStats {
   totalCustomers: number;
+  oneTimeCustomersCount?: number;
   verifiedCount: number;
   unverifiedCount: number;
   unverifiedEligibleForPurge: number;
@@ -60,6 +65,7 @@ export default function AdminCustomers() {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [customerType, setCustomerType] = useState<'registered' | 'one_time'>('registered');
   const [segment, setSegment] = useState<'all' | 'frequent' | 'vip' | 'new' | 'returning' | 'unverified' | 'inactive'>('all');
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -131,7 +137,7 @@ export default function AdminCustomers() {
     setLoading(true);
     try {
       const res = await apiRequest<{ customers: any[] }>(
-        `/api/admin/customers?search=${encodeURIComponent(search)}&segment=${segment}`
+        `/api/admin/customers?search=${encodeURIComponent(search)}&segment=${segment}&customerType=${customerType}`
       );
       setCustomers(res.customers || []);
     } catch (err) {
@@ -150,7 +156,7 @@ export default function AdminCustomers() {
 
   useEffect(() => {
     void loadCustomers();
-  }, [search, segment]);
+  }, [search, segment, customerType]);
 
   const openProfile = async (id: string) => {
     try {
@@ -394,15 +400,20 @@ export default function AdminCustomers() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-4 rounded-2xl bg-white border border-[#E9E4D9] shadow-sm">
             <div className="flex items-center justify-between text-[#888B83] text-xs mb-1">
-              <span>Total Patrons</span>
+              <span>Registered Patrons</span>
               <Users className="w-4 h-4 text-[#183D32]" />
             </div>
             <div className="text-2xl font-bold text-[#183D32]">
               {statsLoading ? '—' : stats?.totalCustomers ?? 0}
             </div>
-            <div className="text-[11px] text-[#5C6058] mt-1 flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-              <span>{stats?.verifiedCount ?? 0} verified</span>
+            <div className="text-[11px] text-[#5C6058] mt-1 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                <span>{stats?.verifiedCount ?? 0} verified</span>
+              </span>
+              <span className="text-[#8F6C2B] font-medium">
+                {stats?.oneTimeCustomersCount ?? 0} one-time
+              </span>
             </div>
           </div>
 
@@ -582,18 +593,68 @@ export default function AdminCustomers() {
           )}
         </AdminCard>
 
-        {/* 4. CUSTOMER DIRECTORY CONTROLS */}
+        {/* 4. CUSTOMER DIRECTORY CONTROLS & TYPE SWITCHER */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#E9E4D9] pb-3">
+          <button
+            type="button"
+            onClick={() => setCustomerType('registered')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              customerType === 'registered'
+                ? 'bg-[#183D32] text-white shadow-sm'
+                : 'bg-[#F8F6F0] text-[#5C6058] hover:bg-[#E9E4D9] border border-[#E9E4D9]'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-[#C8A96B]" />
+            <span>Registered App Patrons</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                customerType === 'registered'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[#E9E4D9] text-[#183D32]'
+              }`}
+            >
+              {statsLoading ? '…' : stats?.totalCustomers ?? 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCustomerType('one_time')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              customerType === 'one_time'
+                ? 'bg-[#183D32] text-white shadow-sm'
+                : 'bg-[#F8F6F0] text-[#5C6058] hover:bg-[#E9E4D9] border border-[#E9E4D9]'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-[#C8A96B]" />
+            <span>One-Time Customers (Manual Orders)</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                customerType === 'one_time'
+                  ? 'bg-[#C8A96B] text-[#183D32]'
+                  : 'bg-[#E9E4D9] text-[#183D32]'
+              }`}
+            >
+              {statsLoading ? '…' : stats?.oneTimeCustomersCount ?? 0}
+            </span>
+          </button>
+        </div>
+
         <AdminCard padding="p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
               {[
-                { id: 'all', label: 'All Patrons' },
+                { id: 'all', label: customerType === 'one_time' ? 'All One-Time Customers' : 'All Patrons' },
                 { id: 'frequent', label: 'Frequent Buyers (2+)' },
                 { id: 'vip', label: 'VIP Patrons' },
                 { id: 'new', label: 'New (30d)' },
                 { id: 'returning', label: 'Returning' },
-                { id: 'unverified', label: 'Unverified' },
-                { id: 'inactive', label: 'Inactive' },
+                ...(customerType === 'registered'
+                  ? [
+                      { id: 'unverified', label: 'Unverified' },
+                      { id: 'inactive', label: 'Inactive' },
+                    ]
+                  : []),
               ].map(s => (
                 <button
                   key={s.id}
@@ -628,9 +689,13 @@ export default function AdminCustomers() {
             <LoadingSkeleton rows={5} />
           ) : customers.length === 0 ? (
             <EmptyState
-              icon={Users}
-              title="No Customers Found"
-              description="No customer records match the selected segment or search criteria."
+              icon={customerType === 'one_time' ? ShoppingBag : Users}
+              title={customerType === 'one_time' ? 'No One-Time Customers' : 'No Customers Found'}
+              description={
+                customerType === 'one_time'
+                  ? 'No manual order patrons recorded yet. When orders are created via WhatsApp or Phone, patrons appear here without cluttering the app customer list.'
+                  : 'No customer records match the selected segment or search criteria.'
+              }
             />
           ) : (
             <div className="overflow-x-auto">
@@ -639,105 +704,145 @@ export default function AdminCustomers() {
                   <tr className="border-b border-[#E9E4D9] text-[#888B83] uppercase text-[11px]">
                     <th className="py-3 pr-3">Customer</th>
                     <th className="py-3 pr-3">Contact</th>
-                    <th className="py-3 pr-3">Verification</th>
+                    {customerType === 'one_time' ? (
+                      <th className="py-3 pr-3">Channel / Source</th>
+                    ) : (
+                      <th className="py-3 pr-3">Verification</th>
+                    )}
                     <th className="py-3 pr-3">Orders</th>
                     <th className="py-3 pr-3">Total Spend</th>
-                    <th className="py-3 pr-3">Registered</th>
+                    <th className="py-3 pr-3">{customerType === 'one_time' ? 'Added' : 'Registered'}</th>
                     <th className="py-3 pr-3">Status</th>
                     <th className="py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E9E4D9]">
-                  {customers.map(c => (
-                    <tr key={c.id} className="hover:bg-[#F8F6F0]/60 transition">
-                      <td className="py-3 pr-3 font-semibold text-[#183D32]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#183D32]/10 text-[#183D32] flex items-center justify-center font-bold text-xs uppercase">
-                            {c.name ? c.name.charAt(0) : 'P'}
+                  {customers.map(c => {
+                    const src = String(c.source || 'web').toLowerCase();
+                    return (
+                      <tr key={c.id} className="hover:bg-[#F8F6F0]/60 transition">
+                        <td className="py-3 pr-3 font-semibold text-[#183D32]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-[#183D32]/10 text-[#183D32] flex items-center justify-center font-bold text-xs uppercase">
+                              {c.name ? c.name.charAt(0) : 'P'}
+                            </div>
+                            <div>
+                              <div>{c.name}</div>
+                              {c.isOneTime ? (
+                                <span className="text-[10px] text-[#C8A96B] font-semibold flex items-center gap-1">
+                                  <span>One-Time Patron</span>
+                                </span>
+                              ) : (
+                                c.tier && (
+                                  <span className="text-[10px] text-[#8F6C2B] font-normal">{c.tier}</span>
+                                )
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <div>{c.name}</div>
-                            {c.tier && (
-                              <span className="text-[10px] text-[#8F6C2B] font-normal">{c.tier}</span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3">
-                        <div className="text-[#5C6058]">{c.email}</div>
-                        <div className="text-[11px] text-[#888B83]">{c.phone || '—'}</div>
-                      </td>
-                      <td className="py-3 pr-3">
-                        {c.emailVerified ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Verified</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold text-[10px]">
-                            <Clock className="w-3 h-3" />
-                            <span>Unverified</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-3 font-semibold">
-                        <div className="flex items-center gap-1.5">
-                          <span>{c.totalOrders}</span>
-                          {c.totalOrders >= 2 && (
-                            <span className="px-1.5 py-0.2 rounded bg-[#C8A96B]/20 text-[#8F6C2B] text-[9px] font-bold uppercase">
-                              Repeat
+                        </td>
+                        <td className="py-3 pr-3">
+                          <div className="text-[#5C6058]">{c.email}</div>
+                          <div className="text-[11px] text-[#888B83]">{c.phone || '—'}</div>
+                        </td>
+                        <td className="py-3 pr-3">
+                          {customerType === 'one_time' ? (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                                src === 'whatsapp'
+                                  ? 'bg-[#E7F6ED] text-[#128C7E]'
+                                  : src === 'phone'
+                                  ? 'bg-[#EBF5FB] text-[#2980B9]'
+                                  : src === 'instagram'
+                                  ? 'bg-[#F4ECF7] text-[#8E44AD]'
+                                  : 'bg-[#FAF3E3] text-[#C8A96B]'
+                              }`}
+                            >
+                              {src === 'whatsapp' ? (
+                                <MessageCircle className="w-3 h-3" />
+                              ) : src === 'phone' ? (
+                                <Phone className="w-3 h-3" />
+                              ) : src === 'instagram' ? (
+                                <ExternalLink className="w-3 h-3" />
+                              ) : (
+                                <UserIcon className="w-3 h-3" />
+                              )}
+                              <span className="capitalize">{src}</span>
+                            </span>
+                          ) : c.emailVerified ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Verified</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-semibold text-[10px]">
+                              <Clock className="w-3 h-3" />
+                              <span>Unverified</span>
                             </span>
                           )}
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3 font-bold text-[#183D32]">{formatINR(c.totalSpent)}</td>
-                      <td className="py-3 pr-3 text-[#888B83]">
-                        {new Date(c.createdAt).toLocaleDateString('en-IN')}
-                      </td>
-                      <td className="py-3 pr-3">
-                        <StatusBadge status={c.isActive ? 'active' : 'inactive'} />
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => openProfile(c.id)}
-                            className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#245746] cursor-pointer"
-                            title="Inspect Profile & Ordered Items"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => openCouponModal(c)}
-                            className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#8F6C2B] cursor-pointer"
-                            title="Generate Custom Coupon"
-                          >
-                            <Tag className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => openEmailModal(c)}
-                            className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#183D32] cursor-pointer"
-                            title="Send Direct Email"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => openEdit(c)}
-                            className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#5C6058] cursor-pointer"
-                            title="Edit Customer"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(c)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 cursor-pointer"
-                            title="Delete Customer Profile"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 pr-3 font-semibold">
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.totalOrders}</span>
+                            {c.totalOrders >= 2 && (
+                              <span className="px-1.5 py-0.2 rounded bg-[#C8A96B]/20 text-[#8F6C2B] text-[9px] font-bold uppercase">
+                                Repeat
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3 font-bold text-[#183D32]">{formatINR(c.totalSpent)}</td>
+                        <td className="py-3 pr-3 text-[#888B83]">
+                          {new Date(c.createdAt).toLocaleDateString('en-IN')}
+                        </td>
+                        <td className="py-3 pr-3">
+                          <StatusBadge status={c.isActive ? 'active' : 'inactive'} />
+                        </td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => openProfile(c.id)}
+                              className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#245746] cursor-pointer"
+                              title="Inspect Profile & Ordered Items"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            {customerType === 'registered' && (
+                              <>
+                                <button
+                                  onClick={() => openCouponModal(c)}
+                                  className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#8F6C2B] cursor-pointer"
+                                  title="Generate Custom Coupon"
+                                >
+                                  <Tag className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => openEmailModal(c)}
+                                  className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#183D32] cursor-pointer"
+                                  title="Send Direct Email"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => openEdit(c)}
+                              className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#5C6058] cursor-pointer"
+                              title="Edit Customer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(c)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 cursor-pointer"
+                              title="Delete Customer Profile"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

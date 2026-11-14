@@ -1650,8 +1650,9 @@ export function createAdminErpRouter(
         email: generatedEmail,
         role: 'customer',
         status: 'active',
-        verified: true,
+        emailVerified: true,
         source: orderSource,
+        isOneTime: true,
         totalOrders: 0,
         totalSpent: 0,
         createdAt: now,
@@ -1902,17 +1903,287 @@ export function createAdminErpRouter(
     });
   });
 
+  router.put('/orders/:orderNumber/payment-proof', requirePermission('orders'), async (req, res) => {
+    const orderNumber = req.params.orderNumber;
+    const { paymentScreenshotUrl, paymentReference } = req.body || {};
+    if (!paymentScreenshotUrl && !paymentReference) {
+      res.status(400).json({ error: 'Please provide payment screenshot URL or reference.' });
+      return;
+    }
+    const order = await db.models.Order.findOne({ orderNumber });
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+    const updateData: Record<string, any> = { updatedAt: new Date().toISOString() };
+    if (typeof paymentScreenshotUrl === 'string') updateData.paymentScreenshotUrl = paymentScreenshotUrl.trim();
+    if (typeof paymentReference === 'string') updateData.paymentReference = paymentReference.trim();
+
+    await db.models.Order.updateOne({ orderNumber }, { $set: updateData });
+    const updated = await db.models.Order.findOne({ orderNumber }).lean();
+    const hydrated = await hydrateOrder(db, updated!);
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'order_payment_proof_updated',
+      entityType: 'order',
+      entityId: orderNumber,
+      details: updateData,
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      ok: true,
+      message: 'Payment screenshot attached to order successfully.',
+      order: hydrated,
+    });
+  });
+
+  router.put('/orders/:orderNumber/manual-edit', requirePermission('orders'), async (req, res) => {
+    const orderNumber = req.params.orderNumber;
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        body = {};
+      }
+    }
+
+    const order = await db.models.Order.findOne({ orderNumber });
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+    if (order.status === 'cancelled' || order.status === 'returned') {
+      res.status(400).json({ error: `Cannot edit a ${order.status} order.` });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const customerName = typeof body.customerName === 'string' ? body.customerName.trim() : '';
+    const customerPhone = typeof body.customerPhone === 'string' ? body.customerPhone.trim() : '';
+    const customerEmail = typeof body.customerEmail === 'string' && body.customerEmail.trim()
+      ? normalizeEmail(body.customerEmail.trim())
+      : '';
+    const deliveryAddress = typeof body.deliveryAddress === 'string' ? body.deliveryAddress.trim() : '';
+    const city = typeof body.city === 'string' ? body.city.trim() : '';
+    const state = typeof body.state === 'string' ? body.state.trim() : '';
+    const pincode = typeof body.pincode === 'string' ? body.pincode.trim() : '';
+    const rawItems = Array.isArray(body.items) ? body.items : [];
+
+    if (!customerName || !customerPhone || !deliveryAddress || !city || !state || !pincode) {
+      res.status(400).json({ error: 'Customer name, phone, and complete delivery address are required.' });
+      return;
+    }
+    if (rawItems.length === 0) {
+      res.status(400).json({ error: 'At least one catalog product is required.' });
+      return;
+    }
+
+    // 1. Restore previous inventory deductions from existing OrderItems
+    const existingItems = await db.models.OrderItem.find({ orderId: order.id }).lean();
+    for (const ei of existingItems) {
+      const qtyToRestore = ei.stockQuantity !== null && ei.stockQuantity !== undefined ? ei.stockQuantity : ei.quantity;
+      await db.models.Product.updateOne(
+        { id: ei.productId },
+        { $inc: { stock: qtyToRestore } }
+      );
+      if (ei.variantId) {
+        await db.models.ProductVariant.updateOne(
+          { id: ei.variantId },
+          { $inc: { stock: ei.quantity } }
+        );
+      }
+      await syncInventoryRecord(db, ei.productId);
+    }
+
+    // 2. Resolve new items and deduct stock
+    const resolvedItems: any[] = [];
+    let totalCostOfGoods = 0;
+
+    for (const rawItem of rawItems) {
+      const prodId = String(rawItem.productId || '').trim();
+      const qty = Math.max(0.1, Number(rawItem.quantity || 1));
+      if (!prodId) continue;
+
+      const product = await db.models.Product.findOne({ id: prodId }).lean();
+      if (!product) {
+        res.status(400).json({ error: `Product '${prodId}' not found in catalog.` });
+        return;
+      }
+
+      let variantId: string | null = null;
+      let weightLabel: string | null = rawItem.weightLabel || null;
+      let unitPrice = typeof rawItem.unitPrice === 'number' && rawItem.unitPrice >= 0 ? rawItem.unitPrice : Number(product.price);
+      let purchasePrice = Number(product.purchasePrice || 0);
+
+      if (rawItem.variantId) {
+        const variant = await db.models.ProductVariant.findOne({ id: rawItem.variantId, productId: prodId }).lean();
+        if (variant) {
+          variantId = variant.id;
+          weightLabel = variant.weightLabel;
+          if (rawItem.unitPrice === undefined || rawItem.unitPrice === null) {
+            unitPrice = Number(variant.sellingPrice || product.price);
+          }
+          if (variant.purchasePrice) purchasePrice = Number(variant.purchasePrice);
+        }
+      }
+
+      const itemSubtotal = Math.round(unitPrice * qty);
+      const itemCost = Math.round(purchasePrice * qty);
+      totalCostOfGoods += itemCost;
+
+      const baseUnitsToDeduct = weightLabel
+        ? getVariantStockUnits(weightLabel, (product.unit as any) || 'kg') * qty
+        : qty;
+
+      resolvedItems.push({
+        productId: product.id,
+        variantId,
+        weightLabel,
+        productName: product.name,
+        productImage: product.image || '/assets/products/akhrot.jpg',
+        category: product.category || 'nuts',
+        unit: product.unit || 'kg',
+        purchasePrice,
+        unitPrice,
+        quantity: qty,
+        stockQuantity: baseUnitsToDeduct,
+        subtotal: itemSubtotal,
+        currentStock: Number(product.stock || 0),
+      });
+    }
+
+    // Delete old OrderItems and insert new OrderItems
+    await db.models.OrderItem.deleteMany({ orderId: order.id });
+    for (const ri of resolvedItems) {
+      await db.models.OrderItem.create({
+        id: `oi_${crypto.randomUUID()}`,
+        orderId: order.id,
+        productId: ri.productId,
+        variantId: ri.variantId,
+        weightLabel: ri.weightLabel,
+        productName: ri.productName,
+        productImage: ri.productImage,
+        category: ri.category,
+        unit: ri.unit,
+        purchasePrice: ri.purchasePrice,
+        unitPrice: ri.unitPrice,
+        quantity: ri.quantity,
+        stockQuantity: ri.stockQuantity,
+        subtotal: ri.subtotal,
+      });
+
+      const deductAmt = ri.stockQuantity !== null ? ri.stockQuantity : ri.quantity;
+      await db.models.Product.updateOne(
+        { id: ri.productId },
+        { $inc: { stock: -deductAmt }, $set: { updatedAt: now } }
+      );
+      if (ri.variantId) {
+        await db.models.ProductVariant.updateOne(
+          { id: ri.variantId },
+          { $inc: { stock: -ri.quantity } }
+        );
+      }
+      await syncInventoryRecord(db, ri.productId);
+    }
+
+    // 3. Compute totals
+    const subtotal = resolvedItems.reduce((acc, it) => acc + it.subtotal, 0);
+    const shippingCharge =
+      typeof body.shippingCharge === 'number' && Number.isFinite(body.shippingCharge)
+        ? Math.max(0, body.shippingCharge)
+        : calculateOrderShippingCharge(resolvedItems, subtotal);
+    const discountAmount = Math.max(0, Math.min(subtotal, Number(body.discountAmount || 0)));
+    const totalAmount = Math.max(0, subtotal - discountAmount + shippingCharge);
+
+    const deliveryAddressObj = {
+      fullName: customerName,
+      mobileNumber: customerPhone,
+      email: customerEmail || (typeof order.deliveryAddress === 'object' ? (order.deliveryAddress as any)?.email : '') || '',
+      deliveryAddress,
+      city,
+      state,
+      pincode,
+    };
+
+    const customerSnapshot = {
+      id: order.customerId,
+      name: customerName,
+      phone: customerPhone,
+      email: customerEmail || (typeof order.customerSnapshot === 'object' ? (order.customerSnapshot as any)?.email : '') || '',
+    };
+
+    const updateFields: Record<string, any> = {
+      deliveryAddress: deliveryAddressObj,
+      customerSnapshot,
+      subtotal,
+      discountAmount,
+      shippingCharge,
+      totalAmount,
+      costOfGoods: totalCostOfGoods,
+      updatedAt: now,
+    };
+
+    if (body.paymentMethod) {
+      const pmRaw = String(body.paymentMethod).toLowerCase();
+      updateFields.paymentMethod = pmRaw === 'cash' ? 'Cash' : pmRaw === 'card' ? 'Card' : 'UPI';
+    }
+    if (body.paymentStatus && ['paid', 'pending', 'cod'].includes(body.paymentStatus)) {
+      updateFields.paymentStatus = body.paymentStatus;
+    }
+    if (typeof body.paymentReference === 'string') {
+      updateFields.paymentReference = body.paymentReference.trim();
+    }
+    if (typeof body.paymentScreenshotUrl === 'string') {
+      updateFields.paymentScreenshotUrl = body.paymentScreenshotUrl.trim();
+    }
+    if (typeof body.internalNotes === 'string') {
+      updateFields.internalNotes = body.internalNotes.trim();
+    }
+
+    await db.models.Order.updateOne({ orderNumber }, { $set: updateFields });
+    const updatedOrder = await db.models.Order.findOne({ orderNumber }).lean();
+    const hydrated = await hydrateOrder(db, updatedOrder!);
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'manual_order_edited',
+      entityType: 'order',
+      entityId: orderNumber,
+      details: { newTotal: totalAmount, itemsCount: resolvedItems.length },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      ok: true,
+      message: `Manual order #${orderNumber} updated successfully.`,
+      order: hydrated,
+    });
+  });
+
   // =============================================
   // 5. CUSTOMER MANAGEMENT
   // =============================================
   router.get('/customers', requirePermission('customers'), async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
     const segment = typeof req.query.segment === 'string' ? req.query.segment : 'all';
+    const customerType = typeof req.query.customerType === 'string' ? req.query.customerType : 'registered';
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = req.query.limit ? Math.max(1, Math.min(100, Number(req.query.limit))) : 0;
 
+    const custFilter: Record<string, any> = { role: 'customer' };
+    if (customerType === 'registered') {
+      custFilter.isOneTime = { $ne: true };
+    } else if (customerType === 'one_time') {
+      custFilter.isOneTime = true;
+    }
+
     const [rows, orders] = await Promise.all([
-      db.models.Customer.find({ role: 'customer' }, { passwordHash: 0, _id: 0 })
+      db.models.Customer.find(custFilter, { passwordHash: 0, _id: 0 })
         .sort({ createdAt: -1 })
         .lean(),
       db.models.Order.find({}, { customerId: 1, status: 1, totalAmount: 1, createdAt: 1, _id: 0 }).lean(),
@@ -1946,6 +2217,8 @@ export function createAdminErpRouter(
           emailVerified: Boolean(r.emailVerified),
           isActive: r.isActive === undefined ? true : Boolean(r.isActive),
           marketingConsent: Boolean(r.marketingConsent),
+          isOneTime: Boolean(r.isOneTime),
+          source: String(r.source || 'web'),
           totalOrders: st.totalOrders,
           totalSpent: st.totalSpent,
         };
@@ -1997,7 +2270,9 @@ export function createAdminErpRouter(
     }
 
     const twoDaysAgo = new Date(Date.now() - 48 * 3600_000).toISOString();
-    const totalCustomers = customers.length;
+    const registeredCustomers = customers.filter(c => !c.isOneTime);
+    const oneTimeCustomersCount = customers.filter(c => Boolean(c.isOneTime)).length;
+    const totalCustomers = registeredCustomers.length;
     let verifiedCount = 0;
     let unverifiedCount = 0;
     let unverifiedEligibleForPurge = 0;
@@ -2008,7 +2283,7 @@ export function createAdminErpRouter(
 
     const frequentList: any[] = [];
 
-    for (const c of customers) {
+    for (const c of registeredCustomers) {
       const isVerified = Boolean(c.emailVerified);
       if (isVerified) {
         verifiedCount++;
@@ -2050,6 +2325,7 @@ export function createAdminErpRouter(
 
     res.json({
       totalCustomers,
+      oneTimeCustomersCount,
       verifiedCount,
       unverifiedCount,
       unverifiedEligibleForPurge,

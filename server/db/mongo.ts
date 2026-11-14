@@ -294,6 +294,8 @@ function createModels(conn: Connection) {
       failedLoginAttempts: { type: Number, default: 0 },
       lockedUntil: { type: String, default: null },
       lastVerificationSentAt: { type: String, default: null },
+      isOneTime: { type: Boolean, default: false, index: true },
+      source: { type: String, default: 'web', index: true },
       createdAt: { type: String, required: true, index: true },
       updatedAt: { type: String, required: true },
     },

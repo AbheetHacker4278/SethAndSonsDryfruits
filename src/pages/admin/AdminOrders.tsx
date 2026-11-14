@@ -127,6 +127,46 @@ export default function AdminOrders() {
   const [shippingOverride, setShippingOverride] = useState<string>('');
   const [manualOrderNotes, setManualOrderNotes] = useState('');
 
+  // Inspector Live Payment Proof Upload
+  const [uploadingInspectorProof, setUploadingInspectorProof] = useState(false);
+
+  // Edit Manual Order Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [uploadingEditProof, setUploadingEditProof] = useState(false);
+
+  const [editCustomerName, setEditCustomerName] = useState('');
+  const [editCustomerPhone, setEditCustomerPhone] = useState('');
+  const [editCustomerEmail, setEditCustomerEmail] = useState('');
+  const [editDeliveryAddress, setEditDeliveryAddress] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editPincode, setEditPincode] = useState('');
+
+  const [editOrderItems, setEditOrderItems] = useState<Array<{
+    productId: string;
+    productName: string;
+    variantId?: string;
+    weightLabel?: string;
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+  }>>([]);
+
+  const [editPickerProductId, setEditPickerProductId] = useState('');
+  const [editPickerVariantId, setEditPickerVariantId] = useState('');
+  const [editPickerQuantity, setEditPickerQuantity] = useState(1);
+  const [editPickerUnitPrice, setEditPickerUnitPrice] = useState('');
+
+  const [editPaymentMethod, setEditPaymentMethod] = useState<'upi' | 'cash' | 'card'>('upi');
+  const [editPaymentStatus, setEditPaymentStatus] = useState<'paid' | 'pending' | 'cod'>('paid');
+  const [editPaymentReference, setEditPaymentReference] = useState('');
+  const [editPaymentScreenshotUrl, setEditPaymentScreenshotUrl] = useState('');
+  const [editDiscountAmount, setEditDiscountAmount] = useState('0');
+  const [editShippingOverride, setEditShippingOverride] = useState('');
+  const [editInternalNotes, setEditInternalNotes] = useState('');
+
   useEffect(() => {
     fetchPublishedProducts().then(setCatalogProducts).catch(() => {});
   }, []);
@@ -339,6 +379,246 @@ export default function AdminOrders() {
       setToast({ type: 'err', text: err instanceof Error ? err.message : 'Failed to create manual order.' });
     } finally {
       setSubmittingCreate(false);
+    }
+  };
+
+  const handleInspectorProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedOrder) return;
+    setUploadingInspectorProof(true);
+    try {
+      const fd = new FormData();
+      fd.append('paymentProof', file);
+      const res = await apiUpload<{ paymentScreenshotUrl: string }>(
+        '/api/admin/orders/upload-payment-proof',
+        fd
+      );
+      await apiRequest(`/api/admin/orders/${encodeURIComponent(selectedOrder.orderNumber)}/payment-proof`, {
+        method: 'PUT',
+        body: { paymentScreenshotUrl: res.paymentScreenshotUrl },
+      });
+      setSelectedOrder((prev: any) => ({ ...prev, paymentScreenshotUrl: res.paymentScreenshotUrl }));
+      setToast({ type: 'ok', text: 'Payment screenshot attached to order invoice successfully.' });
+      await loadOrders();
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Failed to upload payment proof.' });
+    } finally {
+      setUploadingInspectorProof(false);
+    }
+  };
+
+  const openEditManualModal = (ord: any) => {
+    setEditingOrder(ord);
+    const addr = ord.deliveryAddressObj || {};
+    const cust = ord.customerObj || {};
+    setEditCustomerName(addr.fullName || cust.name || '');
+    setEditCustomerPhone(addr.mobileNumber || cust.phone || '');
+    setEditCustomerEmail(addr.email || cust.email || '');
+    setEditDeliveryAddress(addr.deliveryAddress || '');
+    setEditCity(addr.city || '');
+    setEditState(addr.state || '');
+    setEditPincode(addr.pincode || '');
+
+    const items = (ord.items || []).map((it: any) => ({
+      productId: it.productId,
+      productName: it.productName,
+      variantId: it.variantId || undefined,
+      weightLabel: it.weightLabel || undefined,
+      unitPrice: it.unitPrice,
+      quantity: it.quantity,
+      subtotal: it.subtotal,
+    }));
+    setEditOrderItems(items);
+
+    const pm = (ord.paymentMethod || 'upi').toLowerCase();
+    setEditPaymentMethod(pm === 'cash' ? 'cash' : pm === 'card' ? 'card' : 'upi');
+    setEditPaymentStatus(ord.paymentStatus || 'paid');
+    setEditPaymentReference(ord.paymentReference || '');
+    setEditPaymentScreenshotUrl(ord.paymentScreenshotUrl || '');
+    setEditDiscountAmount(String(ord.discountAmount || 0));
+    setEditShippingOverride(String(ord.shippingCharge ?? 0));
+    setEditInternalNotes(ord.internalNotes || '');
+
+    setEditPickerProductId('');
+    setEditPickerVariantId('');
+    setEditPickerQuantity(1);
+    setEditPickerUnitPrice('');
+    setEditModalOpen(true);
+  };
+
+  const editDraftSubtotal = editOrderItems.reduce((acc, it) => acc + it.subtotal, 0);
+  const editAutoShipping = calculateOrderShippingCharge(editOrderItems, editDraftSubtotal);
+  const editDraftShipping = editShippingOverride !== '' ? Math.max(0, Number(editShippingOverride) || 0) : editAutoShipping;
+  const editDraftDiscount = Math.max(0, Number(editDiscountAmount) || 0);
+  const editDraftTotal = Math.max(0, editDraftSubtotal - editDraftDiscount + editDraftShipping);
+
+  const handleEditProductSelect = (prodId: string) => {
+    setEditPickerProductId(prodId);
+    const prod = catalogProducts.find(p => p.id === prodId);
+    if (!prod) {
+      setEditPickerVariantId('');
+      setEditPickerUnitPrice('');
+      return;
+    }
+    if (prod.weightVariants && prod.weightVariants.length > 0) {
+      const firstVar = prod.weightVariants[0];
+      setEditPickerVariantId(firstVar.id);
+      setEditPickerUnitPrice(String(firstVar.sellingPrice || prod.price));
+    } else {
+      setEditPickerVariantId('');
+      setEditPickerUnitPrice(String(prod.price));
+    }
+  };
+
+  const handleEditVariantSelect = (varId: string) => {
+    setEditPickerVariantId(varId);
+    const prod = catalogProducts.find(p => p.id === editPickerProductId);
+    if (!prod) return;
+    const variant = prod.weightVariants?.find(v => v.id === varId);
+    if (variant) {
+      setEditPickerUnitPrice(String(variant.sellingPrice || prod.price));
+    }
+  };
+
+  const handleEditAddItem = () => {
+    const prod = catalogProducts.find(p => p.id === editPickerProductId);
+    if (!prod) return;
+    const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
+    const unitPrice = Number(editPickerUnitPrice) > 0 ? Number(editPickerUnitPrice) : prod.price;
+    const qty = Math.max(0.1, Number(editPickerQuantity) || 1);
+    const lineSubtotal = Math.round(unitPrice * qty);
+
+    setEditOrderItems(prev => [
+      ...prev,
+      {
+        productId: prod.id,
+        productName: prod.name,
+        variantId: variant?.id,
+        weightLabel: variant?.weightLabel,
+        unitPrice,
+        quantity: qty,
+        subtotal: lineSubtotal,
+      },
+    ]);
+
+    setEditPickerProductId('');
+    setEditPickerVariantId('');
+    setEditPickerQuantity(1);
+    setEditPickerUnitPrice('');
+  };
+
+  const handleEditRemoveItem = (index: number) => {
+    setEditOrderItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditUpdateItemPrice = (index: number, newPrice: number) => {
+    setEditOrderItems(prev => {
+      const next = [...prev];
+      if (next[index]) {
+        const p = Math.max(0, newPrice);
+        next[index] = {
+          ...next[index],
+          unitPrice: p,
+          subtotal: Math.round(p * next[index].quantity),
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleEditUpdateItemQty = (index: number, newQty: number) => {
+    setEditOrderItems(prev => {
+      const next = [...prev];
+      if (next[index]) {
+        const q = Math.max(0.1, newQty);
+        next[index] = {
+          ...next[index],
+          quantity: q,
+          subtotal: Math.round(next[index].unitPrice * q),
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleEditProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingEditProof(true);
+    try {
+      const fd = new FormData();
+      fd.append('paymentProof', file);
+      const res = await apiUpload<{ paymentScreenshotUrl: string }>(
+        '/api/admin/orders/upload-payment-proof',
+        fd
+      );
+      setEditPaymentScreenshotUrl(res.paymentScreenshotUrl);
+      setToast({ type: 'ok', text: 'Payment receipt uploaded.' });
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Failed to upload payment proof.' });
+    } finally {
+      setUploadingEditProof(false);
+    }
+  };
+
+  const handleSaveEditManualOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+    if (!editCustomerName.trim() || !editCustomerPhone.trim()) {
+      setToast({ type: 'err', text: 'Customer name and phone number are required.' });
+      return;
+    }
+    if (!editDeliveryAddress.trim() || !editCity.trim() || !editState.trim() || !editPincode.trim()) {
+      setToast({ type: 'err', text: 'Please complete delivery address, city, state, and pincode.' });
+      return;
+    }
+    if (editOrderItems.length === 0) {
+      setToast({ type: 'err', text: 'At least one catalog product is required.' });
+      return;
+    }
+
+    setSubmittingEdit(true);
+    try {
+      const payload = {
+        customerName: editCustomerName.trim(),
+        customerPhone: editCustomerPhone.trim(),
+        customerEmail: editCustomerEmail.trim(),
+        deliveryAddress: editDeliveryAddress.trim(),
+        city: editCity.trim(),
+        state: editState.trim(),
+        pincode: editPincode.trim(),
+        items: editOrderItems.map(it => ({
+          productId: it.productId,
+          variantId: it.variantId || null,
+          weightLabel: it.weightLabel || null,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+        })),
+        paymentMethod: editPaymentMethod,
+        paymentStatus: editPaymentStatus,
+        paymentReference: editPaymentReference.trim(),
+        paymentScreenshotUrl: editPaymentScreenshotUrl.trim(),
+        shippingCharge: editDraftShipping,
+        discountAmount: editDraftDiscount,
+        internalNotes: editInternalNotes.trim(),
+      };
+
+      const res = await apiRequest<{ ok: boolean; message: string; order: PersistedOrder }>(
+        `/api/admin/orders/${encodeURIComponent(editingOrder.orderNumber)}/manual-edit`,
+        {
+          method: 'PUT',
+          body: payload,
+        }
+      );
+
+      setToast({ type: 'ok', text: res.message || 'Manual order updated successfully.' });
+      setSelectedOrder(res.order);
+      setEditModalOpen(false);
+      await loadOrders();
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Failed to update manual order.' });
+    } finally {
+      setSubmittingEdit(false);
     }
   };
 
@@ -562,6 +842,11 @@ export default function AdminOrders() {
     { id: 'returned', label: 'Returned' },
   ];
 
+  const isSelectedManual = Boolean(
+    selectedOrder?.orderSource &&
+    ['whatsapp', 'phone', 'direct', 'instagram', 'manual'].includes(String(selectedOrder.orderSource).toLowerCase())
+  );
+
   return (
     <AdminLayout
       title="Order Management & Courier Dispatch"
@@ -714,17 +999,30 @@ export default function AdminOrders() {
                       <h3 className="font-admin-serif text-xl font-semibold text-[#183D32]">
                         #{selectedOrder.orderNumber}
                       </h3>
-                      {selectedOrder.orderSource && selectedOrder.orderSource !== 'online' && (
-                        <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                          selectedOrder.orderSource === 'whatsapp'
-                            ? 'bg-[#E7F6ED] text-[#128C7E]'
-                            : selectedOrder.orderSource === 'phone'
-                            ? 'bg-[#EBF5FB] text-[#2980B9]'
-                            : 'bg-[#FAF3E3] text-[#C8A96B]'
-                        }`}>
-                          {selectedOrder.orderSource === 'whatsapp' ? <MessageCircle className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
-                          <span className="capitalize">{selectedOrder.orderSource}</span>
+                      {isSelectedManual ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#183D32] text-[#C8A96B] border border-[#C8A96B]/50 shadow-sm">
+                          {selectedOrder.orderSource === 'whatsapp' ? (
+                            <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+                          ) : selectedOrder.orderSource === 'phone' ? (
+                            <Phone className="w-3.5 h-3.5 text-[#3498DB]" />
+                          ) : (
+                            <User className="w-3.5 h-3.5 text-[#C8A96B]" />
+                          )}
+                          <span>Manual Order • {selectedOrder.orderSource.toUpperCase()}</span>
                         </span>
+                      ) : (
+                        selectedOrder.orderSource && selectedOrder.orderSource !== 'online' && (
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                            selectedOrder.orderSource === 'whatsapp'
+                              ? 'bg-[#E7F6ED] text-[#128C7E]'
+                              : selectedOrder.orderSource === 'phone'
+                              ? 'bg-[#EBF5FB] text-[#2980B9]'
+                              : 'bg-[#FAF3E3] text-[#C8A96B]'
+                          }`}>
+                            {selectedOrder.orderSource === 'whatsapp' ? <MessageCircle className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
+                            <span className="capitalize">{selectedOrder.orderSource}</span>
+                          </span>
+                        )
                       )}
                     </div>
                     <div className="text-xs text-[#888B83]">
@@ -767,100 +1065,138 @@ export default function AdminOrders() {
                 </div>
 
                 {/* Action Pills */}
-                <div className="flex flex-wrap gap-2">
-                  {selectedOrder.status === 'placed' && (
+                {isSelectedManual ? (
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => handleConfirmOrder(selectedOrder.orderNumber)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white cursor-pointer"
+                      type="button"
+                      onClick={() => openEditManualModal(selectedOrder)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white hover:bg-[#245746] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
                     >
-                      Confirm Order
+                      <Edit3 className="w-3.5 h-3.5 text-[#C8A96B]" />
+                      <span>Edit Manual Order</span>
                     </button>
-                  )}
-                  {selectedOrder.status === 'confirmed' && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'processing', 'Preparing batch')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer"
-                    >
-                      Processing
-                    </button>
-                  )}
-                  {['confirmed', 'processing'].includes(selectedOrder.status) && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'packed', 'Vacuum packed')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer"
-                    >
-                      Mark Packed
-                    </button>
-                  )}
-                  {['placed', 'confirmed', 'processing', 'packed'].includes(selectedOrder.status) && (
-                    <button
-                      onClick={() => openDispatchModal(selectedOrder, false)}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C8A96B] text-[#183D32] cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>Mark as Dispatched</span>
-                    </button>
-                  )}
-                  {selectedOrder.shipment && (
-                    <button
-                      onClick={() => openDispatchModal(selectedOrder, true)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Edit Courier</span>
-                    </button>
-                  )}
-                  {selectedOrder.status === 'dispatched' && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'out_for_delivery', 'Out for delivery')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#245746] text-white cursor-pointer"
-                    >
-                      Out for Delivery
-                    </button>
-                  )}
-                  {['dispatched', 'out_for_delivery'].includes(selectedOrder.status) && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'delivered', 'Delivered')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white cursor-pointer"
-                    >
-                      Mark Delivered
-                    </button>
-                  )}
-                  {selectedOrder.status === 'delivered' && (
-                    <button
-                      onClick={() => setReturnModalOrder(selectedOrder)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#FCECEB] text-[#C65B50] cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Process Return</span>
-                    </button>
-                  )}
-                  {!['delivered', 'cancelled', 'returned'].includes(selectedOrder.status) && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'cancelled', 'Cancelled by admin')}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#FCECEB] text-[#C65B50] cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  {selectedOrder.refundStatus !== 'refunded' && (
-                    <button
-                      onClick={() => {
-                        setRefundModalOrder(selectedOrder);
-                        setRefundAmount(String(selectedOrder.totalAmount));
-                        setRefundRef('');
-                        setRefundVerified(false);
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#F8F6F0] border border-[#E9E4D9] text-[#252923] cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <IndianRupee className="w-3 h-3" />
-                      <span>Refund</span>
-                    </button>
-                  )}
-                </div>
+                    {!['cancelled', 'returned'].includes(selectedOrder.status) && (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'cancelled', 'Cancelled by admin')}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#FCECEB] text-[#C65B50] hover:bg-red-100 transition-colors cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    )}
+                    {selectedOrder.refundStatus !== 'refunded' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRefundModalOrder(selectedOrder);
+                          setRefundAmount(String(selectedOrder.totalAmount));
+                          setRefundRef('');
+                          setRefundVerified(false);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#F8F6F0] border border-[#E9E4D9] text-[#252923] hover:bg-[#E9E4D9] transition-colors cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <IndianRupee className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Refund</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedOrder.status === 'placed' && (
+                      <button
+                        onClick={() => handleConfirmOrder(selectedOrder.orderNumber)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white cursor-pointer"
+                      >
+                        Confirm Order
+                      </button>
+                    )}
+                    {selectedOrder.status === 'confirmed' && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'processing', 'Preparing batch')}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer"
+                      >
+                        Processing
+                      </button>
+                    )}
+                    {['confirmed', 'processing'].includes(selectedOrder.status) && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'packed', 'Vacuum packed')}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer"
+                      >
+                        Mark Packed
+                      </button>
+                    )}
+                    {['placed', 'confirmed', 'processing', 'packed'].includes(selectedOrder.status) && (
+                      <button
+                        onClick={() => openDispatchModal(selectedOrder, false)}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C8A96B] text-[#183D32] cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>Mark as Dispatched</span>
+                      </button>
+                    )}
+                    {selectedOrder.shipment && (
+                      <button
+                        onClick={() => openDispatchModal(selectedOrder, true)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#F8F6F0] border border-[#E9E4D9] text-[#183D32] cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit Courier</span>
+                      </button>
+                    )}
+                    {selectedOrder.status === 'dispatched' && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'out_for_delivery', 'Out for delivery')}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#245746] text-white cursor-pointer"
+                      >
+                        Out for Delivery
+                      </button>
+                    )}
+                    {['dispatched', 'out_for_delivery'].includes(selectedOrder.status) && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'delivered', 'Delivered')}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white cursor-pointer"
+                      >
+                        Mark Delivered
+                      </button>
+                    )}
+                    {selectedOrder.status === 'delivered' && (
+                      <button
+                        onClick={() => setReturnModalOrder(selectedOrder)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#FCECEB] text-[#C65B50] cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Process Return</span>
+                      </button>
+                    )}
+                    {!['delivered', 'cancelled', 'returned'].includes(selectedOrder.status) && (
+                      <button
+                        onClick={() => handleStatusUpdate(selectedOrder.orderNumber, 'cancelled', 'Cancelled by admin')}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#FCECEB] text-[#C65B50] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    {selectedOrder.refundStatus !== 'refunded' && (
+                      <button
+                        onClick={() => {
+                          setRefundModalOrder(selectedOrder);
+                          setRefundAmount(String(selectedOrder.totalAmount));
+                          setRefundRef('');
+                          setRefundVerified(false);
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#F8F6F0] border border-[#E9E4D9] text-[#252923] cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <IndianRupee className="w-3 h-3" />
+                        <span>Refund</span>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Payment Status Control & Proof */}
-                <div className="space-y-2 p-3 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] text-xs">
+                <div className="space-y-2.5 p-3 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-[#252923]">Payment Status ({selectedOrder.paymentMethod})</span>
                     <select
@@ -883,30 +1219,68 @@ export default function AdminOrders() {
                     </div>
                   )}
 
-                  {selectedOrder.paymentScreenshotUrl && (
-                    <div className="pt-2 border-t border-[#E9E4D9]/80 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={selectedOrder.paymentScreenshotUrl}
-                          alt="Payment Proof"
-                          className="w-10 h-10 object-cover rounded-lg border border-[#C8A96B]/50"
-                        />
-                        <div>
-                          <div className="font-semibold text-[#183D32]">Payment Proof Attached</div>
-                          <div className="text-[10px] text-[#888B83]">Verified screenshot on file</div>
-                        </div>
-                      </div>
-                      <a
-                        href={selectedOrder.paymentScreenshotUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-[#183D32] hover:text-[#C8A96B] font-semibold underline"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>View Proof</span>
-                      </a>
+                  {/* Payment Proof Section - With upload/replace at any time, even after invoice generation */}
+                  <div className="pt-2 border-t border-[#E9E4D9]/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-[#183D32] flex items-center gap-1">
+                        <CreditCard className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Payment Screenshot / Receipt</span>
+                      </span>
+                      {selectedOrder.paymentScreenshotUrl && (
+                        <a
+                          href={selectedOrder.paymentScreenshotUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-[#183D32] hover:text-[#C8A96B] font-semibold underline"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>View Proof</span>
+                        </a>
+                      )}
                     </div>
-                  )}
+
+                    {selectedOrder.paymentScreenshotUrl ? (
+                      <div className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-[#C8A96B]/50">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={selectedOrder.paymentScreenshotUrl}
+                            alt="Payment Proof"
+                            className="w-10 h-10 object-cover rounded-md border border-[#E9E4D9]"
+                          />
+                          <div>
+                            <div className="font-semibold text-[#183D32] text-[11px]">Payment Proof Attached</div>
+                            <div className="text-[10px] text-[#888B83]">Uploaded receipt on file</div>
+                          </div>
+                        </div>
+                        <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#F8F6F0] hover:bg-[#E9E4D9] text-[#183D32] text-[11px] font-medium cursor-pointer border border-[#E9E4D9] transition">
+                          <UploadCloud className="w-3 h-3 text-[#C8A96B]" />
+                          <span>{uploadingInspectorProof ? 'Uploading...' : 'Replace'}</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,application/pdf"
+                            disabled={uploadingInspectorProof}
+                            onChange={handleInspectorProofUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-dashed border-[#E9E4D9]">
+                        <div className="text-[11px] text-[#888B83]">No payment screenshot attached yet.</div>
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#183D32] hover:bg-[#245746] text-white text-[11px] font-semibold cursor-pointer transition shadow-sm">
+                          <UploadCloud className="w-3.5 h-3.5 text-[#C8A96B]" />
+                          <span>{uploadingInspectorProof ? 'Uploading...' : 'Upload Screenshot'}</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,application/pdf"
+                            disabled={uploadingInspectorProof}
+                            onChange={handleInspectorProofUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Address & Items */}
@@ -1656,6 +2030,453 @@ export default function AdminOrders() {
                 >
                   <FileText className="w-4 h-4 text-[#C8A96B]" />
                   <span>{submittingCreate ? 'Creating Order...' : 'Create Order & View Final Invoice'}</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </AdminModal>
+
+        {/* Edit Manual Order Modal */}
+        <AdminModal
+          open={editModalOpen}
+          onClose={() => {
+            if (!submittingEdit) setEditModalOpen(false);
+          }}
+          title={editingOrder ? `Edit Manual Order #${editingOrder.orderNumber}` : 'Edit Manual Order'}
+          subtitle="Modify customer delivery address, line items, quantities, custom prices, and payment details."
+          maxWidth="max-w-3xl"
+        >
+          <form onSubmit={handleSaveEditManualOrder} className="space-y-4 text-xs">
+            {/* Customer Information */}
+            <div className="p-3.5 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] space-y-2.5">
+              <div className="font-semibold text-[#183D32] flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-[#C8A96B]" />
+                <span>Customer & Delivery Details</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Customer Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCustomerName}
+                    onChange={e => setEditCustomerName(e.target.value)}
+                    placeholder="e.g. Rajesh Sharma"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Mobile / Phone *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editCustomerPhone}
+                    onChange={e => setEditCustomerPhone(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editCustomerEmail}
+                    onChange={e => setEditCustomerEmail(e.target.value)}
+                    placeholder="e.g. rajesh@example.com"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Street Address *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDeliveryAddress}
+                    onChange={e => setEditDeliveryAddress(e.target.value)}
+                    placeholder="Flat/House, Road, Area"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCity}
+                    onChange={e => setEditCity(e.target.value)}
+                    placeholder="e.g. Surat / Mumbai"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">State & Pincode *</label>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      required
+                      value={editState}
+                      onChange={e => setEditState(e.target.value)}
+                      placeholder="State"
+                      className="w-1/2 px-2.5 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                    />
+                    <input
+                      type="text"
+                      required
+                      value={editPincode}
+                      onChange={e => setEditPincode(e.target.value)}
+                      placeholder="PIN"
+                      className="w-1/2 px-2.5 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Product Selection & Items List */}
+            <div className="p-3.5 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] space-y-3">
+              <div className="font-semibold text-[#183D32] flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#C8A96B]" />
+                  <span>Order Items & Custom Prices *</span>
+                </div>
+                <span className="text-[11px] text-[#888B83]">{editOrderItems.length} item(s)</span>
+              </div>
+
+              {/* Picker row */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-white p-3 rounded-xl border border-[#E9E4D9]">
+                <div className="sm:col-span-4">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Product</label>
+                  <select
+                    value={editPickerProductId}
+                    onChange={e => handleEditProductSelect(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
+                  >
+                    <option value="">-- Choose from Catalog --</option>
+                    {catalogProducts.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (₹{p.price}/{p.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Weight / Variant</label>
+                  {(() => {
+                    const prod = catalogProducts.find(p => p.id === editPickerProductId);
+                    if (prod?.weightVariants && prod.weightVariants.length > 0) {
+                      return (
+                        <select
+                          value={editPickerVariantId}
+                          onChange={e => handleEditVariantSelect(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
+                        >
+                          {prod.weightVariants.map(v => (
+                            <option key={v.id} value={v.id}>
+                              {v.weightLabel} - ₹{v.sellingPrice}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    }
+                    return (
+                      <div className="px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] text-[#888B83] text-xs border border-[#E9E4D9]">
+                        {prod ? `Standard (${prod.unit})` : 'Select product'}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Custom Price (₹) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editPickerUnitPrice}
+                    onChange={e => setEditPickerUnitPrice(e.target.value)}
+                    placeholder="e.g. 850"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold text-[#183D32] focus:border-[#183D32] focus:bg-white transition-colors"
+                  />
+                </div>
+
+                <div className="sm:col-span-1">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Qty</label>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={editPickerQuantity}
+                    onChange={e => setEditPickerQuantity(Math.max(0.1, Number(e.target.value) || 1))}
+                    className="w-full px-2 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <button
+                    type="button"
+                    onClick={handleEditAddItem}
+                    disabled={!editPickerProductId}
+                    className="w-full px-3 py-1.5 rounded-lg bg-[#183D32] hover:bg-[#245746] disabled:opacity-50 text-white font-semibold cursor-pointer text-xs"
+                  >
+                    + Add Item
+                  </button>
+                </div>
+              </div>
+
+              {/* Items List Table */}
+              {editOrderItems.length > 0 ? (
+                <div className="overflow-x-auto border border-[#E9E4D9] rounded-xl bg-white">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[#E9E4D9] bg-[#F8F6F0] text-[#888B83] text-[11px]">
+                        <th className="py-2 px-3">Item</th>
+                        <th className="py-2 px-2">Variant</th>
+                        <th className="py-2 px-2">Unit Price (₹)</th>
+                        <th className="py-2 px-2">Qty</th>
+                        <th className="py-2 px-2">Subtotal</th>
+                        <th className="py-2 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E9E4D9]">
+                      {editOrderItems.map((it, idx) => (
+                        <tr key={idx} className="hover:bg-[#FAF3E3]/40">
+                          <td className="py-2 px-3 font-medium text-[#183D32]">{it.productName}</td>
+                          <td className="py-2 px-2 text-[#5C6058]">{it.weightLabel || 'Base'}</td>
+                          <td className="py-2 px-2 text-[#5C6058]">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[#888B83]">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={it.unitPrice}
+                                onChange={e => handleEditUpdateItemPrice(idx, Number(e.target.value) || 0)}
+                                className="w-20 px-1.5 py-0.5 rounded border border-[#E9E4D9] text-xs font-semibold bg-[#F8F6F0] focus:bg-white focus:border-[#183D32]"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 font-semibold text-[#183D32]">
+                            <input
+                              type="number"
+                              min={0.1}
+                              step={0.1}
+                              value={it.quantity}
+                              onChange={e => handleEditUpdateItemQty(idx, Number(e.target.value) || 1)}
+                              className="w-16 px-1.5 py-0.5 rounded border border-[#E9E4D9] text-xs font-semibold bg-[#F8F6F0] focus:bg-white focus:border-[#183D32]"
+                            />
+                          </td>
+                          <td className="py-2 px-2 font-bold text-[#183D32]">{formatINR(it.subtotal)}</td>
+                          <td className="py-2 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleEditRemoveItem(idx)}
+                              className="text-[#C65B50] hover:text-red-700 p-1 cursor-pointer"
+                              title="Remove item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center py-4 text-xs text-[#888B83] bg-white rounded-xl border border-dashed border-[#E9E4D9]">
+                  No items in order. Select a product above to add.
+                </p>
+              )}
+
+              {/* Order Totals Bar */}
+              {editOrderItems.length > 0 && (
+                <div className="p-3 bg-white rounded-xl border border-[#E9E4D9] flex flex-wrap items-center justify-between gap-4 text-xs">
+                  <div>
+                    <span className="text-[#888B83]">Subtotal:</span>{' '}
+                    <span className="font-semibold text-[#183D32]">{formatINR(editDraftSubtotal)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#888B83]">Shipping:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editShippingOverride !== '' ? editShippingOverride : editAutoShipping}
+                      onChange={e => setEditShippingOverride(e.target.value)}
+                      placeholder={String(editAutoShipping)}
+                      className="w-20 px-2 py-1 rounded bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#888B83]">Discount:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editDiscountAmount}
+                      onChange={e => setEditDiscountAmount(e.target.value)}
+                      className="w-20 px-2 py-1 rounded bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold"
+                    />
+                  </div>
+                  <div className="text-sm font-bold text-[#183D32]">
+                    <span>Total:</span> <span className="text-[#C8A96B]">{formatINR(editDraftTotal)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Details & Proof */}
+            <div className="p-3.5 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] space-y-3">
+              <div className="font-semibold text-[#183D32] flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-[#C8A96B]" />
+                <span>Payment Details & Proof</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-1">Payment Method</label>
+                  <div className="flex gap-1.5">
+                    {[
+                      { id: 'upi', label: 'UPI' },
+                      { id: 'cash', label: 'Cash' },
+                      { id: 'card', label: 'Card' },
+                    ].map(pm => (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setEditPaymentMethod(pm.id as any)}
+                        className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
+                          editPaymentMethod === pm.id
+                            ? 'bg-[#183D32] text-white border-[#183D32]'
+                            : 'bg-white text-[#5C6058] border-[#E9E4D9] hover:bg-[#F8F6F0]'
+                        }`}
+                      >
+                        {pm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-1">Payment Status</label>
+                  <select
+                    value={editPaymentStatus}
+                    onChange={e => setEditPaymentStatus(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#E9E4D9] text-xs font-medium"
+                  >
+                    <option value="paid">Paid (Verified)</option>
+                    <option value="pending">Pending</option>
+                    <option value="cod">Cash on Delivery</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-1">Transaction Ref / UTR</label>
+                  <input
+                    type="text"
+                    value={editPaymentReference}
+                    onChange={e => setEditPaymentReference(e.target.value)}
+                    placeholder="e.g. UPI UTR or Card auth"
+                    className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
+                  />
+                </div>
+              </div>
+
+              {/* Upload or Update Payment Screenshot */}
+              <div className="pt-2 border-t border-[#E9E4D9]">
+                <label className="block text-[11px] font-semibold text-[#183D32] mb-1.5">
+                  Payment Screenshot / Receipt (Image or PDF)
+                </label>
+                {editPaymentScreenshotUrl ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#C8A96B] gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={editPaymentScreenshotUrl}
+                        alt="Proof Preview"
+                        className="w-12 h-12 object-cover rounded-lg border border-[#E9E4D9]"
+                        onError={e => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                      <div>
+                        <div className="font-semibold text-[#183D32] flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                          <span>Payment proof attached</span>
+                        </div>
+                        <a
+                          href={editPaymentScreenshotUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-[#245746] hover:underline"
+                        >
+                          View full screenshot ↗
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditPaymentScreenshotUrl('')}
+                      className="text-xs text-[#C65B50] hover:text-red-700 font-medium px-2 py-1 rounded border border-[#E9E4D9] cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E9E4D9] hover:border-[#183D32] text-xs font-medium text-[#183D32] cursor-pointer transition-colors shadow-sm">
+                      <UploadCloud className="w-4 h-4 text-[#C8A96B]" />
+                      <span>{uploadingEditProof ? 'Uploading Proof...' : 'Choose Screenshot / Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,application/pdf"
+                        disabled={uploadingEditProof}
+                        onChange={handleEditProofUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-[11px] text-[#888B83]">
+                      Supports PNG, JPG, WEBP, or PDF (up to 5 MB)
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Internal Notes */}
+            <div>
+              <label className="block text-[11px] font-medium text-[#5C6058] mb-1">
+                Internal Order Notes
+              </label>
+              <textarea
+                rows={2}
+                value={editInternalNotes}
+                onChange={e => setEditInternalNotes(e.target.value)}
+                placeholder="Internal administrative or delivery notes..."
+                className="w-full px-3 py-2 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] text-xs resize-none"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-[#E9E4D9]">
+              <div className="text-xs text-[#888B83]">
+                Updated Total: <strong className="text-base text-[#183D32] font-bold">{formatINR(editDraftTotal)}</strong>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={submittingEdit}
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-[#E9E4D9] text-[#5C6058] hover:text-[#183D32] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEdit || editOrderItems.length === 0}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#183D32] hover:bg-[#245746] disabled:opacity-50 text-white font-semibold cursor-pointer shadow-md transition-all"
+                >
+                  <Edit3 className="w-4 h-4 text-[#C8A96B]" />
+                  <span>{submittingEdit ? 'Saving Changes...' : 'Save Changes & Update Order'}</span>
                 </button>
               </div>
             </div>

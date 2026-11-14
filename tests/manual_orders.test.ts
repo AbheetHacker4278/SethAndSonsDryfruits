@@ -206,5 +206,81 @@ describe('Admin Manual Orders (WhatsApp / Phone) & Invoice Generation', () => {
     expect(invoiceRes.headers['content-type']).toBe('application/pdf');
     expect(invoiceRes.body).toBeInstanceOf(Buffer);
     expect(invoiceRes.body.length).toBeGreaterThan(100);
+
+    // 5. Verify customer is marked as isOneTime: true and segregated from primary registered list
+    const customer = await instance.db.models.Customer.findOne({ email: 'vikram.jamwal@example.com' }).lean();
+    expect(customer).toBeDefined();
+    expect(customer!.isOneTime).toBe(true);
+    expect(customer!.source).toBe('whatsapp');
+
+    // Default registered patrons list MUST NOT include one-time manual patrons
+    const regCustRes = await agent
+      .get('/api/admin/customers')
+      .set('x-csrf-token', csrf);
+    expect(regCustRes.status).toBe(200);
+    const foundInReg = (regCustRes.body.customers || []).some((c: any) => c.email === 'vikram.jamwal@example.com');
+    expect(foundInReg).toBe(false);
+
+    // One-time customers list MUST include the manual patron
+    const oneTimeCustRes = await agent
+      .get('/api/admin/customers?customerType=one_time')
+      .set('x-csrf-token', csrf);
+    expect(oneTimeCustRes.status).toBe(200);
+    const foundInOneTime = (oneTimeCustRes.body.customers || []).some((c: any) => c.email === 'vikram.jamwal@example.com');
+    expect(foundInOneTime).toBe(true);
+
+    // 6. Verify uploading / replacing payment screenshot after invoice generation
+    const proofRes = await agent
+      .put(`/api/admin/orders/${encodeURIComponent(orderNumber)}/payment-proof`)
+      .set('x-csrf-token', csrf)
+      .send({
+        paymentScreenshotUrl: 'https://res.cloudinary.com/demo/image/upload/v2/new_receipt.png',
+        paymentReference: 'UPI-NEW-REF-1234',
+      });
+    expect(proofRes.status).toBe(200);
+    expect(proofRes.body.ok).toBe(true);
+    expect(proofRes.body.order.paymentScreenshotUrl).toBe('https://res.cloudinary.com/demo/image/upload/v2/new_receipt.png');
+    expect(proofRes.body.order.paymentReference).toBe('UPI-NEW-REF-1234');
+
+    // 7. Verify editing manual order details (items, custom price, customer info)
+    const editRes = await agent
+      .put(`/api/admin/orders/${encodeURIComponent(orderNumber)}/manual-edit`)
+      .set('x-csrf-token', csrf)
+      .send({
+        customerName: 'Vikram Jamwal (Updated)',
+        customerPhone: '9876509999',
+        customerEmail: 'vikram.jamwal@example.com',
+        deliveryAddress: 'House 99, Gandhi Nagar',
+        city: 'Jammu',
+        state: 'Jammu & Kashmir',
+        pincode: '180004',
+        items: [
+          {
+            productId: 'kaju',
+            quantity: 3,
+            unitPrice: 1250,
+          },
+        ],
+        paymentMethod: 'upi',
+        paymentStatus: 'paid',
+        paymentReference: 'UPI-NEW-REF-1234',
+        paymentScreenshotUrl: 'https://res.cloudinary.com/demo/image/upload/v2/new_receipt.png',
+        shippingCharge: 50,
+        discountAmount: 50,
+        internalNotes: 'Updated order quantities from 2 to 3 units with custom price 1250.',
+      });
+
+    expect(editRes.status).toBe(200);
+    expect(editRes.body.ok).toBe(true);
+    expect(editRes.body.order.deliveryAddressObj.fullName).toBe('Vikram Jamwal (Updated)');
+    expect(editRes.body.order.items).toHaveLength(1);
+    expect(editRes.body.order.items[0].quantity).toBe(3);
+    expect(editRes.body.order.items[0].unitPrice).toBe(1250);
+    // Subtotal: 3 * 1250 = 3750, Total: 3750 - 50 + 50 = 3750
+    expect(editRes.body.order.totalAmount).toBe(3750);
+
+    // Stock should now reflect 3 units deducted from initialStock (restored 2, deducted 3)
+    const stockAfterEdit = await instance.db.models.Product.findOne({ id: 'kaju' }).lean();
+    expect(Number(stockAfterEdit!.stock)).toBe(Math.max(0, initialStock - 3));
   });
 });
