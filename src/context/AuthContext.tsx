@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PRODUCTS, type CatalogProduct } from '../data/products';
+import { PRODUCTS, type CatalogProduct, isSuratCity } from '../data/products';
 import {
   ApiError,
   apiRequest,
@@ -11,6 +11,7 @@ import {
   type PublicCategory,
   type PublicSettingsPayload,
 } from '../services/api';
+import { adjustProductListForMargin } from '../utils/priceCalculator';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -19,6 +20,11 @@ interface AuthContextValue {
   products: CatalogProduct[];
   categories: PublicCategory[];
   publicSettings: PublicSettingsPayload | null;
+  profitMargin: number;
+  shippingFee: number;
+  shippingCity: string;
+  isSurat: boolean;
+  hasCompleteShippingAddress: boolean;
   refreshProducts: () => Promise<void>;
   refreshPublicSettings: () => Promise<void>;
   refreshUser: () => Promise<AuthUser | null>;
@@ -57,10 +63,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
-  const [products, setProducts] = useState<CatalogProduct[]>(PRODUCTS);
+  const [rawProducts, setRawProducts] = useState<CatalogProduct[]>(PRODUCTS);
   const [categories, setCategories] = useState<PublicCategory[]>([]);
   const [publicSettings, setPublicSettings] = useState<PublicSettingsPayload | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+
+  const shippingAddress = user?.shippingAddress;
+  const shippingCity = shippingAddress?.city?.trim() || '';
+  const isSurat = user ? isSuratCity(shippingCity) : false;
+  const profitMargin = user ? (isSurat ? 25 : 40) : 25;
+  const shippingFee = user ? (isSurat ? 0 : 158) : 158;
+  const hasCompleteShippingAddress = Boolean(
+    user &&
+      shippingAddress &&
+      shippingAddress.fullName?.trim() &&
+      shippingAddress.phone?.trim() &&
+      (shippingAddress.houseFlat?.trim() ||
+        shippingAddress.streetArea?.trim() ||
+        shippingAddress.addressLine?.trim()) &&
+      shippingAddress.city?.trim() &&
+      shippingAddress.state?.trim() &&
+      shippingAddress.pincode?.trim()
+  );
+
+  const products = useMemo(() => {
+    return adjustProductListForMargin(rawProducts, profitMargin);
+  }, [rawProducts, profitMargin]);
 
   const applyBrowserBranding = useCallback((settings: PublicSettingsPayload | null) => {
     if (typeof document === 'undefined' || !settings?.website) return;
@@ -96,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         withTransientRetry(() => fetchPublishedProducts()),
         withTransientRetry(() => fetchPublicCategories()).catch(() => []),
       ]);
-      if (list.length > 0) setProducts(list);
+      if (list.length > 0) setRawProducts(list);
       if (cats.length > 0) setCategories(cats);
     } catch {
       // retain static fallback if backend unreachable
@@ -130,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void withTransientRetry(() => fetchPublishedProducts(), isCancelled)
       .then(list => {
-        if (!cancelled && list.length > 0) setProducts(list);
+        if (!cancelled && list.length > 0) setRawProducts(list);
       })
       .catch(() => {
         // retain fallback catalog when offline
@@ -196,12 +224,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     products,
     categories,
     publicSettings,
+    profitMargin,
+    shippingFee,
+    shippingCity,
+    isSurat,
+    hasCompleteShippingAddress,
     refreshProducts,
     refreshPublicSettings,
     refreshUser,
     setUser,
     logout,
-  }), [user, loading, googleOAuthEnabled, products, categories, publicSettings, refreshProducts, refreshPublicSettings, refreshUser, setUser, logout]);
+  }), [user, loading, googleOAuthEnabled, products, categories, publicSettings, profitMargin, shippingFee, shippingCity, isSurat, hasCompleteShippingAddress, refreshProducts, refreshPublicSettings, refreshUser, setUser, logout]);
 
   return (
     <AuthContext.Provider

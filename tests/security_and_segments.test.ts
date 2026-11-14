@@ -133,6 +133,12 @@ describe('Extended Security, Token Expiry, Email Change, Segments & SMTP Provide
         mobileNumber: '9822233344',
         password: 'ValidPassword@1',
         confirmPassword: 'ValidPassword@1',
+        houseFlat: 'Flat 101',
+        streetArea: 'City Center',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        country: 'India',
         acceptTerms: true,
       });
 

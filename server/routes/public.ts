@@ -1,6 +1,15 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
-import { parseWeightGrams } from '../../shared/catalogSeed.ts';
+import {
+  parseWeightGrams,
+  isSuratCity,
+  SURAT_MARGIN_PERCENT,
+  OTHER_CITY_MARGIN_PERCENT,
+  GUEST_MARGIN_PERCENT,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
+} from '../../shared/catalogSeed.ts';
 import { AppConfig } from '../config.ts';
 import { getWebsiteSettingsDoc, getBusinessSettingsDoc, MongoDatabase } from '../db/mongo.ts';
 import { createRateLimiter } from '../middleware/security.ts';
@@ -173,17 +182,17 @@ export function createPublicRouter(
     res.json(data);
   });
 
-  router.get('/products', async (_req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
-    const now = Date.now();
-    if (cachedProducts && cachedProducts.expiresAt > now) {
-      return res.json(cachedProducts.data);
-    }
+  router.get('/products', async (req, res) => {
+    res.setHeader('Vary', 'Cookie');
+    const userMargin = req.user
+      ? (req.user.profitMargin ?? (req.user.shippingAddress?.city && !isSuratCity(req.user.shippingAddress.city) ? OTHER_CITY_MARGIN_PERCENT : SURAT_MARGIN_PERCENT))
+      : GUEST_MARGIN_PERCENT;
+
     const [rows, variantsAll, categories] = await Promise.all([
       db.models.Product.find({ status: 'published' }).sort({ createdAt: 1 }).lean(),
       db.models.ProductVariant.find(
         { active: true },
-        { id: 1, productId: 1, weightLabel: 1, sku: 1, sellingPrice: 1, discountPrice: 1, stock: 1, active: 1, _id: 0 }
+        { id: 1, productId: 1, weightLabel: 1, sku: 1, sellingPrice: 1, discountPrice: 1, stock: 1, active: 1, purchasePrice: 1, _id: 0 }
       )
         .sort({ sellingPrice: 1 })
         .lean(),
@@ -194,6 +203,13 @@ export function createPublicRouter(
 
     const products = rows.map(r => {
       const base = parseProductRow(r);
+      const baseCost = getProductBaseCost(base);
+      const dynamicPrice = calculateDynamicSellingPrice(baseCost, userMargin);
+      const dynamicDiscountPrice =
+        base.discountPrice && base.discountPrice > 0
+          ? calculateDynamicSellingPrice(Math.round(base.discountPrice / 1.40), userMargin)
+          : null;
+
       const weightVariants = variantsAll
         .filter(v => v.productId === r.id)
         .sort((a, b) => {
@@ -202,27 +218,36 @@ export function createPublicRouter(
           if (ga !== gb) return ga - gb;
           return Number(a.sellingPrice || 0) - Number(b.sellingPrice || 0);
         })
-        .map(v => ({
-          id: String(v.id),
-          productId: String(v.productId),
-          weightLabel: String(v.weightLabel),
-          sku: String(v.sku),
-          sellingPrice: Number(v.sellingPrice),
-          discountPrice: v.discountPrice ? Number(v.discountPrice) : null,
-          stock: Number(v.stock ?? 0),
-          active: Boolean(v.active),
-        }));
+        .map(v => {
+          const vBaseCost = getVariantBaseCost(v as any);
+          const vDynamicPrice = calculateDynamicSellingPrice(vBaseCost, userMargin);
+          const vDynamicDiscount =
+            v.discountPrice && Number(v.discountPrice) > 0
+              ? calculateDynamicSellingPrice(Math.round(Number(v.discountPrice) / 1.40), userMargin)
+              : null;
+          return {
+            id: String(v.id),
+            productId: String(v.productId),
+            weightLabel: String(v.weightLabel),
+            sku: String(v.sku),
+            purchasePrice: vBaseCost,
+            sellingPrice: vDynamicPrice,
+            discountPrice: vDynamicDiscount,
+            stock: Number(v.stock ?? 0),
+            active: Boolean(v.active),
+          };
+        });
 
       return {
         ...base,
+        price: dynamicPrice,
+        discountPrice: dynamicDiscountPrice,
         categoryName: r.categoryId ? catMap.get(String(r.categoryId)) || String(r.category) : String(r.category),
         weightVariants,
       };
     });
 
-    const data = { products };
-    cachedProducts = { data, expiresAt: now + 60000 };
-    res.json(data);
+    res.json({ products });
   });
 
   router.post('/coupons/validate', async (req, res) => {

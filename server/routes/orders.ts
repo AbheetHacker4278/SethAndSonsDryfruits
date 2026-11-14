@@ -1,7 +1,19 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { calculateOrderShippingCharge, getVariantStockUnits, parseWeightGrams } from '../../shared/catalogSeed.ts';
+import {
+  calculateOrderShippingCharge,
+  getVariantStockUnits,
+  parseWeightGrams,
+  isSuratCity,
+  SURAT_MARGIN_PERCENT,
+  OTHER_CITY_MARGIN_PERCENT,
+  SURAT_SHIPPING_FEE,
+  OTHER_CITY_SHIPPING_FEE,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
+} from '../../shared/catalogSeed.ts';
 import { getBusinessSettingsDoc, MongoDatabase, syncInventoryRecord } from '../db/mongo.ts';
 import {
   createAdminNotification,
@@ -27,16 +39,21 @@ const createOrderSchema = z.object({
     .min(1, 'Please select at least one product'),
   couponCode: z.string().trim().optional().nullable(),
   paymentMethod: z.string().trim().min(2).max(80).optional().default('Concierge Invoice / COD'),
-  deliveryAddress: z.object({
-    fullName: z.string().trim().min(2),
-    mobileNumber: z.string().trim().min(10),
-    whatsappNumber: z.string().trim().optional(),
-    email: z.string().trim().optional(),
-    deliveryAddress: z.string().trim().min(4),
-    city: z.string().trim().min(2),
-    state: z.string().trim().min(2),
-    pincode: z.string().trim().min(4),
-  }),
+  deliveryAddress: z
+    .object({
+      fullName: z.string().trim().min(2).optional(),
+      mobileNumber: z.string().trim().min(10).optional(),
+      whatsappNumber: z.string().trim().optional(),
+      email: z.string().trim().optional(),
+      houseFlat: z.string().trim().optional(),
+      streetArea: z.string().trim().optional(),
+      deliveryAddress: z.string().trim().optional().default(''),
+      city: z.string().trim().optional(),
+      state: z.string().trim().optional(),
+      pincode: z.string().trim().optional(),
+      country: z.string().trim().optional().default('India'),
+    })
+    .optional(),
   instructions: z.string().trim().max(1000).optional().default(''),
 });
 
@@ -92,6 +109,33 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     const { orderType, items, couponCode, paymentMethod, deliveryAddress, instructions } = parsed.data;
     const customer = req.user!;
 
+    // Retrieve user's verified saved default address from DB
+    const savedAddress = (await db.models.CustomerAddress.findOne({ customerId: customer.id, isDefault: true }).lean())
+      || (await db.models.CustomerAddress.findOne({ customerId: customer.id }).sort({ createdAt: -1 }).lean());
+
+    const addr = deliveryAddress || {};
+    const targetCity = (addr.city !== undefined ? addr.city : (savedAddress?.city || '')).trim();
+    const targetState = (addr.state !== undefined ? addr.state : (savedAddress?.state || '')).trim();
+    const targetPincode = (addr.pincode !== undefined ? addr.pincode : (savedAddress?.pincode || '')).trim();
+    const targetHouseFlat = (addr.houseFlat !== undefined ? addr.houseFlat : (savedAddress?.houseFlat || '')).trim();
+    const targetStreetArea = (addr.streetArea !== undefined ? addr.streetArea : (savedAddress?.streetArea || '')).trim();
+    const targetAddressLine = (
+      (addr.deliveryAddress !== undefined ? addr.deliveryAddress : savedAddress?.addressLine) ||
+      [targetHouseFlat, targetStreetArea].filter(Boolean).join(', ')
+    ).trim();
+
+    // Mandatory shipping address validation before ordering
+    if (!targetCity || !targetState || !/^\d{6}$/.test(targetPincode) || (!targetAddressLine && (!targetHouseFlat || !targetStreetArea))) {
+      res.status(400).json({
+        error: 'A complete shipping address (House/Flat, Street/Locality, City, State, 6-digit PIN) is mandatory before placing an order. Please update your shipping address in your profile.',
+        code: 'SHIPPING_ADDRESS_REQUIRED',
+      });
+      return;
+    }
+
+    const isSurat = isSuratCity(targetCity);
+    const appliedProfitMargin = isSurat ? SURAT_MARGIN_PERCENT : OTHER_CITY_MARGIN_PERCENT;
+
     const resolvedItems: Array<{
       productId: string;
       variantId: string | null;
@@ -101,6 +145,8 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
       category: string;
       unit: string;
       purchasePrice: number;
+      baseCostPrice: number;
+      appliedProfitMargin: number;
       unitPrice: number;
       quantity: number;
       stockQuantity: number;
@@ -128,10 +174,6 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
           : prodBaseUnit === 'gram'
           ? parseWeightGrams(String(prod.weightLabel || '1g')) || 1
           : 1;
-      const baseEffectivePrice =
-        prod.discountPrice && prod.discountPrice > 0 && prod.discountPrice < prod.price
-          ? prod.discountPrice
-          : prod.price;
 
       let matchedVariant: Record<string, any> | null = null;
       if (item.variantId && !item.variantId.startsWith('pack_')) {
@@ -149,8 +191,10 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         }).lean();
       }
 
-      let effectivePrice = baseEffectivePrice;
-      let effectiveCost = Number(prod.purchasePrice || 0);
+      const prodBaseCost = getProductBaseCost(prod);
+      let itemBaseCost = prodBaseCost;
+      let effectivePrice = calculateDynamicSellingPrice(prodBaseCost, appliedProfitMargin);
+      let effectiveCost = prodBaseCost;
       let resolvedVariantId: string | null = null;
       let resolvedWeightLabel: string | null = null;
       let stockUnitsPerPack = 1;
@@ -159,21 +203,39 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
       if (matchedVariant) {
         resolvedVariantId = String(matchedVariant.id);
         resolvedWeightLabel = String(matchedVariant.weightLabel);
-        effectivePrice =
+        const variantBaseCost = getVariantBaseCost(matchedVariant);
+        itemBaseCost = variantBaseCost;
+        effectiveCost = variantBaseCost;
+        effectivePrice = calculateDynamicSellingPrice(variantBaseCost, appliedProfitMargin);
+
+        if (
           matchedVariant.discountPrice &&
           matchedVariant.discountPrice > 0 &&
           matchedVariant.discountPrice < matchedVariant.sellingPrice
-            ? Number(matchedVariant.discountPrice)
-            : Number(matchedVariant.sellingPrice);
-        effectiveCost = Number(matchedVariant.purchasePrice || 0);
+        ) {
+          const discountBaseCost = Math.round(Number(matchedVariant.discountPrice) / 1.40);
+          effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin);
+        }
+
         stockUnitsPerPack = getVariantStockUnits(resolvedWeightLabel, prodBaseUnit);
         variantStockRemaining = Math.max(0, Number(matchedVariant.stock || 0) - item.quantity);
       } else if (item.weightLabel) {
         resolvedWeightLabel = item.weightLabel.trim();
         stockUnitsPerPack = getVariantStockUnits(resolvedWeightLabel, prodBaseUnit);
         const priceRatio = stockUnitsPerPack / basePackUnits;
-        effectivePrice = Math.round(baseEffectivePrice * priceRatio);
-        effectiveCost = Math.round(effectiveCost * priceRatio);
+        itemBaseCost = Math.round(prodBaseCost * priceRatio);
+        effectiveCost = itemBaseCost;
+        effectivePrice = calculateDynamicSellingPrice(itemBaseCost, appliedProfitMargin);
+
+        if (prod.discountPrice && prod.discountPrice > 0 && prod.discountPrice < prod.price) {
+          const discountBaseCost = Math.round(Number(prod.discountPrice) / 1.40);
+          effectivePrice = calculateDynamicSellingPrice(Math.round(discountBaseCost * priceRatio), appliedProfitMargin);
+        }
+      } else {
+        if (prod.discountPrice && prod.discountPrice > 0 && prod.discountPrice < prod.price) {
+          const discountBaseCost = Math.round(Number(prod.discountPrice) / 1.40);
+          effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin);
+        }
       }
 
       const lineSubtotal = Math.round(effectivePrice * item.quantity);
@@ -190,6 +252,8 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         category: prod.category,
         unit: prod.unit,
         purchasePrice: effectiveCost,
+        baseCostPrice: itemBaseCost,
+        appliedProfitMargin,
         unitPrice: effectivePrice,
         quantity: item.quantity,
         stockQuantity: stockDeduction,
@@ -250,16 +314,11 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     }
 
     const biz = await getBusinessSettingsDoc(db);
-    const freeThreshold = typeof biz.freeShippingThreshold === 'number' ? biz.freeShippingThreshold : 5000;
-    const defaultShip = typeof biz.defaultShippingCharge === 'number' ? biz.defaultShippingCharge : 120;
     const defaultGst = typeof biz.defaultGstRate === 'number' ? biz.defaultGstRate : 5;
 
     const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-    const shippingCharge = calculateOrderShippingCharge(resolvedItems, netAfterDiscount, {
-      freeThreshold,
-      defaultShippingCharge: defaultShip,
-      orderType,
-    });
+    // Shipping charge: ₹0 for Surat, ₹158 for all other cities
+    const shippingCharge = isSurat ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE;
     const taxAmount = Math.round(netAfterDiscount * (defaultGst / 100));
     const totalAmount = netAfterDiscount + shippingCharge + taxAmount;
 
@@ -269,16 +328,38 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     const paymentStatus = paymentMethod.toLowerCase().includes('cod') ? 'cod' : 'pending';
 
     const addressPayload = {
-      ...deliveryAddress,
-      whatsappNumber: deliveryAddress.whatsappNumber || deliveryAddress.mobileNumber,
+      fullName: addr.fullName || savedAddress?.fullName || customer.name,
+      mobileNumber: addr.mobileNumber || savedAddress?.phone || customer.phone,
+      whatsappNumber: addr.whatsappNumber || addr.mobileNumber || customer.phone,
       email: customer.email,
+      houseFlat: targetHouseFlat,
+      streetArea: targetStreetArea,
+      deliveryAddress: targetAddressLine,
+      city: targetCity,
+      state: targetState,
+      pincode: targetPincode,
+      country: addr.country || savedAddress?.country || 'India',
     };
-    const customerSnapshot = {
-      id: customer.id,
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-    };
+
+    if (!savedAddress) {
+      await db.models.CustomerAddress.create({
+        id: `addr_${crypto.randomUUID()}`,
+        customerId: customer.id,
+        label: 'Home',
+        fullName: addressPayload.fullName,
+        phone: addressPayload.mobileNumber,
+        houseFlat: targetHouseFlat,
+        streetArea: targetStreetArea,
+        addressLine: targetAddressLine,
+        city: targetCity,
+        state: targetState,
+        pincode: targetPincode,
+        country: addressPayload.country,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
 
     const createdOrder = await db.models.Order.create({
       id: orderId,
@@ -292,11 +373,18 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
       discountAmount,
       couponCode: appliedCoupon,
       shippingCharge,
+      appliedProfitMargin,
+      shippingCity: targetCity,
       taxAmount,
       totalAmount,
       costOfGoods: totalCostOfGoods,
       deliveryAddress: addressPayload,
-      customerSnapshot,
+      customerSnapshot: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+      },
       instructions,
       estimatedDeliveryEstimate: '3-5 Business Days',
       createdAt: now,
@@ -315,6 +403,8 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         category: ri.category,
         unit: ri.unit,
         purchasePrice: ri.purchasePrice,
+        baseCostPrice: ri.baseCostPrice,
+        appliedProfitMargin: ri.appliedProfitMargin,
         unitPrice: ri.unitPrice,
         quantity: ri.quantity,
         stockQuantity: ri.stockQuantity,

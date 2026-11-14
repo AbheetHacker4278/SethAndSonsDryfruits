@@ -5,6 +5,9 @@ import {
   BRAND_CONFIG,
   calculateOrderShippingCharge,
   isKesarProduct,
+  isSuratCity,
+  SURAT_SHIPPING_FEE,
+  OTHER_CITY_SHIPPING_FEE,
   type ProductWeightVariant,
 } from '../data/products';
 import {
@@ -498,25 +501,22 @@ export default function Catalog({
   }, [cartItems, products, packOptionsByProduct]);
 
   const bizRules = publicSettings?.business;
-  const freeThreshold =
-    typeof bizRules?.freeShippingThreshold === 'number' ? bizRules.freeShippingThreshold : 5000;
-  const defaultShipFee =
-    typeof bizRules?.defaultShippingCharge === 'number' ? bizRules.defaultShippingCharge : 120;
   const gstRatePct = typeof bizRules?.defaultGstRate === 'number' ? bizRules.defaultGstRate : 5;
 
   const subtotal = activeOrderItems.reduce((sum, it) => sum + it.subtotal, 0);
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discountAmount, subtotal) : 0;
   const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-  const cartShippingItems = activeOrderItems.map(it => ({
-    productId: it.product.id,
-    productName: it.product.name,
-  }));
-  const isKesarOnlyCart =
-    cartShippingItems.length > 0 && cartShippingItems.every(item => isKesarProduct(item));
-  const shippingCharge = calculateOrderShippingCharge(cartShippingItems, netAfterDiscount, {
-    freeThreshold,
-    defaultShippingCharge: defaultShipFee,
-  });
+
+  const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
+  const isSurat = isSuratCity(effectiveShippingCity);
+  const shippingCharge = activeOrderItems.length > 0
+    ? (effectiveShippingCity
+        ? (isSurat ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE)
+        : (user?.shippingAddress?.city
+            ? (isSuratCity(user.shippingAddress.city) ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE)
+            : OTHER_CITY_SHIPPING_FEE))
+    : 0;
+
   const taxAmount = Math.round(netAfterDiscount * (gstRatePct / 100));
   const finalTotal = netAfterDiscount + shippingCharge + taxAmount;
 
@@ -623,6 +623,24 @@ export default function Catalog({
       return;
     }
 
+    const effectiveCity = (customer.city || user.shippingAddress?.city || '').trim();
+    const effectiveState = (customer.state || user.shippingAddress?.state || '').trim();
+    const effectivePincode = (customer.pincode || user.shippingAddress?.pincode || '').trim();
+    const effectiveHouseFlat = (user.shippingAddress?.houseFlat || '').trim();
+    const effectiveStreetArea = (user.shippingAddress?.streetArea || '').trim();
+    const effectiveDeliveryAddress = (
+      customer.deliveryAddress ||
+      user.shippingAddress?.addressLine ||
+      [effectiveHouseFlat, effectiveStreetArea].filter(Boolean).join(', ')
+    ).trim();
+
+    if (!effectiveCity || !effectiveState || !/^\d{6}$/.test(effectivePincode) || !effectiveDeliveryAddress) {
+      setCheckoutError(
+        'A complete shipping address (Address, City, State, 6-digit PIN) is mandatory before placing an order. Please update your shipping details.'
+      );
+      return;
+    }
+
     setSubmittingOrder(true);
     try {
       const res = await apiRequest<{ order: PersistedOrder }>('/api/orders', {
@@ -638,12 +656,15 @@ export default function Catalog({
           couponCode: appliedCoupon?.code || null,
           paymentMethod,
           deliveryAddress: {
-            fullName: customer.fullName.trim(),
-            mobileNumber: customer.mobileNumber.trim(),
-            deliveryAddress: customer.deliveryAddress.trim(),
-            city: customer.city.trim(),
-            state: customer.state.trim(),
-            pincode: customer.pincode.trim(),
+            fullName: (customer.fullName || user.shippingAddress?.fullName || user.name).trim(),
+            mobileNumber: (customer.mobileNumber || user.shippingAddress?.phone || user.phone).trim(),
+            houseFlat: effectiveHouseFlat,
+            streetArea: effectiveStreetArea,
+            deliveryAddress: effectiveDeliveryAddress,
+            city: effectiveCity,
+            state: effectiveState,
+            pincode: effectivePincode,
+            country: user.shippingAddress?.country || 'India',
           },
           instructions: customer.instructions.trim(),
         },
@@ -1852,32 +1873,36 @@ export default function Catalog({
               )}
             </div>
 
-            {/* Order Totals */}
-            <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-[#d5c4b4]/80">Subtotal</span>
-                <span>{formatINR(subtotal)}</span>
+            {/* Order Totals Breakdown */}
+            <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-[#d5c4b4]/80">Product Subtotal</span>
+                <span className="font-medium text-[#f9f6f2]">{formatINR(subtotal)}</span>
               </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-300">
+                <div className="flex justify-between items-center text-emerald-300">
                   <span>Discount ({appliedCoupon?.code})</span>
                   <span>-{formatINR(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-[#d5c4b4]/80">
-                  {isKesarOnlyCart
-                    ? 'Shipping (Complimentary on Kesar)'
-                    : `Shipping (Free above ${formatINR(freeThreshold)})`}
+                  {effectiveShippingCity
+                    ? (isSurat ? 'Shipping Charges (Surat — Free Delivery)' : `Shipping Charges (${effectiveShippingCity} Courier)`)
+                    : (user?.shippingAddress?.city
+                        ? (isSuratCity(user.shippingAddress.city) ? 'Shipping Charges (Surat — Free Delivery)' : 'Shipping Charges (Standard Courier)')
+                        : 'Shipping Charges')}
                 </span>
-                <span>{shippingCharge > 0 ? formatINR(shippingCharge) : 'Complimentary'}</span>
+                <span className={shippingCharge === 0 ? 'text-emerald-400 font-semibold' : 'text-[#f9f6f2] font-medium'}>
+                  {shippingCharge === 0 ? '₹0 (Free Shipping)' : formatINR(shippingCharge)}
+                </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-[#d5c4b4]/80">GST ({gstRatePct}%)</span>
                 <span>{formatINR(taxAmount)}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-[#251a13] font-bold text-base text-[#dfc471]">
-                <span>Final Amount</span>
+              <div className="flex justify-between items-center pt-2 border-t border-[#251a13] font-bold text-base text-[#dfc471]">
+                <span>Total Order Amount</span>
                 <span>{formatINR(finalTotal)}</span>
               </div>
             </div>
@@ -1939,9 +1964,34 @@ export default function Catalog({
               </div>
             ) : (
               <form onSubmit={handlePlaceOrder} className="space-y-3.5 pt-2 border-t border-[#38281d]">
-                <span className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold block">
-                  Delivery &amp; Payment Details
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold block">
+                    Delivery &amp; Payment Details
+                  </span>
+                  {user.shippingAddress?.city && (
+                    <span className="text-[10px] text-emerald-400 font-medium">
+                      Saved: {user.shippingAddress.city} {isSuratCity(user.shippingAddress.city) ? '(Free Delivery)' : '(₹158 Courier)'}
+                    </span>
+                  )}
+                </div>
+
+                {!user.shippingAddress && (!customer.city || !customer.pincode) && (
+                  <div className="p-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-xs space-y-2">
+                    <div className="flex items-center gap-2 text-amber-300 font-semibold">
+                      <MapPin className="w-4 h-4 shrink-0" />
+                      <span>Mandatory Shipping Address</span>
+                    </div>
+                    <p className="text-[#d5c4b4]/85 leading-relaxed">
+                      Completing your shipping address is mandatory before placing an order. Surat patrons enjoy <strong>Free Delivery</strong>, and all other cities receive flat ₹158 courier delivery.
+                    </p>
+                    <Link
+                      to="/account?tab=addresses"
+                      className="inline-block text-[11px] font-semibold text-[#dfc471] hover:underline"
+                    >
+                      Complete Shipping Address in Profile &rarr;
+                    </Link>
+                  </div>
+                )}
 
                 {checkoutError && (
                   <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs">

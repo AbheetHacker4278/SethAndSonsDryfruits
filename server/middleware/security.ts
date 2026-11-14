@@ -3,6 +3,13 @@ import { NextFunction, Request, Response } from 'express';
 import { AppConfig } from '../config.ts';
 import { DEFAULT_BUSINESS_SETTINGS, getBusinessSettingsDoc, MongoDatabase } from '../db/mongo.ts';
 import { hashToken } from '../utils/crypto.ts';
+import {
+  isSuratCity,
+  SURAT_MARGIN_PERCENT,
+  OTHER_CITY_MARGIN_PERCENT,
+  SURAT_SHIPPING_FEE,
+  OTHER_CITY_SHIPPING_FEE,
+} from '../../shared/catalogSeed.ts';
 
 export interface AuthenticatedUser {
   id: string;
@@ -24,6 +31,21 @@ export interface AuthenticatedUser {
   consentSource: string | null;
   unsubscribedAt: string | null;
   emailPreferences: Record<string, Record<string, boolean>>;
+  shippingAddress?: {
+    id?: string;
+    fullName?: string;
+    phone?: string;
+    houseFlat?: string;
+    streetArea?: string;
+    addressLine?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    country?: string;
+    isDefault?: boolean;
+  } | null;
+  profitMargin?: number;
+  shippingFee?: number;
   createdAt: string;
 }
 
@@ -221,7 +243,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
   next();
 }
 
-export function mapCustomerRow(row: Record<string, any>): AuthenticatedUser {
+export function mapCustomerRow(row: Record<string, any>, defaultAddress?: Record<string, any> | null): AuthenticatedUser {
   let prefs: Record<string, Record<string, boolean>> = {};
   if (row.emailPreferences && typeof row.emailPreferences === 'object') {
     prefs = row.emailPreferences;
@@ -243,6 +265,26 @@ export function mapCustomerRow(row: Record<string, any>): AuthenticatedUser {
       perms = [];
     }
   }
+
+  const isSurat = defaultAddress ? isSuratCity(defaultAddress.city) : false;
+  const profitMargin = defaultAddress ? (isSurat ? SURAT_MARGIN_PERCENT : OTHER_CITY_MARGIN_PERCENT) : 25;
+  const shippingFee = defaultAddress ? (isSurat ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE) : 158;
+
+  const shippingAddress = defaultAddress
+    ? {
+        id: String(defaultAddress.id || ''),
+        fullName: String(defaultAddress.fullName || ''),
+        phone: String(defaultAddress.phone || ''),
+        houseFlat: String(defaultAddress.houseFlat || ''),
+        streetArea: String(defaultAddress.streetArea || ''),
+        addressLine: String(defaultAddress.addressLine || ''),
+        city: String(defaultAddress.city || ''),
+        state: String(defaultAddress.state || ''),
+        pincode: String(defaultAddress.pincode || ''),
+        country: String(defaultAddress.country || 'India'),
+        isDefault: Boolean(defaultAddress.isDefault),
+      }
+    : null;
 
   return {
     id: String(row.id),
@@ -269,6 +311,9 @@ export function mapCustomerRow(row: Record<string, any>): AuthenticatedUser {
     consentSource: row.consentSource ? String(row.consentSource) : null,
     unsubscribedAt: row.unsubscribedAt ? String(row.unsubscribedAt) : null,
     emailPreferences: prefs,
+    shippingAddress,
+    profitMargin,
+    shippingFee,
     createdAt: String(row.createdAt),
   };
 }
@@ -300,7 +345,12 @@ export function attachSession(db: MongoDatabase) {
         return;
       }
 
-      const customer = await db.models.Customer.findOne({ id: session.customerId }).lean();
+      const [customer, defaultAddr] = await Promise.all([
+        db.models.Customer.findOne({ id: session.customerId }).lean(),
+        db.models.CustomerAddress.findOne({ customerId: session.customerId, isDefault: true })
+          .lean()
+          .then(async res => res || (await db.models.CustomerAddress.findOne({ customerId: session.customerId }).lean())),
+      ]);
       if (!customer || customer.isActive === false) {
         req.user = null;
         req.sessionId = null;
@@ -309,7 +359,7 @@ export function attachSession(db: MongoDatabase) {
       }
 
       req.sessionId = String(session.id);
-      req.user = mapCustomerRow(customer);
+      req.user = mapCustomerRow(customer, defaultAddr);
       next();
     } catch (err) {
       next(err);

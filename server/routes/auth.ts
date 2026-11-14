@@ -38,9 +38,15 @@ function getRequestOrigin(req: any, fallback: string): string {
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name must be at least 2 characters').max(100),
   email: z.string().trim().email('Please enter a valid email address'),
-  mobileNumber: z.string().trim().min(10, 'Please enter a valid mobile number').max(20),
+  mobileNumber: z.string().trim().min(10, 'Please enter a valid 10-digit mobile number').max(20),
   password: z.string().min(8).max(128),
   confirmPassword: z.string(),
+  houseFlat: z.string().trim().min(1, 'House Number / Flat Number is required').max(150),
+  streetArea: z.string().trim().min(2, 'Street / Area / Locality is required').max(200),
+  city: z.string().trim().min(2, 'City is required').max(100),
+  state: z.string().trim().min(2, 'State is required').max(100),
+  pincode: z.string().trim().regex(/^\d{6}$/, 'PIN Code must be a 6-digit number'),
+  country: z.string().trim().min(2, 'Country is required').default('India'),
   acceptTerms: z.literal(true, {
     message: 'You must accept the Terms & Conditions to register',
   }),
@@ -83,8 +89,16 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
     });
   });
 
-  router.get('/me', (req, res) => {
-    res.json({ user: req.user || null });
+  router.get('/me', async (req, res) => {
+    if (!req.user) {
+      res.json({ user: null });
+      return;
+    }
+    const defaultAddr =
+      (await db.models.CustomerAddress.findOne({ customerId: req.user.id, isDefault: true }).lean()) ||
+      (await db.models.CustomerAddress.findOne({ customerId: req.user.id }).lean());
+    const customer = await db.models.Customer.findOne({ id: req.user.id }).lean();
+    res.json({ user: customer ? mapCustomerRow(customer, defaultAddr) : req.user });
   });
 
   router.post('/register', strictAuthRateLimit, async (req, res) => {
@@ -195,6 +209,26 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
       entityId: customerId,
     });
 
+    const addressId = `addr_${crypto.randomUUID()}`;
+    const addressLine = `${parsed.data.houseFlat.trim()}, ${parsed.data.streetArea.trim()}`;
+    const createdAddress = await db.models.CustomerAddress.create({
+      id: addressId,
+      customerId,
+      label: 'Home',
+      fullName,
+      phone: cleanPhone,
+      houseFlat: parsed.data.houseFlat.trim(),
+      streetArea: parsed.data.streetArea.trim(),
+      addressLine,
+      city: parsed.data.city.trim(),
+      state: parsed.data.state.trim(),
+      pincode: parsed.data.pincode.trim(),
+      country: (parsed.data.country || 'India').trim(),
+      isDefault: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
     let verificationEmailResult: Record<string, unknown> = {};
     const requestBaseUrl = getRequestOrigin(req, config.appUrl);
     try {
@@ -214,7 +248,7 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
 
     res.status(201).json({
       message: 'Account created! Please check your email to verify your address within 24 hours.',
-      user: mapCustomerRow(created.toObject()),
+      user: mapCustomerRow(created.toObject(), createdAddress.toObject()),
       verificationRequired: true,
       emailStatus: verificationEmailResult,
     });
@@ -283,12 +317,15 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
       { $set: { failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date().toISOString() } }
     );
 
+    const defaultAddr = (await db.models.CustomerAddress.findOne({ customerId: row.id, isDefault: true }).lean())
+      || (await db.models.CustomerAddress.findOne({ customerId: row.id }).sort({ createdAt: -1 }).lean());
+
     const rawSession = await createSessionRecord(db, row.id, Boolean(rememberMe), req);
     setSessionCookie(res, config, rawSession, Boolean(rememberMe));
 
     res.json({
       message: 'Signed in successfully.',
-      user: mapCustomerRow(row),
+      user: mapCustomerRow(row, defaultAddr),
     });
   }
 
@@ -600,9 +637,14 @@ export function createAuthRouter(db: MongoDatabase, config: AppConfig, emailServ
     }
 
     const updated = await db.models.Customer.findOne({ id: tokenRow.customerId }).lean();
+    let defaultAddr = null;
+    if (updated) {
+      defaultAddr = (await db.models.CustomerAddress.findOne({ customerId: updated.id, isDefault: true }).lean())
+        || (await db.models.CustomerAddress.findOne({ customerId: updated.id }).sort({ createdAt: -1 }).lean());
+    }
     res.json({
       message: 'Email verified successfully! You now have full checkout access.',
-      user: updated ? mapCustomerRow(updated) : null,
+      user: updated ? mapCustomerRow(updated, defaultAddr) : null,
     });
   });
 

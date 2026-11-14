@@ -1,6 +1,22 @@
 import type { CatalogProduct } from '../data/products';
 import type { OrderStatus } from '../types/product';
 
+export interface AddressItem {
+  id: string;
+  customerId: string;
+  label: string;
+  fullName: string;
+  phone: string;
+  houseFlat?: string;
+  streetArea?: string;
+  addressLine: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+  isDefault: number | boolean;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -20,6 +36,9 @@ export interface AuthUser {
   marketingConsentAt: string | null;
   consentSource: string | null;
   unsubscribedAt: string | null;
+  shippingAddress?: AddressItem | null;
+  profitMargin?: number;
+  shippingFee?: number;
   emailPreferences: {
     transactional?: Record<string, boolean>;
     marketing?: {
@@ -125,18 +144,6 @@ export interface PersistedOrder {
   emailLogs?: EmailLogItem[];
 }
 
-export interface AddressItem {
-  id: string;
-  customerId: string;
-  label: string;
-  fullName: string;
-  phone: string;
-  addressLine: string;
-  city: string;
-  state: string;
-  pincode: string;
-  isDefault: number | boolean;
-}
 
 export interface NotificationItem {
   id: string;

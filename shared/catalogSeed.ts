@@ -135,11 +135,75 @@ export function isKesarProduct(item: {
   return false;
 }
 
+export const SURAT_MARGIN_PERCENT = 25;
+export const OTHER_CITY_MARGIN_PERCENT = 40;
+export const GUEST_MARGIN_PERCENT = 25;
+
+export const SURAT_SHIPPING_FEE = 0;
+export const OTHER_CITY_SHIPPING_FEE = 158;
+
+/**
+ * Returns true if the provided city is Surat, Gujarat (case-insensitive)
+ */
+export function isSuratCity(city?: string | null): boolean {
+  if (!city) return false;
+  const clean = city.trim().toLowerCase();
+  return clean === 'surat' || clean.startsWith('surat ') || clean.endsWith(' surat') || clean.includes('surat,');
+}
+
+/**
+ * Determine customer profit margin:
+ * - Guests / Non-authenticated: 25%
+ * - Registered Surat customer: 25%
+ * - Registered customer from any other city: 40%
+ */
+export function getCustomerProfitMargin(city?: string | null, isRegistered: boolean = false): number {
+  if (!isRegistered) return GUEST_MARGIN_PERCENT;
+  return isSuratCity(city) ? SURAT_MARGIN_PERCENT : OTHER_CITY_MARGIN_PERCENT;
+}
+
+/**
+ * Determine location-based shipping fee:
+ * - Surat, Gujarat: ₹0 (Free Shipping)
+ * - All other cities: ₹158 fixed fee
+ */
+export function getLocationShippingFee(city?: string | null): number {
+  return isSuratCity(city) ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE;
+}
+
+/**
+ * Get base cost price of a product (before any margin is applied)
+ */
+export function getProductBaseCost(product: { purchasePrice?: number; price: number }): number {
+  if (typeof product.purchasePrice === 'number' && product.purchasePrice > 0) {
+    return product.purchasePrice;
+  }
+  return Math.round(product.price / 1.40);
+}
+
+/**
+ * Get base cost price of a product weight variant (before margin)
+ */
+export function getVariantBaseCost(variant: { purchasePrice?: number; sellingPrice: number }): number {
+  if (typeof variant.purchasePrice === 'number' && variant.purchasePrice > 0) {
+    return variant.purchasePrice;
+  }
+  return Math.round(variant.sellingPrice / 1.40);
+}
+
+/**
+ * Calculate dynamic selling price by applying profit margin to base cost price
+ */
+export function calculateDynamicSellingPrice(baseCost: number, marginPercent: number): number {
+  const safeCost = Math.max(0, Number(baseCost) || 0);
+  const multiplier = 1 + marginPercent / 100;
+  return Math.round(safeCost * multiplier);
+}
+
 /**
  * Calculate order/cart shipping charge:
- * - ₹0 for empty carts, custom orders, or orders >= freeThreshold (default ₹5,000)
- * - ₹0 when every item in the order is Kesar / Saffron
- * - Otherwise defaultShippingCharge (default ₹120)
+ * - Customers from Surat, Gujarat: ₹0 (Free Shipping)
+ * - Customers from all other cities: ₹158 fixed shipping fee
  */
 export function calculateOrderShippingCharge(
   items: Array<{
@@ -153,26 +217,17 @@ export function calculateOrderShippingCharge(
     freeThreshold?: number;
     defaultShippingCharge?: number;
     orderType?: string;
+    shippingCity?: string | null;
   }
 ): number {
   if (!items || items.length === 0 || netAfterDiscount <= 0) return 0;
   if (options?.orderType === 'custom') return 0;
 
-  const freeThreshold =
-    typeof options?.freeThreshold === 'number' && Number.isFinite(options.freeThreshold)
-      ? options.freeThreshold
-      : 5000;
-  const defaultFee =
-    typeof options?.defaultShippingCharge === 'number' && Number.isFinite(options.defaultShippingCharge)
-      ? options.defaultShippingCharge
-      : 120;
+  if (options?.shippingCity !== undefined && options?.shippingCity !== null) {
+    return getLocationShippingFee(options.shippingCity);
+  }
 
-  if (netAfterDiscount >= freeThreshold) return 0;
-
-  const hasNonKesar = items.some(item => !isKesarProduct(item));
-  if (!hasNonKesar) return 0;
-
-  return defaultFee;
+  return OTHER_CITY_SHIPPING_FEE;
 }
 
 export const PRODUCTS_SEED: CatalogProduct[] = [

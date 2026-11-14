@@ -5,9 +5,78 @@ import {
   type ProductWeightVariant,
   parseWeightGrams,
   getVariantStockUnits,
+  SURAT_MARGIN_PERCENT,
+  OTHER_CITY_MARGIN_PERCENT,
+  GUEST_MARGIN_PERCENT,
+  SURAT_SHIPPING_FEE,
+  OTHER_CITY_SHIPPING_FEE,
+  isSuratCity,
+  getCustomerProfitMargin,
+  getLocationShippingFee,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
 } from '../data/products';
 
-export { parseWeightGrams, getVariantStockUnits };
+export {
+  parseWeightGrams,
+  getVariantStockUnits,
+  SURAT_MARGIN_PERCENT,
+  OTHER_CITY_MARGIN_PERCENT,
+  GUEST_MARGIN_PERCENT,
+  SURAT_SHIPPING_FEE,
+  OTHER_CITY_SHIPPING_FEE,
+  isSuratCity,
+  getCustomerProfitMargin,
+  getLocationShippingFee,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
+};
+
+/**
+ * Adjust a product's price and weight variants based on location profit margin (25% or 40%)
+ */
+export function adjustProductPricingForMargin<T extends CatalogProduct | Product>(
+  product: T,
+  marginPercent: number
+): T {
+  const baseCost = getProductBaseCost(product);
+  const adjustedPrice = calculateDynamicSellingPrice(baseCost, marginPercent);
+  const adjustedDiscount =
+    product.discountPrice && product.discountPrice > 0
+      ? calculateDynamicSellingPrice(Math.round(product.discountPrice / 1.40), marginPercent)
+      : null;
+
+  const adjustedVariants = product.weightVariants?.map(v => {
+    const vBaseCost = getVariantBaseCost(v);
+    return {
+      ...v,
+      sellingPrice: calculateDynamicSellingPrice(vBaseCost, marginPercent),
+      discountPrice:
+        v.discountPrice && v.discountPrice > 0
+          ? calculateDynamicSellingPrice(Math.round(v.discountPrice / 1.40), marginPercent)
+          : null,
+    };
+  });
+
+  return {
+    ...product,
+    price: adjustedPrice,
+    discountPrice: adjustedDiscount,
+    weightVariants: adjustedVariants,
+  };
+}
+
+/**
+ * Adjust an entire list of products for the customer's profit margin
+ */
+export function adjustProductListForMargin<T extends CatalogProduct | Product>(
+  products: T[],
+  marginPercent: number
+): T[] {
+  return products.map(p => adjustProductPricingForMargin(p, marginPercent));
+}
 
 /**
  * Format currency in Indian Rupee format with ₹ symbol

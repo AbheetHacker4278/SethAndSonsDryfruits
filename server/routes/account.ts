@@ -45,14 +45,30 @@ const avatarUpload = multer({
 
 const addressSchema = z.object({
   label: z.string().trim().min(1).max(40).default('Home'),
-  fullName: z.string().trim().min(2).max(100),
-  phone: z.string().trim().min(10).max(20),
-  addressLine: z.string().trim().min(4).max(300),
-  city: z.string().trim().min(2).max(80),
-  state: z.string().trim().min(2).max(80),
-  pincode: z.string().trim().min(4).max(12),
+  fullName: z.string().trim().min(2, 'Full name is required.').max(100),
+  phone: z.string().trim().refine((val) => isValidMobile(normalizeMobile(val)), {
+    message: 'Please provide a valid 10-digit mobile number.',
+  }),
+  houseFlat: z.string().trim().max(120).optional().default(''),
+  streetArea: z.string().trim().max(200).optional().default(''),
+  addressLine: z.string().trim().max(300).optional().default(''),
+  city: z.string().trim().min(2, 'City is required.').max(80),
+  state: z.string().trim().min(2, 'State is required.').max(80),
+  pincode: z.string().trim().regex(/^\d{6}$/, 'PIN code must be a 6-digit number.'),
+  country: z.string().trim().min(2).max(80).default('India'),
   isDefault: z.boolean().optional().default(false),
-});
+}).refine(
+  (data) => (data.houseFlat.length > 0 && data.streetArea.length > 0) || data.addressLine.length >= 4,
+  { message: 'House/flat number and street/locality are required.', path: ['houseFlat'] }
+);
+
+async function getCustomerWithDefaultAddress(db: MongoDatabase, customerId: string) {
+  const customer = await db.models.Customer.findOne({ id: customerId }).lean();
+  if (!customer) return null;
+  const defaultAddr = (await db.models.CustomerAddress.findOne({ customerId, isDefault: true }).lean())
+    || (await db.models.CustomerAddress.findOne({ customerId }).sort({ createdAt: -1 }).lean());
+  return mapCustomerRow(customer, defaultAddr);
+}
 
 export function createAccountRouter(
   db: MongoDatabase,
@@ -95,8 +111,10 @@ export function createAccountRouter(
         .lean(),
     ]);
 
+    const user = await getCustomerWithDefaultAddress(db, userId);
+
     res.json({
-      user: mapCustomerRow(customerRow),
+      user,
       stats: {
         totalOrders,
         loyaltyPoints: Number(customerRow.loyaltyPoints || 0),
@@ -150,7 +168,8 @@ export function createAccountRouter(
       { new: true }
     ).lean();
 
-    res.json({ message: 'Profile updated successfully.', user: updated ? mapCustomerRow(updated) : null });
+    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
+    res.json({ message: 'Profile updated successfully.', user });
   });
 
   router.post('/avatar', avatarUpload.single('avatar'), async (req, res) => {
@@ -166,16 +185,16 @@ export function createAccountRouter(
         mimeType: req.file.mimetype,
         resourceType: 'image',
       });
-      const updated = await db.models.Customer.findOneAndUpdate(
+      await db.models.Customer.updateOne(
         { id: req.user!.id },
-        { $set: { profilePicture: uploaded.url, updatedAt: new Date().toISOString() } },
-        { new: true }
-      ).lean();
+        { $set: { profilePicture: uploaded.url, updatedAt: new Date().toISOString() } }
+      );
+      const user = await getCustomerWithDefaultAddress(db, req.user!.id);
 
       res.json({
         message: 'Profile picture uploaded to Cloudinary.',
         profilePicture: uploaded.url,
-        user: updated ? mapCustomerRow(updated) : null,
+        user,
       });
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode || 500;
@@ -380,17 +399,17 @@ export function createAccountRouter(
           updatedAt: now,
         };
 
-    const updated = await db.models.Customer.findOneAndUpdate(
+    await db.models.Customer.updateOne(
       { id: req.user!.id },
-      { $set: updateFields },
-      { new: true }
-    ).lean();
+      { $set: updateFields }
+    );
+    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
 
     res.json({
       message: anyMarketingEnabled
         ? 'Communication preferences saved.'
         : 'You have been unsubscribed from all marketing emails.',
-      user: updated ? mapCustomerRow(updated) : null,
+      user,
     });
   });
 
@@ -416,12 +435,19 @@ export function createAccountRouter(
     const id = `addr_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
 
-    if (data.isDefault) {
+    const existingCount = await db.models.CustomerAddress.countDocuments({ customerId: req.user!.id });
+    const shouldBeDefault = Boolean(data.isDefault) || existingCount === 0;
+
+    if (shouldBeDefault) {
       await db.models.CustomerAddress.updateMany(
         { customerId: req.user!.id },
         { $set: { isDefault: false } }
       );
     }
+
+    const finalAddressLine = data.addressLine || [data.houseFlat, data.streetArea].filter(Boolean).join(', ');
+    const finalHouseFlat = data.houseFlat || finalAddressLine.split(',')[0]?.trim() || '';
+    const finalStreetArea = data.streetArea || finalAddressLine.split(',').slice(1).join(', ')?.trim() || '';
 
     const created = await db.models.CustomerAddress.create({
       id,
@@ -429,16 +455,20 @@ export function createAccountRouter(
       label: data.label,
       fullName: data.fullName,
       phone: normalizeMobile(data.phone),
-      addressLine: data.addressLine,
+      houseFlat: finalHouseFlat,
+      streetArea: finalStreetArea,
+      addressLine: finalAddressLine,
       city: data.city,
       state: data.state,
       pincode: data.pincode,
-      isDefault: Boolean(data.isDefault),
+      country: data.country || 'India',
+      isDefault: shouldBeDefault,
       createdAt: now,
       updatedAt: now,
     });
 
-    res.status(201).json({ address: created.toObject() });
+    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
+    res.status(201).json({ address: created.toObject(), user });
   });
 
   router.put('/addresses/:id', async (req, res) => {
@@ -465,6 +495,10 @@ export function createAccountRouter(
       );
     }
 
+    const finalAddressLine = data.addressLine || [data.houseFlat, data.streetArea].filter(Boolean).join(', ');
+    const finalHouseFlat = data.houseFlat || finalAddressLine.split(',')[0]?.trim() || '';
+    const finalStreetArea = data.streetArea || finalAddressLine.split(',').slice(1).join(', ')?.trim() || '';
+
     const updated = await db.models.CustomerAddress.findOneAndUpdate(
       { id: req.params.id, customerId: req.user!.id },
       {
@@ -472,10 +506,13 @@ export function createAccountRouter(
           label: data.label,
           fullName: data.fullName,
           phone: normalizeMobile(data.phone),
-          addressLine: data.addressLine,
+          houseFlat: finalHouseFlat,
+          streetArea: finalStreetArea,
+          addressLine: finalAddressLine,
           city: data.city,
           state: data.state,
           pincode: data.pincode,
+          country: data.country || 'India',
           isDefault: Boolean(data.isDefault),
           updatedAt: now,
         },
@@ -483,19 +520,35 @@ export function createAccountRouter(
       { new: true }
     ).lean();
 
-    res.json({ address: updated });
+    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
+    res.json({ address: updated, user });
   });
 
   router.delete('/addresses/:id', async (req, res) => {
-    const del = await db.models.CustomerAddress.deleteOne({
+    const existing = await db.models.CustomerAddress.findOne({
       id: req.params.id,
       customerId: req.user!.id,
-    });
-    if (del.deletedCount === 0) {
+    }).lean();
+    if (!existing) {
       res.status(404).json({ error: 'Address not found.' });
       return;
     }
-    res.json({ message: 'Address removed.' });
+
+    await db.models.CustomerAddress.deleteOne({
+      id: req.params.id,
+      customerId: req.user!.id,
+    });
+
+    if (existing.isDefault) {
+      const another = await db.models.CustomerAddress.findOne({ customerId: req.user!.id }).sort({ createdAt: -1 });
+      if (another) {
+        another.isDefault = true;
+        await another.save();
+      }
+    }
+
+    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
+    res.json({ message: 'Address removed.', user });
   });
 
   // Wishlist

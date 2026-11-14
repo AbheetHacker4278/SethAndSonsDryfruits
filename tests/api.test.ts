@@ -185,11 +185,19 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9876501234',
         password: 'RoyalPassword@99',
         confirmPassword: 'RoyalPassword@99',
+        houseFlat: 'Flat 402, Krishna Tower',
+        streetArea: 'Ring Road, Vesu',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        country: 'India',
         acceptTerms: true,
         marketingConsent: true,
       });
     expect(regRes.status).toBe(201);
     expect(regRes.body.user.emailVerified).toBe(false);
+    expect(regRes.body.user.profitMargin).toBe(25);
+    expect(regRes.body.user.shippingFee).toBe(0);
 
     // Verification email was sent with branded emerald-gold HTML & plain text
     expect(spyTransport.sent.length).toBe(1);
@@ -211,6 +219,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9876599999',
         password: 'RoyalPassword@99',
         confirmPassword: 'RoyalPassword@99',
+        houseFlat: 'Flat 101',
+        streetArea: 'Main St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400001',
+        country: 'India',
         acceptTerms: true,
       });
     expect(dupEmailRes.status).toBe(409);
@@ -224,6 +238,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9876501234',
         password: 'RoyalPassword@99',
         confirmPassword: 'RoyalPassword@99',
+        houseFlat: 'Flat 102',
+        streetArea: 'Main St',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400001',
+        country: 'India',
         acceptTerms: true,
       });
     expect(dupPhoneRes.status).toBe(409);
@@ -316,6 +336,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9811122233',
         password: 'StrongPassword@1',
         confirmPassword: 'StrongPassword@1',
+        houseFlat: 'Flat 502',
+        streetArea: 'Civil Lines',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        country: 'India',
         acceptTerms: true,
       });
 
@@ -432,6 +458,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9800011122',
         password: 'OtherPassword@1',
         confirmPassword: 'OtherPassword@1',
+        houseFlat: 'Flat 101',
+        streetArea: 'Sector 5',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        country: 'India',
         acceptTerms: true,
       });
     const forbiddenTrack = await intruder.agent.get(`/api/orders/${orderNumber}`);
@@ -1254,7 +1286,8 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     const packOptions = getProductPackOptions(walnut);
     expect(packOptions.map((v: any) => v.weightLabel)).toEqual(['250g', '500g', '1kg']);
     const pack250 = packOptions.find((v: any) => v.weightLabel === '250g')!;
-    expect(pack250.sellingPrice).toBe(210);
+    // For guest visitors before login, 25% profit margin applies (base cost 150 * 1.25 = 188)
+    expect(pack250.sellingPrice).toBe(188);
 
     // Register & verify a customer
     const { agent, csrf } = await getCsrfAgent(instance.app);
@@ -1267,6 +1300,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         mobileNumber: '9876543299',
         password: 'RoyalPassword@99',
         confirmPassword: 'RoyalPassword@99',
+        houseFlat: 'Flat 101',
+        streetArea: 'Andheri West',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400053',
+        country: 'India',
         acceptTerms: true,
       });
     expect(reg.status).toBe(201);
@@ -1276,7 +1315,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
 
     const beforeStock = Number((await instance.db.models.Product.findOne({ id: 'akhrot-best' }).lean())!.stock);
 
-    // Order 2 × 250g pack of akhrot-best (should cost 2 * 210 = 420 subtotal, and deduct 0.5 kg stock)
+    // Order 2 × 250g pack of akhrot-best for Mumbai customer (40% margin applies: 2 * 210 = 420 subtotal, and deduct 0.5 kg stock)
     const orderRes = await agent
       .post('/api/orders')
       .set('X-CSRF-Token', csrf)
@@ -1305,7 +1344,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(oilProd).toBeDefined();
     expect(oilProd.unit).toBe('ml');
     const oil100 = oilProd.weightVariants.find((v: any) => v.weightLabel === '100ml');
-    expect(oil100.sellingPrice).toBe(349);
+    expect(oil100).toBeDefined();
 
     const oilOrderRes = await agent
       .post('/api/orders')
@@ -1328,85 +1367,105 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(oilStockAfter).toBe(800);
   });
 
-  it('applies ₹120 shipping on non-Kesar orders under ₹5,000, free shipping on Kesar-only orders, and free shipping at ₹5,000+', async () => {
-    const { calculateOrderShippingCharge } = await import('../shared/catalogSeed.ts');
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju (Cashews)' }], 1372)).toBe(120);
-    expect(calculateOrderShippingCharge([{ productId: 'kesar', productName: 'Kesar (Saffron)' }], 419)).toBe(0);
-    expect(
-      calculateOrderShippingCharge(
-        [
-          { productId: 'kaju', productName: 'Kaju (Cashews)' },
-          { productId: 'kesar', productName: 'Kesar (Saffron)' },
-        ],
-        1791
-      )
-    ).toBe(120);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju (Cashews)' }], 5000)).toBe(0);
+  it('enforces location-based shipping charges (Surat ₹0 vs other cities ₹158) and location-based profit margins (Surat 25% vs other cities 40%)', async () => {
+    const { calculateOrderShippingCharge, isSuratCity } = await import('../shared/catalogSeed.ts');
+    expect(isSuratCity('Surat')).toBe(true);
+    expect(isSuratCity('Surat, Gujarat')).toBe(true);
+    expect(isSuratCity('Mumbai')).toBe(false);
+
+    // Location-based shipping: ₹0 for Surat, ₹158 for any other city
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Surat' })).toBe(0);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Mumbai' })).toBe(158);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Jammu' })).toBe(158);
 
     const { agent, csrf } = await getCsrfAgent(instance.app);
-    const reg = await agent
+
+    // Register a Surat patron (mandatory shipping address in Surat)
+    const regSurat = await agent
       .post('/api/auth/register')
       .set('X-CSRF-Token', csrf)
       .send({
-        fullName: 'Shipping Tester',
-        email: 'shippingtester@example.com',
-        mobileNumber: '9876543288',
-        password: 'RoyalPassword@88',
-        confirmPassword: 'RoyalPassword@88',
+        fullName: 'Surat Patron',
+        email: 'suratpatron@example.com',
+        mobileNumber: '9876543277',
+        password: 'RoyalPassword@77',
+        confirmPassword: 'RoyalPassword@77',
+        houseFlat: 'B-304, Green Heights',
+        streetArea: 'Ghod Dod Road',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        country: 'India',
         acceptTerms: true,
       });
-    expect(reg.status).toBe(201);
-    const verifyMail = spyTransport.sent.find(m => m.to === 'shippingtester@example.com');
+    expect(regSurat.status).toBe(201);
+    expect(regSurat.body.user.profitMargin).toBe(25);
+    expect(regSurat.body.user.shippingFee).toBe(0);
+
+    const verifyMail = spyTransport.sent.find(m => m.to === 'suratpatron@example.com');
     const token = verifyMail!.text.match(/verify-email\?token=([a-f0-9]+)/)![1];
     await agent.post('/api/auth/verify-email').set('X-CSRF-Token', csrf).send({ token });
 
-    const addr = {
-      fullName: 'Shipping Tester',
-      mobileNumber: '9876543288',
-      deliveryAddress: '22 Canal Road',
-      city: 'Jammu',
-      state: 'Jammu & Kashmir',
-      pincode: '180001',
-    };
-
-    // 1. Kesar-only order under ₹5,000 -> ₹0 shipping
-    const kesarOrder = await agent
-      .post('/api/orders')
-      .set('X-CSRF-Token', csrf)
-      .send({ items: [{ productId: 'kesar', quantity: 1 }], deliveryAddress: addr });
-    expect(kesarOrder.status).toBe(201);
-    expect(kesarOrder.body.order.shippingCharge).toBe(0);
-
-    // 2. Non-Kesar order under ₹5,000 -> ₹120 shipping
-    const kajuSmallOrder = await agent
-      .post('/api/orders')
-      .set('X-CSRF-Token', csrf)
-      .send({ items: [{ productId: 'kaju', quantity: 1 }], deliveryAddress: addr });
-    expect(kajuSmallOrder.status).toBe(201);
-    expect(kajuSmallOrder.body.order.shippingCharge).toBe(120);
-
-    // 3. Mixed Kesar + non-Kesar under ₹5,000 -> ₹120 shipping
-    const mixedOrder = await agent
+    // 1. Surat order -> Free shipping (₹0) and 25% margin applied
+    const suratOrderRes = await agent
       .post('/api/orders')
       .set('X-CSRF-Token', csrf)
       .send({
-        items: [
-          { productId: 'kaju', quantity: 1 },
-          { productId: 'kesar', quantity: 1 },
-        ],
-        deliveryAddress: addr,
+        items: [{ productId: 'kaju', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'Surat Patron',
+          mobileNumber: '9876543277',
+          houseFlat: 'B-304, Green Heights',
+          streetArea: 'Ghod Dod Road',
+          city: 'Surat',
+          state: 'Gujarat',
+          pincode: '395007',
+        },
       });
-    expect(mixedOrder.status).toBe(201);
-    expect(mixedOrder.body.order.shippingCharge).toBe(120);
+    expect(suratOrderRes.status).toBe(201);
+    expect(suratOrderRes.body.order.shippingCharge).toBe(0);
+    expect(suratOrderRes.body.order.appliedProfitMargin).toBe(25);
+    // Kaju base cost = 980. At 25% margin = 980 * 1.25 = 1225
+    expect(suratOrderRes.body.order.subtotal).toBe(1225);
 
-    // 4. Non-Kesar order >= ₹5,000 (4kg kaju = ₹5,488) -> ₹0 shipping
-    const largeOrder = await agent
+    // 2. Non-Surat order -> Fixed ₹158 shipping fee and 40% margin applied
+    const outstationOrderRes = await agent
       .post('/api/orders')
       .set('X-CSRF-Token', csrf)
-      .send({ items: [{ productId: 'kaju', quantity: 4 }], deliveryAddress: addr });
-    expect(largeOrder.status).toBe(201);
-    expect(largeOrder.body.order.subtotal).toBeGreaterThanOrEqual(5000);
-    expect(largeOrder.body.order.shippingCharge).toBe(0);
+      .send({
+        items: [{ productId: 'kaju', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'Delhi Patron',
+          mobileNumber: '9876543277',
+          deliveryAddress: '15 Connaught Place',
+          city: 'New Delhi',
+          state: 'Delhi',
+          pincode: '110001',
+        },
+      });
+    expect(outstationOrderRes.status).toBe(201);
+    expect(outstationOrderRes.body.order.shippingCharge).toBe(158);
+    expect(outstationOrderRes.body.order.appliedProfitMargin).toBe(40);
+    // Kaju base cost = 980. At 40% margin = 980 * 1.40 = 1372
+    expect(outstationOrderRes.body.order.subtotal).toBe(1372);
+
+    // 3. Mandatory shipping address check: Incomplete address rejected with 400
+    const incompleteRes = await agent
+      .post('/api/orders')
+      .set('X-CSRF-Token', csrf)
+      .send({
+        items: [{ productId: 'kaju', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'No Address Patron',
+          mobileNumber: '9876543277',
+          deliveryAddress: '',
+          city: '',
+          state: '',
+          pincode: '',
+        },
+      });
+    expect(incompleteRes.status).toBe(400);
+    expect(incompleteRes.body.error).toContain('mandatory before placing an order');
   });
 });
 

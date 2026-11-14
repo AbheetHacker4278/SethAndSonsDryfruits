@@ -11,6 +11,9 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldCheck,
+  MapPin,
+  Home,
+  Building,
 } from 'lucide-react';
 import ScrollReveal from '../components/ScrollReveal';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
@@ -27,6 +30,12 @@ export default function Register() {
   const [mobileNumber, setMobileNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [houseFlat, setHouseFlat] = useState('');
+  const [streetArea, setStreetArea] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [country, setCountry] = useState('India');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(true);
 
@@ -52,6 +61,31 @@ export default function Register() {
     const cleanDigits = mobileNumber.replace(/\D/g, '');
     if (cleanDigits.length < 10) {
       setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!houseFlat.trim()) {
+      setError('House / Flat number is mandatory for shipping delivery.');
+      return;
+    }
+    if (!streetArea.trim()) {
+      setError('Street / Area / Locality is mandatory for shipping delivery.');
+      return;
+    }
+    if (!city.trim() || city.trim().length < 2) {
+      setError('City is mandatory to determine shipping charges and regional rates.');
+      return;
+    }
+    if (!state.trim() || state.trim().length < 2) {
+      setError('State is mandatory.');
+      return;
+    }
+    const cleanPin = pincode.replace(/\D/g, '');
+    if (!/^\d{6}$/.test(cleanPin)) {
+      setError('Please enter a valid 6-digit PIN code.');
+      return;
+    }
+    if (!country.trim()) {
+      setError('Country is mandatory.');
       return;
     }
     const strength = evaluatePasswordStrength(password);
@@ -81,6 +115,12 @@ export default function Register() {
           mobileNumber: mobileNumber.trim(),
           password,
           confirmPassword,
+          houseFlat: houseFlat.trim(),
+          streetArea: streetArea.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          pincode: cleanPin,
+          country: country.trim() || 'India',
           acceptTerms: true,
           marketingConsent,
         },
@@ -177,6 +217,112 @@ export default function Register() {
                       onChange={e => setMobileNumber(e.target.value)}
                       placeholder="9876543210"
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mandatory Shipping Address Details */}
+              <div className="pt-2 border-t border-[#38281d]/80 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#dfc471]">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Mandatory Shipping Address</span>
+                  </div>
+                  <span className="text-[10px] text-[#d5c4b4]/60">Required for accurate courier rates</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                    House Number / Flat Number *
+                  </label>
+                  <div className="relative">
+                    <Home className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={houseFlat}
+                      onChange={e => setHouseFlat(e.target.value)}
+                      placeholder="e.g. Flat 302, Krishna Tower / Plot 45"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                    Street / Area / Locality *
+                  </label>
+                  <div className="relative">
+                    <Building className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={streetArea}
+                      onChange={e => setStreetArea(e.target.value)}
+                      placeholder="e.g. Vesu Main Road, Near City Mall"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder="e.g. Surat"
+                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                      State *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={state}
+                      onChange={e => setState(e.target.value)}
+                      placeholder="e.g. Gujarat"
+                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                      PIN Code (6 digits) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={pincode}
+                      onChange={e => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="e.g. 395007"
+                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
+                      Country *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={country}
+                      onChange={e => setCountry(e.target.value)}
+                      placeholder="India"
+                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
                     />
                   </div>
                 </div>
