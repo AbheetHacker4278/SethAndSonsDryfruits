@@ -1307,28 +1307,6 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         { upsert: true }
       );
 
-      // Sanitize any existing products with legacy external dummy URLs to local authentic assets
-      await models.Product.updateOne(
-        {
-          id: p.id,
-          $or: [
-            { image: { $regex: 'shreeramdryfruits' } },
-            { gallery: { $elemMatch: { $regex: 'shreeramdryfruits' } } },
-            { fallbackImage: { $regex: 'shreeramdryfruits' } },
-            { image: { $in: [null, ''] } },
-          ],
-        },
-        {
-          $set: {
-            image: p.image,
-            images: gallery,
-            gallery,
-            fallbackImage: p.fallbackImage || null,
-            updatedAt: now,
-          },
-        }
-      );
-
       const basePackUnits =
         p.unit === 'piece'
           ? parsePackPieces(resolvedWeightLabel)
@@ -1469,25 +1447,6 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
       await syncInventoryRecord(db, prod.id);
     }
   }
-
-  // Sanitize any remaining products in the database with external dummy URLs to authentic local images
-  await models.Product.updateMany(
-    {
-      $or: [
-        { image: { $regex: 'shreeramdryfruits' } },
-        { gallery: { $elemMatch: { $regex: 'shreeramdryfruits' } } },
-        { fallbackImage: { $regex: 'shreeramdryfruits' } },
-      ],
-    },
-    {
-      $set: {
-        image: '/assets/products/akhrot.jpg',
-        fallbackImage: '/assets/products/akhrot.jpg',
-        gallery: ['/assets/products/akhrot.jpg'],
-        images: ['/assets/products/akhrot.jpg'],
-      },
-    }
-  );
 
   // 5. Seed all Email Templates (customer & admin transactional + marketing)
   for (const tpl of DEFAULT_EMAIL_TEMPLATES) {

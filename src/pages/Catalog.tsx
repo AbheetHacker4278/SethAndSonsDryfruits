@@ -1361,19 +1361,12 @@ export default function Catalog({
                   const isJustAdded = addedAnimationKey === draftKey;
                   const isWishlisted = wishlistIds.has(product.id);
 
-                  const rawGallery =
+                  const gallery =
                     product.gallery && product.gallery.length > 0
                       ? product.gallery
                       : [product.image];
-                  const cleanGallery = rawGallery.filter(
-                    img => typeof img === 'string' && img.trim().length > 0 && !img.includes('shreeramdryfruits')
-                  );
-                  const gallery =
-                    cleanGallery.length > 0
-                      ? cleanGallery
-                      : [product.fallbackImage || DEFAULT_FALLBACK_IMG];
                   const currentImgIdx = productImageIndex[product.id] || 0;
-                  const currentImg = gallery[currentImgIdx] || gallery[0];
+                  const currentImg = gallery[currentImgIdx] || product.image;
 
                   const openDetails = () => {
                     setDetailProduct(product);
@@ -2267,43 +2260,37 @@ export default function Catalog({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      {(() => {
-                        const modalGallery = (detailProduct.gallery || []).filter(
-                          img => typeof img === 'string' && img.trim().length > 0 && !img.includes('shreeramdryfruits')
-                        );
-                        if (modalGallery.length <= 1) return null;
-                        return (
-                          <div className="flex items-center gap-2">
-                            {modalGallery.map((imgUrl, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                aria-label={`View image ${idx + 1} of ${detailProduct.name}`}
-                                onClick={() => setDetailActiveImgIndex(idx)}
-                                className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                                  detailActiveImgIndex === idx
-                                    ? 'border-[#dfc471]'
-                                    : 'border-[#38281d] opacity-70 hover:opacity-100'
-                                }`}
-                              >
-                                <img
-                                  src={imgUrl}
-                                  alt=""
-                                  referrerPolicy="no-referrer"
-                                  onError={e => {
-                                    const img = e.currentTarget;
-                                    if (img.dataset.fallbackApplied) return;
-                                    img.dataset.fallbackApplied = '1';
-                                    img.src =
-                                      detailProduct.fallbackImage || DEFAULT_FALLBACK_IMG;
-                                  }}
-                                  className="w-full h-full object-cover"
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                      {detailProduct.gallery && detailProduct.gallery.length > 1 && (
+                        <div className="flex items-center gap-2">
+                          {detailProduct.gallery.map((imgUrl, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              aria-label={`View image ${idx + 1} of ${detailProduct.name}`}
+                              onClick={() => setDetailActiveImgIndex(idx)}
+                              className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                detailActiveImgIndex === idx
+                                  ? 'border-[#dfc471]'
+                                  : 'border-[#38281d] opacity-70 hover:opacity-100'
+                              }`}
+                            >
+                              <img
+                                src={imgUrl}
+                                alt=""
+                                referrerPolicy="no-referrer"
+                                onError={e => {
+                                  const img = e.currentTarget;
+                                  if (img.dataset.fallbackApplied) return;
+                                  img.dataset.fallbackApplied = '1';
+                                  img.src =
+                                    detailProduct.fallbackImage || DEFAULT_FALLBACK_IMG;
+                                }}
+                                className="w-full h-full object-cover"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="relative aspect-square rounded-2xl overflow-hidden bg-black border border-[#dfc471]/40">

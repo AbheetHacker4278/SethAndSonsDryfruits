@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { Product } from '../types/product';
 import { formatINR } from '../utils/priceCalculator';
 import { ArrowUpRight, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,67 +9,20 @@ interface ProductCardProps {
   index: number;
 }
 
-const getCategoryFallback = (p: Product): string => {
-  if (p.fallbackImage && !p.fallbackImage.includes('shreeramdryfruits')) {
-    return p.fallbackImage;
-  }
-  const idOrName = `${p.id || ''} ${p.name || ''}`.toLowerCase();
-  if (idOrName.includes('badam') || idOrName.includes('almond')) return '/assets/products/badam.jpg';
-  if (idOrName.includes('kaju') || idOrName.includes('cashew')) return '/assets/products/kaju.jpg';
-  if (idOrName.includes('pista') || idOrName.includes('pistachio')) return '/assets/products/pista.jpg';
-  if (idOrName.includes('kesar') || idOrName.includes('saffron')) return '/assets/products/kesar.jpg';
-  if (idOrName.includes('kishmish') || idOrName.includes('raisin')) return '/assets/products/kishmish.jpg';
-  if (idOrName.includes('akhrot') || idOrName.includes('walnut')) return '/assets/products/akhrot.jpg';
-  if (p.category === 'saffron') return '/assets/products/kesar.jpg';
-  if (p.category === 'dried-fruits') return '/assets/products/kishmish.jpg';
-  return '/assets/products/akhrot.jpg';
-};
-
 export default function ProductCard({ product, onRequestPurchase, index }: ProductCardProps) {
-  const fallbackImg = useMemo(() => getCategoryFallback(product), [product]);
-
-  const rawGallery = (product.gallery && product.gallery.length > 0)
-    ? product.gallery
-    : [product.image];
-
-  const gallery = useMemo(() => {
-    const clean = rawGallery.filter(
-      img => typeof img === 'string' && img.trim().length > 0 && !img.includes('shreeramdryfruits')
-    );
-    if (clean.length > 0) return clean;
-    return [product.fallbackImage && !product.fallbackImage.includes('shreeramdryfruits') ? product.fallbackImage : fallbackImg];
-  }, [rawGallery, product.fallbackImage, fallbackImg]);
-
-  const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const [currentSrc, setCurrentSrc] = useState<string>(() => gallery[0] || fallbackImg);
   const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    const validIdx = activeImgIndex < gallery.length ? activeImgIndex : 0;
-    setCurrentSrc(gallery[validIdx] || fallbackImg);
-    setImageError(false);
-  }, [gallery, activeImgIndex, fallbackImg]);
+  const gallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image];
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const activeImg = gallery[activeImgIndex] || product.image;
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextIdx = activeImgIndex === 0 ? gallery.length - 1 : activeImgIndex - 1;
-    setActiveImgIndex(nextIdx);
-    setCurrentSrc(gallery[nextIdx] || fallbackImg);
+    setActiveImgIndex(prev => (prev === 0 ? gallery.length - 1 : prev - 1));
   };
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextIdx = activeImgIndex === gallery.length - 1 ? 0 : activeImgIndex + 1;
-    setActiveImgIndex(nextIdx);
-    setCurrentSrc(gallery[nextIdx] || fallbackImg);
-  };
-
-  const handleImageError = () => {
-    if (currentSrc !== fallbackImg) {
-      setCurrentSrc(fallbackImg);
-      return;
-    }
-    setImageError(true);
+    setActiveImgIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1));
   };
 
   return (
@@ -83,22 +36,21 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
 
         {/* Clean, authentic product image */}
         {!imageError ? (
-          <picture className="w-full h-full block">
-            {currentSrc.endsWith('.jpg') && (
-              <source srcSet={currentSrc.replace(/\.jpg$/, '.webp')} type="image/webp" />
-            )}
-            <img
-              src={currentSrc}
-              alt={product.name}
-              width="400"
-              height="400"
-              referrerPolicy="no-referrer"
-              onError={handleImageError}
-              className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108 will-change-transform"
-              loading="lazy"
-              decoding="async"
-            />
-          </picture>
+          <img
+            src={activeImg.endsWith('.jpg') ? activeImg.replace('.jpg', '.webp') : activeImg}
+            alt={product.name}
+            width="400"
+            height="400"
+            referrerPolicy="no-referrer"
+            onError={() => {
+              if (product.fallbackImage) {
+                setImageError(true);
+              }
+            }}
+            className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108 will-change-transform"
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#251a13] to-[#150d09] p-6 text-center">
             <Sparkles className="w-8 h-8 text-[#dfc471] mb-2" />
@@ -135,6 +87,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
+
             <button
               type="button"
               onClick={handleNext}
