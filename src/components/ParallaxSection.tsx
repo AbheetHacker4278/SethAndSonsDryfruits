@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Sparkles, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { PRODUCTS } from '../data/products';
 import { useAuth } from '../context/AuthContext';
 import { formatINR } from '../utils/priceCalculator';
@@ -22,19 +22,6 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
   const card1Ref = useRef<HTMLDivElement>(null);
   const card2Ref = useRef<HTMLDivElement>(null);
   const card3Ref = useRef<HTMLDivElement>(null);
-
-  const [cardImageIndex, setCardImageIndex] = useState<Record<number, number>>({ 0: 0, 1: 0, 2: 0 });
-
-  const cycleCardImage = (cardIdx: number, len: number, direction: 'prev' | 'next', e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCardImageIndex(prev => {
-      const curr = prev[cardIdx] || 0;
-      const next = direction === 'next'
-        ? (curr === len - 1 ? 0 : curr + 1)
-        : (curr === 0 ? len - 1 : curr - 1);
-      return { ...prev, [cardIdx]: next };
-    });
-  };
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -155,10 +142,11 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 pt-8 pb-12">
           {featured.map((prod, cardIdx) => {
             const cardRef = cardIdx === 0 ? card1Ref : cardIdx === 1 ? card2Ref : card3Ref;
-            const cardGallery = (prod.gallery && prod.gallery.length > 0) ? prod.gallery : [prod.image];
-            const currentImgIdx = cardImageIndex[cardIdx] || 0;
-            const currentImg = cardGallery[currentImgIdx] || prod.image;
             const isCenter = cardIdx === 1;
+            const imgUrl =
+              prod.image.startsWith('/assets/') && prod.image.endsWith('.jpg')
+                ? prod.image.replace('.jpg', '.webp')
+                : prod.image;
 
             return (
               <div
@@ -178,7 +166,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
 
                 <div className={`aspect-[4/3] w-full overflow-hidden relative ${isCenter ? 'bg-[#251a13]' : 'bg-[#1c120c]'}`}>
                   <img
-                    src={currentImg.startsWith('/assets/') && currentImg.endsWith('.jpg') ? currentImg.replace('.jpg', '.webp') : currentImg}
+                    src={imgUrl}
                     alt={prod.name}
                     width="400"
                     height="300"
@@ -187,52 +175,6 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108 will-change-transform"
                   />
-
-                  {/* Side Navigation Buttons */}
-                  {cardGallery.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => cycleCardImage(cardIdx, cardGallery.length, 'prev', e)}
-                        className="absolute left-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
-                        title="Previous photo"
-                        aria-label="Previous photo"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => cycleCardImage(cardIdx, cardGallery.length, 'next', e)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 sm:w-8 sm:h-8 rounded-full bg-[#0d0805]/80 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] backdrop-blur-md border border-[#38281d] hover:border-[#dfc471] flex items-center justify-center transition-all duration-200 shadow-xl active:scale-90 cursor-pointer sm:opacity-85 sm:hover:opacity-100"
-                        title="Next photo"
-                        aria-label="Next photo"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-
-                      {/* Dots */}
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-[#0d0805]/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-[#38281d]">
-                        {cardGallery.map((_, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCardImageIndex(prev => ({ ...prev, [cardIdx]: i }));
-                            }}
-                            className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                              currentImgIdx === i
-                                ? 'w-4 bg-[#dfc471]'
-                                : 'w-1.5 bg-[#d5c4b4]/40 hover:bg-[#d5c4b4]'
-                            }`}
-                            title={`View photo ${i + 1} of ${cardGallery.length}`}
-                            aria-label={`View photo ${i + 1}`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
                 </div>
 
                 <div className="p-6">
