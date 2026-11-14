@@ -40,11 +40,10 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled || !isHome
-          ? 'bg-[#0d0805]/98 backdrop-blur-2xl border-b border-[#dfc471]/35 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.95)]'
-          : 'bg-[#0d0805]/90 backdrop-blur-xl border-b border-[#dfc471]/25 py-3.5 sm:py-4 shadow-[0_8px_32px_rgba(0,0,0,0.85)]'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled || !isHome
+        ? 'bg-[#0d0805]/98 backdrop-blur-2xl border-b border-[#dfc471]/35 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.95)]'
+        : 'bg-[#0d0805]/90 backdrop-blur-xl border-b border-[#dfc471]/25 py-3.5 sm:py-4 shadow-[0_8px_32px_rgba(0,0,0,0.85)]'
+        }`}
     >
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#dfc471]/35 to-transparent pointer-events-none" />
 
@@ -61,7 +60,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
               Seth And Sons Dryfruits.
             </span>
             <span className="hidden sm:block text-[9px] xl:text-[10px] tracking-[0.22em] uppercase text-[#dfc471]/90 font-sans font-semibold mt-0.5 leading-none">
-              Pure Mountain Harvest • Jammu
+              Pure Mountain Harvest
             </span>
           </div>
         </Link>
@@ -69,25 +68,22 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
         <nav className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs xl:text-sm font-medium tracking-wide">
           <Link
             to="/"
-            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${
-              location.pathname === '/' ? 'text-[#dfc471] font-semibold' : 'text-[#ede4dc]'
-            }`}
+            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${location.pathname === '/' ? 'text-[#dfc471] font-semibold' : 'text-[#ede4dc]'
+              }`}
           >
             Home
           </Link>
           <Link
             to="/catalog"
-            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${
-              location.pathname === '/catalog' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
-            }`}
+            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${location.pathname === '/catalog' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
+              }`}
           >
             Catalog
           </Link>
           <Link
             to="/custom-order"
-            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${
-              location.pathname === '/custom-order' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
-            }`}
+            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${location.pathname === '/custom-order' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
+              }`}
           >
             Custom Demand
           </Link>
@@ -100,18 +96,16 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           </button>
           <Link
             to="/orders"
-            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] flex items-center gap-1.5 ${
-              location.pathname === '/orders' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
-            }`}
+            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] flex items-center gap-1.5 ${location.pathname === '/orders' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
+              }`}
           >
             <Clock className="w-3.5 h-3.5" />
             <span>Orders</span>
           </Link>
           <Link
             to="/customer-service"
-            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${
-              location.pathname === '/customer-service' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
-            }`}
+            className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${location.pathname === '/customer-service' ? 'text-[#dfc471] font-semibold' : 'text-[#d5c4b4]/90'
+              }`}
           >
             Customer Service
           </Link>
@@ -120,11 +114,10 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Link
             to={user ? '/account' : '/login'}
-            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${
-              user || location.pathname === '/login' || location.pathname === '/account'
-                ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
-                : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
-            }`}
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${user || location.pathname === '/login' || location.pathname === '/account'
+              ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
+              : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
+              }`}
           >
             <User className="w-3.5 h-3.5 text-[#dfc471]" />
             <span className="hidden sm:inline whitespace-nowrap">
@@ -171,14 +164,14 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-[#150d09] border-b border-[#38281d] px-6 py-5 shadow-2xl space-y-3 text-sm font-medium">
           <div className="flex items-center gap-3 pb-3 border-b border-[#251a13]">
-            <AnimatedLogo size="sm" showSubtitle={false} />
+            {/* <AnimatedLogo size="sm" showSubtitle={false} /> */}
             <div>
-              <div className="font-serif font-bold text-base text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471]">
+              {/* <div className="font-serif font-bold text-base text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471]">
                 Seth And Sons Dryfruits.
               </div>
               <div className="text-[10px] tracking-[0.2em] uppercase text-[#dfc471]/80 font-sans font-medium">
                 Jammu &amp; Kashmir Heritage
-              </div>
+              </div> */}
             </div>
           </div>
           <button
