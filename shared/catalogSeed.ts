@@ -528,9 +528,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-86-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-86-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -575,9 +574,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-107-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-107-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -622,9 +620,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-89-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-89-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -660,9 +657,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-90-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-90-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -698,9 +694,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-92-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-92-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -736,9 +731,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-88-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-88-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -774,9 +768,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-87-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-87-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -812,9 +805,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-98-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-98-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -850,9 +842,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-91-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-91-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -888,9 +879,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-100-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-100-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -926,9 +916,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-111-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-111-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -964,9 +953,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-110-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-110-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -1002,9 +990,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-108-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-108-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -1040,9 +1027,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-102-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-102-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1078,9 +1064,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-101-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-101-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1116,9 +1101,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-103-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-103-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1154,9 +1138,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-03-300x300.jpg',
+    image: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-03-300x300.jpg',
       '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
@@ -1192,9 +1175,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-68-300x300.jpg',
+    image: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-68-300x300.jpg',
       '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
@@ -1230,9 +1212,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-69-300x300.jpg',
+    image: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-69-300x300.jpg',
       '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
@@ -1268,9 +1249,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-15-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-15-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1306,9 +1286,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-16-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-16-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1344,9 +1323,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-62-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-62-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1382,9 +1360,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-17-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-17-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1421,9 +1398,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-12-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-12-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1459,9 +1435,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-77-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-77-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1497,9 +1472,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-11-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-11-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1535,9 +1509,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-72-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-72-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1574,9 +1547,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-67-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-67-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1612,9 +1584,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-37-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-37-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1650,9 +1621,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-46-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-46-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1688,9 +1658,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-52-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-52-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1726,9 +1695,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-27-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-27-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1764,9 +1732,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-41-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-41-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1802,9 +1769,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-39-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-39-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1840,9 +1806,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-51jpg-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-51jpg-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -1878,9 +1843,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-43-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-43-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -1916,9 +1880,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-36-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-36-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1954,9 +1917,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-50-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-50-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -1992,9 +1954,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-18-300x300.jpg',
+    image: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-18-300x300.jpg',
       '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
@@ -2030,9 +1991,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-64-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-64-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2068,9 +2028,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-42-300x300.jpg',
+    image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-42-300x300.jpg',
       '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
@@ -2106,9 +2065,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-44-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-44-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2144,9 +2102,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-35-600x600.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-35-600x600.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -2183,9 +2140,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-81-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-81-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -2221,9 +2177,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-78-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-78-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2259,9 +2214,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-83-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-83-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2297,9 +2251,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-117-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-117-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2335,9 +2288,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-124-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-124-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -2373,9 +2325,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-79-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-79-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2411,9 +2362,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-95-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-95-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -2449,9 +2399,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-80-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-80-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -2487,9 +2436,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-66-300x300.jpg',
+    image: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-66-300x300.jpg',
       '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
@@ -2526,9 +2474,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 100,
     minQty: 100,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-65-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-65-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -2564,9 +2511,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 100,
     minQty: 100,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-115-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-115-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -2602,9 +2548,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 100,
     minQty: 100,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-116-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-116-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -2640,9 +2585,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 100,
     minQty: 100,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-30-300x300.jpg',
+    image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-30-300x300.jpg',
       '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
@@ -2679,9 +2623,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-74-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-74-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2717,9 +2660,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-93-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2022/02/Dummy-93-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2755,9 +2697,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-97-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-97-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2793,9 +2734,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-75-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-75-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2831,9 +2771,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-73-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-73-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2869,9 +2808,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-96-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-96-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2907,9 +2845,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-76-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-76-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2945,9 +2882,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-94-300x300.jpg',
+    image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/04/Dummy-94-300x300.jpg',
       '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
@@ -2985,9 +2921,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 50,
     minQty: 50,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-84-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-84-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3023,9 +2958,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-21-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-21-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3061,9 +2995,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-22-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-22-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3100,9 +3033,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 125,
     minQty: 125,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-105-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-105-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3138,9 +3070,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-60-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-60-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3176,9 +3107,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-59-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-59-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3214,9 +3144,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-57-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-57-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3253,9 +3182,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 50,
     minQty: 50,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-85-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-85-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3291,9 +3219,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-61-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-61-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3329,9 +3256,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-123-1-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-123-1-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3367,9 +3293,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-49-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-49-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -3405,9 +3330,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-114-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-114-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -3443,9 +3367,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-53-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-53-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3482,9 +3405,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-119-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-119-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3521,9 +3443,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-104-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-104-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3560,9 +3481,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-118-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-118-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3600,8 +3520,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-114-300x300.jpg'
+      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Vibrant antioxidant medley combining roasted pumpkin, sunflower, flax, and chia seeds with tart cranberries, blueberries, and black raisins.',
@@ -3636,9 +3555,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-47-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-47-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -3674,9 +3592,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-54-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-54-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -3713,9 +3630,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-20-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-20-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3751,9 +3667,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-55-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-55-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3790,9 +3705,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-125-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-125-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3829,9 +3743,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-127-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-127-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3867,9 +3780,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'dried-fruits',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-63-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-63-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -3906,9 +3818,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-122-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-122-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3945,9 +3856,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-120-1-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-120-1-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -3984,9 +3894,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-28-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-28-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -4023,9 +3932,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-106-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-106-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -4062,9 +3970,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-71-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-71-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -4101,9 +4008,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'saffron',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-120-300x300.jpg',
+    image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-120-300x300.jpg',
       '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
@@ -4139,9 +4045,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-58-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-58-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -4177,9 +4082,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 0.5,
     minQty: 0.5,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-56-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-56-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
@@ -4216,9 +4120,8 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     step: 1,
     minQty: 1,
     category: 'nuts',
-    image: 'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-70-300x300.jpg',
+    image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      'https://shreeramdryfruits.com/wp-content/uploads/2023/02/Dummy-70-300x300.jpg',
       '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
