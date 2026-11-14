@@ -54,7 +54,7 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/" className="hover:text-[#dfc471] transition-colors">Home</Link></li>
-              <li><Link to="/catalog" className="hover:text-[#dfc471] transition-colors">Jammu Catalog</Link></li>
+              <li><Link to="/catalog" className="hover:text-[#dfc471] transition-colors">Catalog</Link></li>
               <li><Link to="/orders" className="hover:text-[#dfc471] transition-colors">Orders &amp; Tracking</Link></li>
               <li><Link to="/account" className="hover:text-[#dfc471] transition-colors">My Account</Link></li>
               <li><Link to="/login" className="hover:text-[#dfc471] transition-colors">Patron Sign In</Link></li>

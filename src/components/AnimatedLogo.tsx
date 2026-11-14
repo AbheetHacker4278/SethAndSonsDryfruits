@@ -61,8 +61,8 @@ export default function AnimatedLogo({
 
       {/* Optional Jammu Provenance Tagline (used predominantly in footer / large views) */}
       {showSubtitle && size === 'lg' && (
-        <span className="mt-2 text-[10px] sm:text-[11px] tracking-[0.25em] text-[#dfc471] uppercase font-sans font-semibold pl-1">
-          Sourced From Jammu • Est. 1968
+        <span className="mt-2 text-[10px] sm:text-[20px] tracking-[0.25em] text-[#dfc471] uppercase font-sans font-semibold pl-1">
+          Seth And Sons Dryfruits
         </span>
       )}
     </div>
