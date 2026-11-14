@@ -10,6 +10,7 @@ import {
   OTHER_CITY_MARGIN_PERCENT,
   SURAT_SHIPPING_FEE,
   OTHER_CITY_SHIPPING_FEE,
+  NON_SURAT_FREE_SHIPPING_THRESHOLD,
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
@@ -317,8 +318,10 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     const defaultGst = typeof biz.defaultGstRate === 'number' ? biz.defaultGstRate : 5;
 
     const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-    // Shipping charge: ₹0 for Surat, ₹158 for all other cities
-    const shippingCharge = isSurat ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE;
+    // Shipping charge: ₹0 for Surat. For other cities, ₹0 if cart value is above ₹5000, else ₹158
+    const shippingCharge = isSurat
+      ? SURAT_SHIPPING_FEE
+      : (netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD ? 0 : OTHER_CITY_SHIPPING_FEE);
     const taxAmount = Math.round(netAfterDiscount * (defaultGst / 100));
     const totalAmount = netAfterDiscount + shippingCharge + taxAmount;
 

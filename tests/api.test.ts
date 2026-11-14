@@ -1373,9 +1373,12 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(isSuratCity('Surat, Gujarat')).toBe(true);
     expect(isSuratCity('Mumbai')).toBe(false);
 
-    // Location-based shipping: ₹0 for Surat, ₹158 for any other city
+    // Location-based shipping: ₹0 for Surat, ₹158 for any other city (unless cart value > ₹5000 which is Free ₹0)
     expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Surat' })).toBe(0);
     expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Mumbai' })).toBe(158);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 5000, { shippingCity: 'Mumbai' })).toBe(158);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 5001, { shippingCity: 'Mumbai' })).toBe(0);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 6000, { shippingCity: 'Mumbai' })).toBe(0);
     expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Jammu' })).toBe(158);
 
     const { agent, csrf } = await getCsrfAgent(instance.app);
@@ -1448,6 +1451,25 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(outstationOrderRes.body.order.appliedProfitMargin).toBe(40);
     // Kaju base cost = 980. At 40% margin = 980 * 1.40 = 1372
     expect(outstationOrderRes.body.order.subtotal).toBe(1372);
+
+    // 2b. Non-Surat order with cart value above ₹5,000 -> Free shipping (₹0)
+    const outstationFreeShipOrderRes = await agent
+      .post('/api/orders')
+      .set('X-CSRF-Token', csrf)
+      .send({
+        items: [{ productId: 'kaju', quantity: 4 }],
+        deliveryAddress: {
+          fullName: 'Delhi Patron',
+          mobileNumber: '9876543277',
+          deliveryAddress: '15 Connaught Place',
+          city: 'New Delhi',
+          state: 'Delhi',
+          pincode: '110001',
+        },
+      });
+    expect(outstationFreeShipOrderRes.status).toBe(201);
+    expect(outstationFreeShipOrderRes.body.order.shippingCharge).toBe(0);
+    expect(outstationFreeShipOrderRes.body.order.subtotal).toBe(1372 * 4); // 5488 > 5000
 
     // 3. Mandatory shipping address check: Incomplete address rejected with 400
     const incompleteRes = await agent

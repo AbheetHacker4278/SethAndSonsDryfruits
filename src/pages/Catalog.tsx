@@ -8,6 +8,7 @@ import {
   isSuratCity,
   SURAT_SHIPPING_FEE,
   OTHER_CITY_SHIPPING_FEE,
+  NON_SURAT_FREE_SHIPPING_THRESHOLD,
   type ProductWeightVariant,
 } from '../data/products';
 import {
@@ -506,12 +507,11 @@ export default function Catalog({
 
   const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
   const isSurat = isSuratCity(effectiveShippingCity);
+  const isFreeNonSurat = netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD;
   const shippingCharge = activeOrderItems.length > 0
-    ? (effectiveShippingCity
-        ? (isSurat ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE)
-        : (user?.shippingAddress?.city
-            ? (isSuratCity(user.shippingAddress.city) ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE)
-            : OTHER_CITY_SHIPPING_FEE))
+    ? (isSurat
+        ? SURAT_SHIPPING_FEE
+        : (isFreeNonSurat ? 0 : OTHER_CITY_SHIPPING_FEE))
     : 0;
 
   const taxAmount = Math.round(netAfterDiscount * (gstRatePct / 100));
@@ -1842,15 +1842,31 @@ export default function Catalog({
               <div className="flex justify-between items-center">
                 <span className="text-[#d5c4b4]/80">
                   {effectiveShippingCity
-                    ? (isSurat ? 'Shipping Charges (Surat — Free Delivery)' : `Shipping Charges (${effectiveShippingCity} Courier)`)
+                    ? (isSurat
+                        ? 'Shipping Charges (Surat — Free Delivery)'
+                        : isFreeNonSurat
+                          ? `Shipping Charges (${effectiveShippingCity} — Free over ₹5,000)`
+                          : `Shipping Charges (${effectiveShippingCity} Courier)`)
                     : (user?.shippingAddress?.city
-                        ? (isSuratCity(user.shippingAddress.city) ? 'Shipping Charges (Surat — Free Delivery)' : 'Shipping Charges (Standard Courier)')
-                        : 'Shipping Charges')}
+                        ? (isSuratCity(user.shippingAddress.city)
+                            ? 'Shipping Charges (Surat — Free Delivery)'
+                            : isFreeNonSurat
+                              ? 'Shipping Charges (Free over ₹5,000)'
+                              : 'Shipping Charges (Standard Courier)')
+                        : (isFreeNonSurat
+                            ? 'Shipping Charges (Free over ₹5,000)'
+                            : 'Shipping Charges'))}
                 </span>
                 <span className={shippingCharge === 0 ? 'text-emerald-400 font-semibold' : 'text-[#f9f6f2] font-medium'}>
                   {shippingCharge === 0 ? '₹0 (Free Shipping)' : formatINR(shippingCharge)}
                 </span>
               </div>
+              {!isSurat && !isFreeNonSurat && activeOrderItems.length > 0 && (
+                <div className="text-[11px] text-[#dfc471] bg-[#dfc471]/10 px-2.5 py-1 rounded-lg border border-[#dfc471]/20 flex items-center justify-between">
+                  <span>Free shipping for other cities on orders above ₹5,000</span>
+                  <span className="font-semibold text-white">Add {formatINR(NON_SURAT_FREE_SHIPPING_THRESHOLD - netAfterDiscount + 1)} more</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-[#d5c4b4]/80">GST ({gstRatePct}%)</span>
                 <span>{formatINR(taxAmount)}</span>

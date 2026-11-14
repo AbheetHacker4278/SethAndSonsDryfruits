@@ -10,6 +10,7 @@ export {
   GUEST_MARGIN_PERCENT,
   SURAT_SHIPPING_FEE,
   OTHER_CITY_SHIPPING_FEE,
+  NON_SURAT_FREE_SHIPPING_THRESHOLD,
   isSuratCity,
   getCustomerProfitMargin,
   getLocationShippingFee,

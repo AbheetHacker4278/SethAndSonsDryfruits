@@ -141,6 +141,7 @@ export const GUEST_MARGIN_PERCENT = 25;
 
 export const SURAT_SHIPPING_FEE = 0;
 export const OTHER_CITY_SHIPPING_FEE = 158;
+export const NON_SURAT_FREE_SHIPPING_THRESHOLD = 5000;
 
 /**
  * Returns true if the provided city is Surat, Gujarat (case-insensitive)
@@ -165,10 +166,16 @@ export function getCustomerProfitMargin(city?: string | null, isRegistered: bool
 /**
  * Determine location-based shipping fee:
  * - Surat, Gujarat: ₹0 (Free Shipping)
- * - All other cities: ₹158 fixed fee
+ * - All other cities: Free if cart value > ₹5000, otherwise ₹158 fixed fee
  */
-export function getLocationShippingFee(city?: string | null): number {
-  return isSuratCity(city) ? SURAT_SHIPPING_FEE : OTHER_CITY_SHIPPING_FEE;
+export function getLocationShippingFee(city?: string | null, cartValue: number = 0): number {
+  if (isSuratCity(city)) {
+    return SURAT_SHIPPING_FEE;
+  }
+  if (cartValue > NON_SURAT_FREE_SHIPPING_THRESHOLD) {
+    return 0;
+  }
+  return OTHER_CITY_SHIPPING_FEE;
 }
 
 /**
@@ -203,7 +210,7 @@ export function calculateDynamicSellingPrice(baseCost: number, marginPercent: nu
 /**
  * Calculate order/cart shipping charge:
  * - Customers from Surat, Gujarat: ₹0 (Free Shipping)
- * - Customers from all other cities: ₹158 fixed shipping fee
+ * - Customers from all other cities: ₹158 fixed shipping fee, or ₹0 (Free Shipping) if cart value is above ₹5000
  */
 export function calculateOrderShippingCharge(
   items: Array<{
@@ -224,10 +231,10 @@ export function calculateOrderShippingCharge(
   if (options?.orderType === 'custom') return 0;
 
   if (options?.shippingCity !== undefined && options?.shippingCity !== null) {
-    return getLocationShippingFee(options.shippingCity);
+    return getLocationShippingFee(options.shippingCity, netAfterDiscount);
   }
 
-  return OTHER_CITY_SHIPPING_FEE;
+  return netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD ? 0 : OTHER_CITY_SHIPPING_FEE;
 }
 
 export const PRODUCTS_SEED: CatalogProduct[] = [
