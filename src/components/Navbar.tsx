@@ -48,12 +48,25 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
     >
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#dfc471]/35 to-transparent pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-6">
-        <Link to="/" onClick={() => setIsMobileMenuOpen(false)} aria-label="Go to homepage">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6">
+        <Link
+          to="/"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-label="Seth And Sons Dryfruits Homepage"
+          className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
+        >
           <AnimatedLogo size="md" showSubtitle={false} />
+          <div className="flex flex-col justify-center">
+            <span className="font-serif font-bold text-sm sm:text-base md:text-lg lg:text-lg xl:text-xl tracking-[0.02em] sm:tracking-[0.03em] leading-tight text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] group-hover:brightness-110 transition-all duration-300 whitespace-nowrap">
+              Seth And Sons Dryfruits.
+            </span>
+            <span className="hidden sm:block text-[9px] xl:text-[10px] tracking-[0.22em] uppercase text-[#dfc471]/90 font-sans font-semibold mt-0.5 leading-none">
+              Pure Mountain Harvest • Jammu
+            </span>
+          </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-xs sm:text-sm font-medium tracking-wide">
+        <nav className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs xl:text-sm font-medium tracking-wide">
           <Link
             to="/"
             className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${
@@ -104,10 +117,10 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <Link
             to={user ? '/account' : '/login'}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${
               user || location.pathname === '/login' || location.pathname === '/account'
                 ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
                 : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
@@ -125,13 +138,13 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
               if (onOpenCart) onOpenCart();
               else navigate('/catalog?cart=open');
             }}
-            className="relative inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-semibold tracking-wide border border-[#dfc471]/60 bg-[#1c120c] text-[#dfc471] hover:bg-[#dfc471] hover:text-[#0d0805] hover:border-[#dfc471] transition-all duration-200 active:scale-95 shadow-md shadow-black/40 cursor-pointer whitespace-nowrap"
+            className="relative inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs font-semibold tracking-wide border border-[#dfc471]/60 bg-[#1c120c] text-[#dfc471] hover:bg-[#dfc471] hover:text-[#0d0805] hover:border-[#dfc471] transition-all duration-200 active:scale-95 shadow-md shadow-black/40 cursor-pointer whitespace-nowrap"
             aria-label={`View Cart with ${selectedCount} items`}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            <span>View Cart</span>
+            <span className="hidden sm:inline">View Cart</span>
             {selectedCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-[#dfc471] text-[#0d0805] text-[10px] font-bold flex items-center justify-center">
+              <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#dfc471] text-[#0d0805] text-[10px] font-bold flex items-center justify-center">
                 {selectedCount}
               </span>
             )}
@@ -139,7 +152,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
 
           <Link
             to="/catalog"
-            className="relative hidden md:inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-lg shadow-[#b99225]/20 active:scale-95 whitespace-nowrap"
+            className="relative hidden xl:inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-lg shadow-[#b99225]/20 active:scale-95 whitespace-nowrap"
           >
             <span>Order Now</span>
           </Link>
@@ -147,7 +160,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2.5 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="lg:hidden p-2 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
             aria-label="Toggle navigation menu"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -157,6 +170,17 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
 
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-[#150d09] border-b border-[#38281d] px-6 py-5 shadow-2xl space-y-3 text-sm font-medium">
+          <div className="flex items-center gap-3 pb-3 border-b border-[#251a13]">
+            <AnimatedLogo size="sm" showSubtitle={false} />
+            <div>
+              <div className="font-serif font-bold text-base text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471]">
+                Seth And Sons Dryfruits.
+              </div>
+              <div className="text-[10px] tracking-[0.2em] uppercase text-[#dfc471]/80 font-sans font-medium">
+                Jammu &amp; Kashmir Heritage
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => {
