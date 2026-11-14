@@ -213,6 +213,36 @@ export default function AdminOrders() {
     setOrderItems(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleUpdateItemPrice = (index: number, newPrice: number) => {
+    setOrderItems(prev => {
+      const next = [...prev];
+      if (next[index]) {
+        const p = Math.max(0, newPrice);
+        next[index] = {
+          ...next[index],
+          unitPrice: p,
+          subtotal: Math.round(p * next[index].quantity),
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleUpdateItemQty = (index: number, newQty: number) => {
+    setOrderItems(prev => {
+      const next = [...prev];
+      if (next[index]) {
+        const q = Math.max(0.1, newQty);
+        next[index] = {
+          ...next[index],
+          quantity: q,
+          subtotal: Math.round(next[index].unitPrice * q),
+        };
+      }
+      return next;
+    });
+  };
+
   const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1295,7 +1325,7 @@ export default function AdminOrders() {
 
               {/* Picker row */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-white p-3 rounded-xl border border-[#E9E4D9]">
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-4">
                   <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Product</label>
                   <select
                     value={pickerProductId}
@@ -1339,6 +1369,19 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Custom Price (₹) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={pickerUnitPrice}
+                    onChange={e => setPickerUnitPrice(e.target.value)}
+                    placeholder="e.g. 850"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold text-[#183D32] focus:border-[#183D32] focus:bg-white transition-colors"
+                  />
+                </div>
+
+                <div className="sm:col-span-1">
                   <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Qty</label>
                   <input
                     type="number"
@@ -1346,7 +1389,7 @@ export default function AdminOrders() {
                     step={0.1}
                     value={pickerQuantity}
                     onChange={e => setPickerQuantity(Math.max(0.1, Number(e.target.value) || 1))}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold"
+                    className="w-full px-2 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold"
                   />
                 </div>
 
@@ -1370,7 +1413,7 @@ export default function AdminOrders() {
                       <tr className="border-b border-[#E9E4D9] bg-[#F8F6F0] text-[#888B83] text-[11px]">
                         <th className="py-2 px-3">Item</th>
                         <th className="py-2 px-2">Variant</th>
-                        <th className="py-2 px-2">Unit Price</th>
+                        <th className="py-2 px-2">Unit Price (₹)</th>
                         <th className="py-2 px-2">Qty</th>
                         <th className="py-2 px-2">Subtotal</th>
                         <th className="py-2 px-3 text-right">Action</th>
@@ -1381,8 +1424,29 @@ export default function AdminOrders() {
                         <tr key={idx} className="hover:bg-[#FAF3E3]/40">
                           <td className="py-2 px-3 font-medium text-[#183D32]">{it.productName}</td>
                           <td className="py-2 px-2 text-[#5C6058]">{it.weightLabel || 'Base'}</td>
-                          <td className="py-2 px-2 text-[#5C6058]">{formatINR(it.unitPrice)}</td>
-                          <td className="py-2 px-2 font-semibold text-[#183D32]">{it.quantity}</td>
+                          <td className="py-2 px-2 text-[#5C6058]">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[#888B83]">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={it.unitPrice}
+                                onChange={e => handleUpdateItemPrice(idx, Number(e.target.value) || 0)}
+                                className="w-20 px-1.5 py-0.5 rounded border border-[#E9E4D9] text-xs font-semibold bg-[#F8F6F0] focus:bg-white focus:border-[#183D32]"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 font-semibold text-[#183D32]">
+                            <input
+                              type="number"
+                              min={0.1}
+                              step={0.1}
+                              value={it.quantity}
+                              onChange={e => handleUpdateItemQty(idx, Number(e.target.value) || 1)}
+                              className="w-16 px-1.5 py-0.5 rounded border border-[#E9E4D9] text-xs font-semibold bg-[#F8F6F0] focus:bg-white focus:border-[#183D32]"
+                            />
+                          </td>
                           <td className="py-2 px-2 font-bold text-[#183D32]">{formatINR(it.subtotal)}</td>
                           <td className="py-2 px-3 text-right">
                             <button

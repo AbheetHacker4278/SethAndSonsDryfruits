@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 import { formatINR } from '../utils/priceCalculator';
 import { ArrowUpRight, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -20,6 +20,15 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
   const [activeImgIndex, setActiveImgIndex] = useState(0);
   const activeImg = gallery[activeImgIndex] || product.image || '';
 
+  const fallback = product.fallbackImage || '/assets/products/akhrot.jpg';
+  const [imgSrc, setImgSrc] = useState(activeImg || fallback);
+
+  useEffect(() => {
+    setImgSrc(activeImg || fallback);
+    setImageError(false);
+    setFallbackAttempted(false);
+  }, [activeImg, fallback]);
+
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImgIndex(prev => (prev === 0 ? gallery.length - 1 : prev - 1));
@@ -30,15 +39,13 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
     setActiveImgIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1));
   };
 
-  const fallback = product.fallbackImage || '/assets/products/akhrot.jpg';
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const target = e.currentTarget;
-    if (!fallbackAttempted && fallback && !target.src.endsWith(fallback)) {
+  const handleImageError = () => {
+    if (!fallbackAttempted && fallback && imgSrc !== fallback) {
       setFallbackAttempted(true);
-      target.src = fallback;
-      return;
+      setImgSrc(fallback);
+    } else {
+      setImageError(true);
     }
-    setImageError(true);
   };
 
   return (
@@ -51,13 +58,13 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         <div className="absolute inset-0 bg-gradient-to-t from-[#150d09] via-transparent to-transparent z-10 opacity-70 group-hover:opacity-40 transition-opacity pointer-events-none" />
 
         {/* Clean product image */}
-        {!imageError && activeImg ? (
+        {!imageError && imgSrc ? (
           <picture className="w-full h-full block">
-            {activeImg.startsWith('/assets/') && activeImg.endsWith('.jpg') && (
-              <source srcSet={activeImg.replace(/\.jpg$/, '.webp')} type="image/webp" />
+            {imgSrc.startsWith('/assets/') && imgSrc.endsWith('.jpg') && (
+              <source srcSet={imgSrc.replace(/\.jpg$/, '.webp')} type="image/webp" />
             )}
             <img
-              src={activeImg}
+              src={imgSrc}
               alt={product.name}
               width="400"
               height="400"
