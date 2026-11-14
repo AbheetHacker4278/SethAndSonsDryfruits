@@ -1969,8 +1969,8 @@ export default function Catalog({
                     Delivery &amp; Payment Details
                   </span>
                   {user.shippingAddress?.city && (
-                    <span className="text-[10px] text-emerald-400 font-medium">
-                      Saved: {user.shippingAddress.city} {isSuratCity(user.shippingAddress.city) ? '(Free Delivery)' : '(₹158 Courier)'}
+                    <span className="text-[10px] text-emerald-400/80 font-medium">
+                      Delivering to: {user.shippingAddress.city}
                     </span>
                   )}
                 </div>
@@ -1982,7 +1982,7 @@ export default function Catalog({
                       <span>Mandatory Shipping Address</span>
                     </div>
                     <p className="text-[#d5c4b4]/85 leading-relaxed">
-                      Completing your shipping address is mandatory before placing an order. Surat patrons enjoy <strong>Free Delivery</strong>, and all other cities receive flat ₹158 courier delivery.
+                      Completing your shipping address is mandatory before placing an order. Please update your delivery details to proceed.
                     </p>
                     <Link
                       to="/account?tab=addresses"

@@ -291,14 +291,14 @@ export default function Account({ onReorder }: AccountProps) {
         });
         if (res.user) setUser(res.user);
         setEditingAddressId(null);
-        setFeedback({ type: 'ok', text: `Shipping address updated. Rates recalculated for ${payload.city}.` });
+        setFeedback({ type: 'ok', text: `Shipping address updated successfully.` });
       } else {
         const res = await apiRequest<{ address: AddressItem; user?: AuthUser }>('/api/account/addresses', {
           method: 'POST',
           body: payload,
         });
         if (res.user) setUser(res.user);
-        setFeedback({ type: 'ok', text: `Shipping address saved. Rates calculated for ${payload.city}.` });
+        setFeedback({ type: 'ok', text: `Shipping address saved successfully.` });
       }
 
       setAddrForm({
@@ -346,7 +346,7 @@ export default function Account({ onReorder }: AccountProps) {
       });
       if (res.user) setUser(res.user);
       await loadAccountData();
-      setFeedback({ type: 'ok', text: `Default address changed to ${a.city}. Regional pricing updated!` });
+      setFeedback({ type: 'ok', text: `Primary delivery address updated to ${a.city}.` });
     } catch (err) {
       setFeedback({ type: 'err', text: err instanceof ApiError ? err.message : 'Unable to update address.' });
     }
@@ -489,11 +489,10 @@ export default function Account({ onReorder }: AccountProps) {
                 <button
                   key={item.id}
                   onClick={() => switchTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                    active
-                      ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40'
-                      : 'text-[#d5c4b4] hover:bg-[#1c120c] hover:text-[#f9f6f2]'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${active
+                    ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40'
+                    : 'text-[#d5c4b4] hover:bg-[#1c120c] hover:text-[#f9f6f2]'
+                    }`}
                 >
                   <span className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4" />
@@ -544,11 +543,10 @@ export default function Account({ onReorder }: AccountProps) {
 
           {feedback && (
             <div
-              className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-2.5 border ${
-                feedback.type === 'ok'
-                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
-                  : 'bg-red-950/60 border-red-500/40 text-red-200'
-              }`}
+              className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-2.5 border ${feedback.type === 'ok'
+                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-200'
+                : 'bg-red-950/60 border-red-500/40 text-red-200'
+                }`}
             >
               {feedback.type === 'ok' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
               <span>{feedback.text}</span>
@@ -815,58 +813,14 @@ export default function Account({ onReorder }: AccountProps) {
           {/* 5. SAVED ADDRESSES */}
           {activeTab === 'addresses' && (
             <div className="space-y-6">
-              {/* Regional Pricing & Shipping Tier Banner */}
-              {user.shippingAddress?.city ? (
-                isSuratCity(user.shippingAddress.city) ? (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-[#150d09] to-emerald-950/60 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 shrink-0">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-sm text-[#f9f6f2]">Surat Regional Benefit: Activated</h3>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold tracking-wider uppercase border border-emerald-500/40">Free Delivery (₹0)</span>
-                        </div>
-                        <p className="text-xs text-[#d5c4b4]/80 mt-1">
-                          Primary shipping city is <strong>{user.shippingAddress.city}</strong>. You receive <strong>100% Free Shipping</strong> and direct harvest pricing (25% profit margin) across the entire store.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-emerald-500/20">
-                      <div className="text-xs font-semibold text-emerald-300">Profit Margin: 25%</div>
-                      <div className="text-[11px] text-[#d5c4b4]/70">Shipping Fee: ₹0 (Free)</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-950/60 via-[#150d09] to-amber-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">
-                        <Truck className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-sm text-[#f9f6f2]">Domestic Courier Delivery Tier</h3>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold tracking-wider uppercase border border-amber-500/40">₹158 Flat Shipping</span>
-                        </div>
-                        <p className="text-xs text-[#d5c4b4]/80 mt-1">
-                          Primary shipping city is <strong>{user.shippingAddress.city}</strong>. Standard domestic express courier applies (₹158 shipping charge per order with standard 40% margin).
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-500/20">
-                      <div className="text-xs font-semibold text-amber-300">Profit Margin: 40%</div>
-                      <div className="text-[11px] text-[#d5c4b4]/70">Shipping Fee: ₹158</div>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="p-4 sm:p-5 rounded-2xl bg-red-950/60 border border-red-500/40 flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              {/* Mandatory Shipping Address Prompt if missing */}
+              {!user.shippingAddress?.city && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-sm text-red-200">Mandatory Shipping Address Missing</h3>
-                    <p className="text-xs text-red-300/80 mt-0.5">
-                      A complete shipping address is mandatory before placing an order. Please add your primary shipping address below.
+                    <h3 className="font-semibold text-sm text-[#f9f6f2]">Mandatory Shipping Address</h3>
+                    <p className="text-xs text-[#d5c4b4]/80 mt-0.5">
+                      A complete shipping address is mandatory before placing an order. Please add your primary delivery address below.
                     </p>
                   </div>
                 </div>
@@ -875,7 +829,7 @@ export default function Account({ onReorder }: AccountProps) {
               <div className="bg-[#150d09] border border-[#38281d] rounded-3xl p-6 sm:p-8 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h2 className="font-serif text-2xl text-[#f9f6f2]">Saved Shipping Addresses</h2>
-                  <span className="text-xs text-[#d5c4b4]/60">Select an address as default to update regional rates</span>
+                  <span className="text-xs text-[#d5c4b4]/60">Manage your saved delivery destinations</span>
                 </div>
 
                 {addresses.length === 0 ? (
@@ -888,9 +842,8 @@ export default function Account({ onReorder }: AccountProps) {
                       return (
                         <div
                           key={a.id}
-                          className={`p-4 sm:p-5 rounded-2xl bg-[#1c120c] border transition-all ${
-                            Boolean(a.isDefault) ? 'border-[#dfc471] ring-1 ring-[#dfc471]/30' : 'border-[#38281d] hover:border-[#38281d]/80'
-                          } space-y-2.5 text-xs`}
+                          className={`p-4 sm:p-5 rounded-2xl bg-[#1c120c] border transition-all ${Boolean(a.isDefault) ? 'border-[#dfc471] ring-1 ring-[#dfc471]/30' : 'border-[#38281d] hover:border-[#38281d]/80'
+                            } space-y-2.5 text-xs`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -928,14 +881,8 @@ export default function Account({ onReorder }: AccountProps) {
                           </div>
 
                           <div className="pt-2 border-t border-[#38281d]/60 flex items-center justify-between gap-2">
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded font-medium ${
-                                isSurat
-                                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/20'
-                                  : 'bg-amber-950/80 text-amber-300 border border-amber-500/20'
-                              }`}
-                            >
-                              {isSurat ? 'Surat (Free Delivery • 25% Margin)' : 'Other City (₹158 Courier • 40% Margin)'}
+                            <span className="text-[11px] text-[#d5c4b4]/60 font-medium">
+                              {Boolean(a.isDefault) ? 'Primary Delivery Address' : `${a.city}, ${a.state}`}
                             </span>
 
                             {!Boolean(a.isDefault) && (
@@ -1104,14 +1051,14 @@ export default function Account({ onReorder }: AccountProps) {
                       onChange={e => setAddrForm({ ...addrForm, isDefault: e.target.checked })}
                       className="accent-[#dfc471]"
                     />
-                    <span>Set as primary default shipping address (triggers automatic rate recalibration)</span>
+                    <span>Set as primary default shipping address</span>
                   </label>
 
                   <button
                     type="submit"
                     className="px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#dfc471] text-[#0d0805] hover:brightness-110 cursor-pointer transition-all shadow-md"
                   >
-                    {editingAddressId ? 'Update Address & Apply Rates' : 'Save Shipping Address'}
+                    {editingAddressId ? 'Update Shipping Address' : 'Save Shipping Address'}
                   </button>
                 </div>
               </form>
@@ -1178,11 +1125,10 @@ export default function Account({ onReorder }: AccountProps) {
                     <div
                       key={n.id}
                       onClick={() => !n.isRead && handleMarkNotificationsRead(n.id)}
-                      className={`p-4 rounded-2xl border transition-colors ${
-                        n.isRead
-                          ? 'bg-[#1c120c]/60 border-[#251a13]'
-                          : 'bg-emerald-950/30 border-emerald-500/40 cursor-pointer'
-                      }`}
+                      className={`p-4 rounded-2xl border transition-colors ${n.isRead
+                        ? 'bg-[#1c120c]/60 border-[#251a13]'
+                        : 'bg-emerald-950/30 border-emerald-500/40 cursor-pointer'
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-sm text-[#f9f6f2]">{n.title}</span>

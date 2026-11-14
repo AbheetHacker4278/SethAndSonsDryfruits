@@ -72,7 +72,7 @@ export default function Register() {
       return;
     }
     if (!city.trim() || city.trim().length < 2) {
-      setError('City is mandatory to determine shipping charges and regional rates.');
+      setError('City is mandatory for shipping delivery.');
       return;
     }
     if (!state.trim() || state.trim().length < 2) {
@@ -229,7 +229,7 @@ export default function Register() {
                     <MapPin className="w-3.5 h-3.5" />
                     <span>Mandatory Shipping Address</span>
                   </div>
-                  <span className="text-[10px] text-[#d5c4b4]/60">Required for accurate courier rates</span>
+                  <span className="text-[10px] text-[#d5c4b4]/60">Required for delivery</span>
                 </div>
 
                 <div>
