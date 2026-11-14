@@ -29,6 +29,9 @@ import {
   formatINR,
   calculateKgMarginTiers,
   parseWeightGrams,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
 } from '../../utils/priceCalculator';
 import { useAuth } from '../../context/AuthContext';
 
@@ -481,7 +484,7 @@ export default function AdminProducts() {
                       <th className="py-3 pr-3">Product</th>
                       <th className="py-3 pr-3">SKU</th>
                       <th className="py-3 pr-3">Category</th>
-                      <th className="py-3 pr-3">Selling Price</th>
+                      <th className="py-3 pr-3">Selling Prices (40% / 25%)</th>
                       <th className="py-3 pr-3">Purchase Cost</th>
                       <th className="py-3 pr-3">Stock</th>
                       <th className="py-3 pr-3">Status</th>
@@ -507,8 +510,40 @@ export default function AdminProducts() {
                         </td>
                         <td className="py-3 pr-3 font-mono text-[11px] text-[#5C6058]">{p.sku || '—'}</td>
                         <td className="py-3 pr-3">{p.categoryName}</td>
-                        <td className="py-3 pr-3 font-bold text-[#183D32]">
-                          {formatINR(p.price)}/{formatPriceUnitSuffix(p)}
+                        <td className="py-3 pr-3">
+                          {(() => {
+                            const baseCost = getProductBaseCost(p);
+                            const price40 = p.price ? Number(p.price) : calculateDynamicSellingPrice(baseCost, 40);
+                            const price25 = calculateDynamicSellingPrice(baseCost, 25);
+                            const unitSuffix = formatPriceUnitSuffix(p);
+
+                            return (
+                              <div className="space-y-1 py-0.5">
+                                <div
+                                  className="flex items-center gap-1.5 whitespace-nowrap"
+                                  title="40% Profit Margin (Domestic / Other Cities)"
+                                >
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">
+                                    40%
+                                  </span>
+                                  <span className="font-bold text-[#183D32]">
+                                    {formatINR(price40)}/{unitSuffix}
+                                  </span>
+                                </div>
+                                <div
+                                  className="flex items-center gap-1.5 whitespace-nowrap"
+                                  title="25% Profit Margin (Surat / Guest Baseline)"
+                                >
+                                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-300">
+                                    25%
+                                  </span>
+                                  <span className="font-semibold text-[#8F6C2B]">
+                                    {formatINR(price25)}/{unitSuffix}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 pr-3 text-[#5C6058]">{formatINR(p.purchasePrice || 0)}</td>
                         <td className="py-3 pr-3">
@@ -726,42 +761,62 @@ export default function AdminProducts() {
               </button>
             </div>
 
-            {/* 40% Margin Pricing Breakdown Cards */}
+            {/* Dual Margin Pricing Breakdown Cards (40% & 25%) */}
             {Number(form.purchasePrice || 0) > 0 && (
-              <div className="p-3 rounded-xl bg-[#FDFBF7] border border-[#E8E3D8] space-y-1.5 text-xs">
+              <div className="p-3 rounded-xl bg-[#FDFBF7] border border-[#E8E3D8] space-y-2 text-xs">
                 <div className="flex items-center justify-between font-semibold text-[#183D32]">
                   <div className="flex items-center gap-1.5">
                     <Calculator className="w-3.5 h-3.5 text-[#245746]" />
-                    <span>{marginPercent}% Margin Calculation Engine</span>
+                    <span>Dual Profit Margin Engine (40% &amp; 25%)</span>
                   </div>
                   <span className="text-[11px] font-normal text-[#5C6058]">
-                    1 kg Cost: <strong>{formatINR(Number(form.purchasePrice))}</strong> → 1 kg Sell: <strong>{formatINR(Math.round(Number(form.purchasePrice) * (1 + marginPercent / 100)))}</strong>
+                    1 kg Cost: <strong>{formatINR(Number(form.purchasePrice))}</strong>
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
-                  <div className="p-2 rounded-lg bg-white border border-[#E9E4D9] space-y-0.5">
+                  <div className="p-2.5 rounded-lg bg-white border border-[#E9E4D9] space-y-1">
                     <div className="font-bold text-[#183D32] flex items-center justify-between">
                       <span>250g Tier (Cost ÷ 4)</span>
-                      <span className="text-[9px] text-[#245746] bg-[#E2ECE7] px-1 rounded font-bold">+{marginPercent}%</span>
+                      <span className="text-[9px] text-[#5C6058]">Cost: {formatINR(Math.round(Number(form.purchasePrice) * 0.25))}</span>
                     </div>
-                    <div className="text-[#5C6058]">Cost Price: <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.25))}</strong></div>
-                    <div className="text-[#183D32]">Selling Price: <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.25 * (1 + marginPercent / 100)))}</strong></div>
+                    <div className="flex items-center justify-between text-emerald-800">
+                      <span>40% Profit (Other Cities):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.25 * 1.40))}</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-amber-900">
+                      <span>25% Profit (Surat/Guest):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.25 * 1.25))}</strong>
+                    </div>
                   </div>
-                  <div className="p-2 rounded-lg bg-white border border-[#E9E4D9] space-y-0.5">
+
+                  <div className="p-2.5 rounded-lg bg-white border border-[#E9E4D9] space-y-1">
                     <div className="font-bold text-[#183D32] flex items-center justify-between">
                       <span>500g Tier (Cost ÷ 2)</span>
-                      <span className="text-[9px] text-[#245746] bg-[#E2ECE7] px-1 rounded font-bold">+{marginPercent}%</span>
+                      <span className="text-[9px] text-[#5C6058]">Cost: {formatINR(Math.round(Number(form.purchasePrice) * 0.5))}</span>
                     </div>
-                    <div className="text-[#5C6058]">Cost Price: <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.5))}</strong></div>
-                    <div className="text-[#183D32]">Selling Price: <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.5 * (1 + marginPercent / 100)))}</strong></div>
+                    <div className="flex items-center justify-between text-emerald-800">
+                      <span>40% Profit (Other Cities):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.5 * 1.40))}</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-amber-900">
+                      <span>25% Profit (Surat/Guest):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 0.5 * 1.25))}</strong>
+                    </div>
                   </div>
-                  <div className="p-2 rounded-lg bg-white border border-[#E9E4D9] space-y-0.5">
+
+                  <div className="p-2.5 rounded-lg bg-white border border-[#E9E4D9] space-y-1">
                     <div className="font-bold text-[#183D32] flex items-center justify-between">
                       <span>1000g (1 kg) Tier</span>
-                      <span className="text-[9px] text-[#245746] bg-[#E2ECE7] px-1 rounded font-bold">+{marginPercent}%</span>
+                      <span className="text-[9px] text-[#5C6058]">Cost: {formatINR(Math.round(Number(form.purchasePrice)))}</span>
                     </div>
-                    <div className="text-[#5C6058]">Cost Price: <strong>{formatINR(Math.round(Number(form.purchasePrice)))}</strong></div>
-                    <div className="text-[#183D32]">Selling Price: <strong>{formatINR(Math.round(Number(form.purchasePrice) * (1 + marginPercent / 100)))}</strong></div>
+                    <div className="flex items-center justify-between text-emerald-800">
+                      <span>40% Profit (Other Cities):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 1.40))}</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-amber-900">
+                      <span>25% Profit (Surat/Guest):</span>
+                      <strong>{formatINR(Math.round(Number(form.purchasePrice) * 1.25))}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1026,47 +1081,69 @@ export default function AdminProducts() {
           onClose={() => setViewProduct(null)}
           title={viewProduct?.name || 'Product Details'}
         >
-          {viewProduct && (
-            <div className="space-y-4 text-xs">
-              <div className="flex gap-4 items-start">
-                <img src={viewProduct.image} alt={viewProduct.name} className="w-24 h-24 rounded-xl object-cover border border-[#E9E4D9]" />
-                <div className="space-y-1">
-                  <div className="font-semibold text-base text-[#183D32]">{viewProduct.name}</div>
-                  <div className="text-[#888B83]">SKU: {viewProduct.sku} • Origin: {viewProduct.origin}</div>
-                  <div>Selling: <strong>{formatINR(viewProduct.price)}/{formatPriceUnitSuffix(viewProduct)}</strong> • Cost: {formatINR(viewProduct.purchasePrice)}</div>
-                  <div>Stock: <strong>{viewProduct.stock} {viewProduct.unit}</strong> (Min alert: {viewProduct.minStockAlert})</div>
+          {viewProduct && (() => {
+            const baseCost = getProductBaseCost(viewProduct);
+            const price40 = viewProduct.price ? Number(viewProduct.price) : calculateDynamicSellingPrice(baseCost, 40);
+            const price25 = calculateDynamicSellingPrice(baseCost, 25);
+            const unitSuffix = formatPriceUnitSuffix(viewProduct);
+
+            return (
+              <div className="space-y-4 text-xs">
+                <div className="flex gap-4 items-start">
+                  <img src={viewProduct.image} alt={viewProduct.name} className="w-24 h-24 rounded-xl object-cover border border-[#E9E4D9]" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="font-semibold text-base text-[#183D32]">{viewProduct.name}</div>
+                    <div className="text-[#888B83]">SKU: {viewProduct.sku} • Origin: {viewProduct.origin}</div>
+                    <div className="flex flex-wrap items-center gap-2 py-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 font-medium">
+                        <span className="font-bold">40% Profit:</span> {formatINR(price40)}/{unitSuffix}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 font-medium">
+                        <span className="font-bold">25% Profit:</span> {formatINR(price25)}/{unitSuffix}
+                      </span>
+                      <span className="text-[#5C6058] ml-1">
+                        Cost: <strong>{formatINR(viewProduct.purchasePrice || baseCost)}</strong>
+                      </span>
+                    </div>
+                    <div>Stock: <strong>{viewProduct.stock} {viewProduct.unit}</strong> (Min alert: {viewProduct.minStockAlert})</div>
+                  </div>
                 </div>
+                <p className="text-[#5C6058]">{viewProduct.description}</p>
+                <div className="text-[#888B83]">Storage: {viewProduct.storageInstructions}</div>
+                {Array.isArray(viewProduct.weightVariants) && viewProduct.weightVariants.length > 0 && (
+                  <div className="mt-3 p-3 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9]">
+                    <div className="font-semibold text-[#183D32] mb-2 flex items-center justify-between">
+                      <span>Weight Variations &amp; Dual Profit Margins</span>
+                      <span className="text-[10px] text-[#70746B]">{viewProduct.weightVariants.length} tiers configured</span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2 text-[11px] font-bold text-[#5C6058] border-b border-[#E9E4D9] pb-1">
+                      <div>Weight</div>
+                      <div>Cost Price</div>
+                      <div>Selling (40% Profit)</div>
+                      <div>Selling (25% Profit)</div>
+                      <div>Profit Spread</div>
+                    </div>
+                    {viewProduct.weightVariants.map((v: any, idx: number) => {
+                      const vCost = getVariantBaseCost(v);
+                      const vPrice40 = v.sellingPrice ? Number(v.sellingPrice) : calculateDynamicSellingPrice(vCost, 40);
+                      const vPrice25 = calculateDynamicSellingPrice(vCost, 25);
+                      return (
+                        <div key={idx} className="grid grid-cols-5 gap-2 text-[11px] py-1.5 border-b border-[#E9E4D9]/40 items-center">
+                          <div className="font-semibold text-[#183D32]">{v.weightLabel}</div>
+                          <div className="text-[#5C6058]">{formatINR(vCost)}</div>
+                          <div className="font-bold text-emerald-800">{formatINR(vPrice40)}</div>
+                          <div className="font-bold text-amber-900">{formatINR(vPrice25)}</div>
+                          <div className="text-[#245746] font-semibold text-[10px]">
+                            +{formatINR(vPrice40 - vCost)} (40%) / +{formatINR(vPrice25 - vCost)} (25%)
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <p className="text-[#5C6058]">{viewProduct.description}</p>
-              <div className="text-[#888B83]">Storage: {viewProduct.storageInstructions}</div>
-              {Array.isArray(viewProduct.weightVariants) && viewProduct.weightVariants.length > 0 && (
-                <div className="mt-3 p-3 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9]">
-                  <div className="font-semibold text-[#183D32] mb-2 flex items-center justify-between">
-                    <span>Weight Variations & Margins</span>
-                    <span className="text-[10px] text-[#70746B]">{viewProduct.weightVariants.length} tiers configured</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-[11px] font-bold text-[#5C6058] border-b border-[#E9E4D9] pb-1">
-                    <div>Weight</div>
-                    <div>Cost Price</div>
-                    <div>Selling Price</div>
-                    <div>Est. Margin</div>
-                  </div>
-                  {viewProduct.weightVariants.map((v: any, idx: number) => {
-                    const margin = Number(v.sellingPrice || 0) - Number(v.purchasePrice || 0);
-                    const marginPct = Number(v.purchasePrice || 0) > 0 ? Math.round((margin / Number(v.purchasePrice)) * 100) : 0;
-                    return (
-                      <div key={idx} className="grid grid-cols-4 gap-2 text-[11px] py-1 border-b border-[#E9E4D9]/40 items-center">
-                        <div className="font-semibold text-[#183D32]">{v.weightLabel}</div>
-                        <div>{formatINR(Number(v.purchasePrice || 0))}</div>
-                        <div className="font-semibold text-[#245746]">{formatINR(Number(v.sellingPrice || 0))}</div>
-                        <div className="text-[#183D32] font-medium">+{formatINR(margin)} ({marginPct}%)</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
         </AdminModal>
 
         <ConfirmDialog

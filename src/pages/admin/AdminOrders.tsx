@@ -36,7 +36,12 @@ import {
   ToastBanner,
 } from '../../components/admin/AdminUI';
 import { apiRequest, apiUpload, ApiError, PersistedOrder, fetchPublishedProducts, CatalogProduct } from '../../services/api';
-import { formatINR } from '../../utils/priceCalculator';
+import {
+  formatINR,
+  getProductBaseCost,
+  getVariantBaseCost,
+  calculateDynamicSellingPrice,
+} from '../../utils/priceCalculator';
 import { calculateOrderShippingCharge } from '../../../shared/catalogSeed';
 
 const COURIER_PARTNERS = [
@@ -1726,11 +1731,16 @@ export default function AdminOrders() {
                           onChange={e => handleVariantSelect(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
                         >
-                          {prod.weightVariants.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.weightLabel} - ₹{v.sellingPrice}
-                            </option>
-                          ))}
+                          {prod.weightVariants.map(v => {
+                            const vCost = getVariantBaseCost(v);
+                            const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
+                            const p25 = calculateDynamicSellingPrice(vCost, 25);
+                            return (
+                              <option key={v.id} value={v.id}>
+                                {v.weightLabel} — 40%: ₹{p40} | 25%: ₹{p25}
+                              </option>
+                            );
+                          })}
                         </select>
                       );
                     }
@@ -1753,6 +1763,34 @@ export default function AdminOrders() {
                     placeholder="e.g. 850"
                     className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold text-[#183D32] focus:border-[#183D32] focus:bg-white transition-colors"
                   />
+                  {(() => {
+                    const prod = catalogProducts.find(p => p.id === pickerProductId);
+                    if (!prod) return null;
+                    const variant = prod.weightVariants?.find(v => v.id === pickerVariantId);
+                    const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
+                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
+                    const p25 = calculateDynamicSellingPrice(cost, 25);
+                    return (
+                      <div className="flex items-center gap-1.5 mt-1 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setPickerUnitPrice(String(p40))}
+                          className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold hover:bg-emerald-100 cursor-pointer"
+                          title="Set to 40% profit rate"
+                        >
+                          40%: ₹{p40}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPickerUnitPrice(String(p25))}
+                          className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-300 font-bold hover:bg-amber-100 cursor-pointer"
+                          title="Set to 25% profit rate"
+                        >
+                          25%: ₹{p25}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="sm:col-span-1">
@@ -2173,11 +2211,16 @@ export default function AdminOrders() {
                           onChange={e => handleEditVariantSelect(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
                         >
-                          {prod.weightVariants.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.weightLabel} - ₹{v.sellingPrice}
-                            </option>
-                          ))}
+                          {prod.weightVariants.map(v => {
+                            const vCost = getVariantBaseCost(v);
+                            const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
+                            const p25 = calculateDynamicSellingPrice(vCost, 25);
+                            return (
+                              <option key={v.id} value={v.id}>
+                                {v.weightLabel} — 40%: ₹{p40} | 25%: ₹{p25}
+                              </option>
+                            );
+                          })}
                         </select>
                       );
                     }
@@ -2200,6 +2243,34 @@ export default function AdminOrders() {
                     placeholder="e.g. 850"
                     className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs font-semibold text-[#183D32] focus:border-[#183D32] focus:bg-white transition-colors"
                   />
+                  {(() => {
+                    const prod = catalogProducts.find(p => p.id === editPickerProductId);
+                    if (!prod) return null;
+                    const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
+                    const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
+                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
+                    const p25 = calculateDynamicSellingPrice(cost, 25);
+                    return (
+                      <div className="flex items-center gap-1.5 mt-1 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setEditPickerUnitPrice(String(p40))}
+                          className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold hover:bg-emerald-100 cursor-pointer"
+                          title="Set to 40% profit rate"
+                        >
+                          40%: ₹{p40}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditPickerUnitPrice(String(p25))}
+                          className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-300 font-bold hover:bg-amber-100 cursor-pointer"
+                          title="Set to 25% profit rate"
+                        >
+                          25%: ₹{p25}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="sm:col-span-1">
