@@ -39,8 +39,6 @@ import {
   MessageCircle,
   Gift,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   MapPin,
   Film,
@@ -187,7 +185,6 @@ export default function Catalog({
   const [selectedPackIdByProduct, setSelectedPackIdByProduct] = useState<Record<string, string>>({});
   const [draftPackCount, setDraftPackCount] = useState<Record<string, number>>({});
   const [addedAnimationKey, setAddedAnimationKey] = useState<string | null>(null);
-  const [productImageIndex, setProductImageIndex] = useState<Record<string, number>>({});
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
   const [savedAddresses, setSavedAddresses] = useState<AddressItem[]>([]);
 
@@ -1382,16 +1379,9 @@ export default function Catalog({
                   const isJustAdded = addedAnimationKey === draftKey;
                   const isWishlisted = wishlistIds.has(product.id);
 
-                  const gallery =
-                    product.gallery && product.gallery.length > 0
-                      ? product.gallery
-                      : [product.image];
-                  const currentImgIdx = productImageIndex[product.id] || 0;
-                  const currentImg = gallery[currentImgIdx] || product.image;
-
                   const openDetails = () => {
                     setDetailProduct(product);
-                    setDetailActiveImgIndex(productImageIndex[product.id] || 0);
+                    setDetailActiveImgIndex(0);
                     setDetailMediaTab('photos');
                   };
 
@@ -1414,7 +1404,7 @@ export default function Catalog({
                           }`}
                         >
                           <img
-                            src={currentImg}
+                            src={product.image}
                             alt={product.name}
                             referrerPolicy="no-referrer"
                             onError={e => {
@@ -1460,41 +1450,6 @@ export default function Catalog({
                             <Eye className="w-3.5 h-3.5" />
                             <span>Details</span>
                           </button>
-
-                          {gallery.length > 1 && (
-                            <>
-                              <button
-                                type="button"
-                                aria-label={`Previous image of ${product.name}`}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setProductImageIndex(prev => ({
-                                    ...prev,
-                                    [product.id]:
-                                      currentImgIdx === 0 ? gallery.length - 1 : currentImgIdx - 1,
-                                  }));
-                                }}
-                                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-[#0d0805]/85 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] flex items-center justify-center cursor-pointer"
-                              >
-                                <ChevronLeft className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                aria-label={`Next image of ${product.name}`}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setProductImageIndex(prev => ({
-                                    ...prev,
-                                    [product.id]:
-                                      currentImgIdx === gallery.length - 1 ? 0 : currentImgIdx + 1,
-                                  }));
-                                }}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-[#0d0805]/85 hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#38281d] flex items-center justify-center cursor-pointer"
-                              >
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
                         </div>
 
                         {/* Product Content */}
