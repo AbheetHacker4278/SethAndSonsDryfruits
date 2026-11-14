@@ -11,9 +11,17 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onRequestPurchase, index }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
-  const gallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image];
+  const [fallbackAttempted, setFallbackAttempted] = useState(false);
+
+  // Clean gallery by filtering any unreachable dummy links and falling back to provided images
+  const rawGallery = (product.gallery && product.gallery.length > 0) ? product.gallery : [product.image];
+  const cleanGallery = rawGallery.filter(img => typeof img === 'string' && img.trim().length > 0 && !img.includes('shreeramdryfruits'));
+  const gallery = cleanGallery.length > 0
+    ? cleanGallery
+    : [product.fallbackImage || product.image || '/assets/products/akhrot.jpg'];
+
   const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const activeImg = gallery[activeImgIndex] || product.image;
+  const activeImg = gallery[activeImgIndex] || product.image || product.fallbackImage || '';
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -23,6 +31,16 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImgIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.currentTarget;
+    if (!fallbackAttempted && product.fallbackImage && target.src !== product.fallbackImage) {
+      setFallbackAttempted(true);
+      target.src = product.fallbackImage;
+      return;
+    }
+    setImageError(true);
   };
 
   return (
@@ -35,22 +53,23 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         <div className="absolute inset-0 bg-gradient-to-t from-[#150d09] via-transparent to-transparent z-10 opacity-70 group-hover:opacity-40 transition-opacity pointer-events-none" />
 
         {/* Clean, authentic product image */}
-        {!imageError ? (
-          <img
-            src={activeImg.endsWith('.jpg') ? activeImg.replace('.jpg', '.webp') : activeImg}
-            alt={product.name}
-            width="400"
-            height="400"
-            referrerPolicy="no-referrer"
-            onError={() => {
-              if (product.fallbackImage) {
-                setImageError(true);
-              }
-            }}
-            className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108 will-change-transform"
-            loading="lazy"
-            decoding="async"
-          />
+        {!imageError && activeImg ? (
+          <picture className="w-full h-full block">
+            {activeImg.endsWith('.jpg') && (
+              <source srcSet={activeImg.replace(/\.jpg$/, '.webp')} type="image/webp" />
+            )}
+            <img
+              src={activeImg}
+              alt={product.name}
+              width="400"
+              height="400"
+              referrerPolicy="no-referrer"
+              onError={handleImageError}
+              className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover:scale-108 will-change-transform"
+              loading="lazy"
+              decoding="async"
+            />
+          </picture>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#251a13] to-[#150d09] p-6 text-center">
             <Sparkles className="w-8 h-8 text-[#dfc471] mb-2" />
