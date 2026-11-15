@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { BRAND_CONFIG, parseWeightGrams, calculateOrderShippingCharge, getVariantStockUnits } from '../../shared/catalogSeed.ts';
+import { BRAND_CONFIG, parseWeightGrams, calculateOrderShippingCharge, getVariantStockUnits, isSuratCity } from '../../shared/catalogSeed.ts';
 import {
   ALL_ADMIN_PERMISSIONS,
   DEFAULT_BUSINESS_SETTINGS,
@@ -108,6 +108,145 @@ const erpProductSchema = z.object({
     .optional()
     .default([]),
 });
+
+function inferStateFromCity(city: string): string {
+  const c = city.trim().toLowerCase();
+  if (['surat', 'ahmedabad', 'vadodara', 'rajkot', 'gandhinagar', 'bhavnagar', 'jamnagar', 'junagadh', 'anand', 'navsari', 'vapi', 'bharuch', 'morbi'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Gujarat';
+  }
+  if (['jammu', 'srinagar', 'anantnag', 'baramulla', 'udhampur', 'katra', 'kathua', 'sopore', 'pulwama'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Jammu & Kashmir';
+  }
+  if (['mumbai', 'pune', 'nagpur', 'nashik', 'thane', 'navi mumbai', 'aurangabad', 'solapur', 'kolhapur', 'amravati'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Maharashtra';
+  }
+  if (['delhi', 'new delhi', 'central delhi', 'south delhi', 'west delhi', 'north delhi', 'east delhi'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Delhi';
+  }
+  if (['bengaluru', 'bangalore', 'mysuru', 'mysore', 'hubli', 'mangaluru', 'mangalore', 'belgaum'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Karnataka';
+  }
+  if (['hyderabad', 'secunderabad', 'warangal', 'nizamabad', 'karimnagar'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Telangana';
+  }
+  if (['chennai', 'coimbatore', 'madurai', 'tiruchirappalli', 'salem', 'tiruppur', 'vellore'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Tamil Nadu';
+  }
+  if (['kolkata', 'howrah', 'darjeeling', 'siliguri', 'durgapur', 'asansol'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'West Bengal';
+  }
+  if (['jaipur', 'jodhpur', 'udaipur', 'kota', 'bikaner', 'ajmer', 'bhilwara', 'alwar'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Rajasthan';
+  }
+  if (['lucknow', 'kanpur', 'varanasi', 'agra', 'noida', 'greater noida', 'ghaziabad', 'prayagraj', 'allahabad', 'meerut', 'bareilly', 'aligarh', 'moradabad', 'gorakhpur'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Uttar Pradesh';
+  }
+  if (['chandigarh'].some(k => c === k)) {
+    return 'Chandigarh';
+  }
+  if (['amritsar', 'ludhiana', 'jalandhar', 'patiala', 'bathinda', 'mohali'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Punjab';
+  }
+  if (['gurugram', 'gurgaon', 'faridabad', 'panipat', 'ambala', 'karnal', 'rohtak', 'hisar'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Haryana';
+  }
+  if (['indore', 'bhopal', 'gwalior', 'jabalpur', 'ujjain'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Madhya Pradesh';
+  }
+  if (['patna', 'gaya', 'bhagalpur', 'muzaffarpur'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Bihar';
+  }
+  if (['kochi', 'cochin', 'thiruvananthapuram', 'trivandrum', 'kozhikode', 'calicut', 'thrissur'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Kerala';
+  }
+  if (['dehradun', 'haridwar', 'rishikesh', 'haldwani', 'roorkee', 'nainital'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Uttarakhand';
+  }
+  if (['shimla', 'manali', 'dharamshala', 'kullu', 'mandi', 'solan'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Himachal Pradesh';
+  }
+  if (['bhubaneswar', 'cuttack', 'rourkela', 'puri', 'sambalpur'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Odisha';
+  }
+  if (['guwahati', 'silchar', 'dibrugarh', 'jorhat'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Assam';
+  }
+  if (['raipur', 'bilaspur', 'bhilai', 'durg'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Chhattisgarh';
+  }
+  if (['ranchi', 'jamshedpur', 'dhanbad', 'bokaro'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Jharkhand';
+  }
+  if (['panaji', 'margao', 'vasco da gama', 'mapusa'].some(k => c === k || c.startsWith(k + ' ') || c.includes(' ' + k))) {
+    return 'Goa';
+  }
+  return '';
+}
+
+function normalizeStateName(rawState: unknown, rawCity: unknown): string {
+  const s = typeof rawState === 'string' ? rawState.trim() : '';
+  const c = typeof rawCity === 'string' ? rawCity.trim() : '';
+  if (!s && c) {
+    const inferred = inferStateFromCity(c);
+    if (inferred) return inferred;
+  }
+  if (!s) return 'Other';
+  const lower = s.toLowerCase();
+  if (lower.includes('jammu') || lower.includes('kashmir') || lower === 'j&k') return 'Jammu & Kashmir';
+  if (lower.includes('gujarat') || lower.includes('gujrat')) return 'Gujarat';
+  if (lower.includes('maharashtra') || lower.includes('maharastra')) return 'Maharashtra';
+  if (lower.includes('delhi')) return 'Delhi';
+  if (lower.includes('karnataka') || lower.includes('bangalore') || lower.includes('bengaluru')) return 'Karnataka';
+  if (lower.includes('telangana')) return 'Telangana';
+  if (lower.includes('tamil')) return 'Tamil Nadu';
+  if (lower.includes('bengal')) return 'West Bengal';
+  if (lower.includes('rajasthan')) return 'Rajasthan';
+  if (lower.includes('uttar pradesh') || lower === 'up') return 'Uttar Pradesh';
+  if (lower.includes('punjab')) return 'Punjab';
+  if (lower.includes('haryana')) return 'Haryana';
+  if (lower.includes('madhya pradesh') || lower === 'mp') return 'Madhya Pradesh';
+  if (lower.includes('kerala')) return 'Kerala';
+  if (lower.includes('uttarakhand')) return 'Uttarakhand';
+  if (lower.includes('himachal')) return 'Himachal Pradesh';
+  if (lower.includes('bihar')) return 'Bihar';
+  if (lower.includes('odisha') || lower.includes('orissa')) return 'Odisha';
+  if (lower.includes('assam')) return 'Assam';
+  if (lower.includes('goa')) return 'Goa';
+  if (lower.includes('chandigarh')) return 'Chandigarh';
+
+  return s
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function normalizeCityName(rawCity: unknown): string {
+  if (typeof rawCity !== 'string' || !rawCity.trim()) return 'Other';
+  const clean = rawCity.trim();
+  const lower = clean.toLowerCase();
+  if (lower === 'surat' || lower.startsWith('surat ') || lower.endsWith(' surat') || lower.includes('surat,')) return 'Surat';
+  if (lower.includes('jammu')) return 'Jammu';
+  if (lower.includes('srinagar')) return 'Srinagar';
+  if (lower.includes('mumbai') || lower.includes('bombay')) return 'Mumbai';
+  if (lower.includes('delhi')) return lower.includes('new') ? 'New Delhi' : 'Delhi';
+  if (lower.includes('bangalore') || lower.includes('bengaluru')) return 'Bengaluru';
+  if (lower.includes('hyderabad')) return 'Hyderabad';
+  if (lower.includes('chennai') || lower.includes('madras')) return 'Chennai';
+  if (lower.includes('kolkata') || lower.includes('calcutta')) return 'Kolkata';
+  if (lower.includes('pune')) return 'Pune';
+  if (lower.includes('ahmedabad')) return 'Ahmedabad';
+  if (lower.includes('vadodara') || lower.includes('baroda')) return 'Vadodara';
+  if (lower.includes('jaipur')) return 'Jaipur';
+  if (lower.includes('lucknow')) return 'Lucknow';
+  if (lower.includes('chandigarh')) return 'Chandigarh';
+  if (lower.includes('gurgaon') || lower.includes('gurugram')) return 'Gurugram';
+  if (lower.includes('noida')) return 'Noida';
+
+  return clean
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
 
 export function createAdminErpRouter(
   db: MongoDatabase,
@@ -615,6 +754,216 @@ export function createAdminErpRouter(
       queue: queueStats,
     });
   });
+
+  router.get(
+    ['/analytics/order-locations', '/order-locations'],
+    requirePermission('orders'),
+    async (req, res) => {
+      const period = String(req.query.period || 'all');
+      const from = typeof req.query.from === 'string' && req.query.from ? req.query.from : undefined;
+      const to = typeof req.query.to === 'string' && req.query.to ? req.query.to : undefined;
+
+      const filter: Record<string, unknown> = {
+        status: { $nin: ['cancelled'] },
+      };
+
+      if (from || to) {
+        const range: Record<string, string> = {};
+        if (from) range.$gte = from;
+        if (to) range.$lte = to.length === 10 ? `${to}T23:59:59.999Z` : to;
+        filter.createdAt = range;
+      } else if (period === '30d') {
+        filter.createdAt = { $gte: new Date(Date.now() - 30 * 86400_000).toISOString() };
+      } else if (period === '90d') {
+        filter.createdAt = { $gte: new Date(Date.now() - 90 * 86400_000).toISOString() };
+      } else if (period === 'year' || period === 'this_year') {
+        const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
+        filter.createdAt = { $gte: startOfYear };
+      }
+
+      const orders = await db.models.Order.find(filter, { _id: 0 }).sort({ createdAt: -1 }).lean();
+
+      // State aggregation map
+      const stateMap = new Map<
+        string,
+        {
+          state: string;
+          orderCount: number;
+          totalRevenue: number;
+          customerIds: Set<string>;
+          cityMap: Map<string, number>;
+          latestOrderAt: string;
+        }
+      >();
+
+      // City aggregation map
+      const cityMap = new Map<
+        string,
+        {
+          city: string;
+          state: string;
+          orderCount: number;
+          totalRevenue: number;
+          customerIds: Set<string>;
+          isSurat: boolean;
+          latestOrderAt: string;
+        }
+      >();
+
+      let totalOrders = 0;
+      let totalRevenue = 0;
+      let suratOrders = 0;
+      let suratRevenue = 0;
+      let otherCitiesOrders = 0;
+      let otherCitiesRevenue = 0;
+      const allCustomers = new Set<string>();
+
+      for (const o of orders) {
+        let addr: any = {};
+        if (typeof o.deliveryAddress === 'string') {
+          try {
+            addr = JSON.parse(o.deliveryAddress);
+          } catch {}
+        } else if (o.deliveryAddress && typeof o.deliveryAddress === 'object') {
+          addr = o.deliveryAddress;
+        }
+
+        const rawCity = addr.city || o.shippingCity || '';
+        const rawState = addr.state || '';
+        const city = normalizeCityName(rawCity);
+        const state = normalizeStateName(rawState, rawCity);
+        const custId = String(o.customerId || addr.email || addr.mobileNumber || o.id);
+        const orderAmount = Number(o.totalAmount || 0);
+        const orderDate = String(o.createdAt || '');
+
+        totalOrders += 1;
+        totalRevenue += orderAmount;
+        allCustomers.add(custId);
+
+        const isSurat = isSuratCity(city);
+        if (isSurat) {
+          suratOrders += 1;
+          suratRevenue += orderAmount;
+        } else {
+          otherCitiesOrders += 1;
+          otherCitiesRevenue += orderAmount;
+        }
+
+        // State record
+        let stRec = stateMap.get(state);
+        if (!stRec) {
+          stRec = {
+            state,
+            orderCount: 0,
+            totalRevenue: 0,
+            customerIds: new Set(),
+            cityMap: new Map(),
+            latestOrderAt: orderDate,
+          };
+          stateMap.set(state, stRec);
+        }
+        stRec.orderCount += 1;
+        stRec.totalRevenue += orderAmount;
+        stRec.customerIds.add(custId);
+        stRec.cityMap.set(city, (stRec.cityMap.get(city) || 0) + 1);
+        if (!stRec.latestOrderAt || orderDate > stRec.latestOrderAt) {
+          stRec.latestOrderAt = orderDate;
+        }
+
+        // City record
+        const cityKey = `${city.toLowerCase()}::${state.toLowerCase()}`;
+        let ctRec = cityMap.get(cityKey);
+        if (!ctRec) {
+          ctRec = {
+            city,
+            state,
+            orderCount: 0,
+            totalRevenue: 0,
+            customerIds: new Set(),
+            isSurat,
+            latestOrderAt: orderDate,
+          };
+          cityMap.set(cityKey, ctRec);
+        }
+        ctRec.orderCount += 1;
+        ctRec.totalRevenue += orderAmount;
+        ctRec.customerIds.add(custId);
+        if (!ctRec.latestOrderAt || orderDate > ctRec.latestOrderAt) {
+          ctRec.latestOrderAt = orderDate;
+        }
+      }
+
+      // Convert and sort states
+      const states = Array.from(stateMap.values())
+        .map(st => {
+          const topCities = Array.from(st.cityMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([c, count]) => ({ city: c, count }));
+
+          const orderShare = totalOrders > 0 ? Math.round((st.orderCount / totalOrders) * 1000) / 10 : 0;
+          const revenueShare = totalRevenue > 0 ? Math.round((st.totalRevenue / totalRevenue) * 1000) / 10 : 0;
+          const averageOrderValue = st.orderCount > 0 ? Math.round(st.totalRevenue / st.orderCount) : 0;
+
+          return {
+            state: st.state,
+            orderCount: st.orderCount,
+            totalRevenue: st.totalRevenue,
+            uniqueCustomers: st.customerIds.size,
+            averageOrderValue,
+            orderShare,
+            revenueShare,
+            topCities,
+            latestOrderAt: st.latestOrderAt,
+          };
+        })
+        .sort((a, b) => b.orderCount - a.orderCount || b.totalRevenue - a.totalRevenue);
+
+      // Convert and sort cities
+      const cities = Array.from(cityMap.values())
+        .map(ct => {
+          const orderShare = totalOrders > 0 ? Math.round((ct.orderCount / totalOrders) * 1000) / 10 : 0;
+          const revenueShare = totalRevenue > 0 ? Math.round((ct.totalRevenue / totalRevenue) * 1000) / 10 : 0;
+          const averageOrderValue = ct.orderCount > 0 ? Math.round(ct.totalRevenue / ct.orderCount) : 0;
+
+          return {
+            city: ct.city,
+            state: ct.state,
+            orderCount: ct.orderCount,
+            totalRevenue: ct.totalRevenue,
+            uniqueCustomers: ct.customerIds.size,
+            averageOrderValue,
+            orderShare,
+            revenueShare,
+            isSurat: ct.isSurat,
+            latestOrderAt: ct.latestOrderAt,
+          };
+        })
+        .sort((a, b) => b.orderCount - a.orderCount || b.totalRevenue - a.totalRevenue);
+
+      const summary = {
+        totalOrders,
+        totalRevenue,
+        totalCustomers: allCustomers.size,
+        totalStates: states.length,
+        totalCities: cities.length,
+        topState: states[0] || null,
+        topCity: cities[0] || null,
+        suratOrders,
+        suratRevenue,
+        otherCitiesOrders,
+        otherCitiesRevenue,
+        averageOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+      };
+
+      res.json({
+        period,
+        summary,
+        states,
+        cities,
+      });
+    }
+  );
 
   router.get('/search', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -3954,6 +4303,76 @@ export function createAdminErpRouter(
           { header: 'Discounts (INR)', key: 'discountAmount', width: 16 },
           { header: 'GST Collected (INR)', key: 'gstCollected', width: 18 },
           { header: 'Invoice Total (INR)', key: 'totalAmount', width: 18 },
+        ],
+        rows,
+      };
+    }
+
+    if (type === 'order_locations') {
+      const f: Record<string, unknown> = { status: { $nin: ['cancelled', 'returned'] } };
+      const r = isoRange();
+      if (r) f.createdAt = r;
+      const orders = await db.models.Order.find(f, { _id: 0 }).lean();
+      const cityMap = new Map<
+        string,
+        {
+          city: string;
+          state: string;
+          orderCount: number;
+          totalRevenue: number;
+          custIds: Set<string>;
+        }
+      >();
+      let totalOrders = 0;
+      for (const o of orders) {
+        let addr: any = {};
+        if (typeof o.deliveryAddress === 'string') {
+          try {
+            addr = JSON.parse(o.deliveryAddress);
+          } catch {}
+        } else if (o.deliveryAddress && typeof o.deliveryAddress === 'object') {
+          addr = o.deliveryAddress;
+        }
+        const rawCity = addr.city || o.shippingCity || '';
+        const rawState = addr.state || '';
+        const city = normalizeCityName(rawCity);
+        const state = normalizeStateName(rawState, rawCity);
+        const key = `${city}::${state}`;
+        const cur = cityMap.get(key) || {
+          city,
+          state,
+          orderCount: 0,
+          totalRevenue: 0,
+          custIds: new Set<string>(),
+        };
+        cur.orderCount += 1;
+        cur.totalRevenue += Number(o.totalAmount || 0);
+        cur.custIds.add(String(o.customerId || o.id));
+        cityMap.set(key, cur);
+        totalOrders += 1;
+      }
+      const rows = Array.from(cityMap.values())
+        .sort((a, b) => b.orderCount - a.orderCount || b.totalRevenue - a.totalRevenue)
+        .map(c => ({
+          city: c.city,
+          state: c.state,
+          orderCount: c.orderCount,
+          totalRevenue: c.totalRevenue,
+          uniqueCustomers: c.custIds.size,
+          aov: c.orderCount > 0 ? Math.round(c.totalRevenue / c.orderCount) : 0,
+          share: totalOrders > 0 ? `${Math.round((c.orderCount / totalOrders) * 1000) / 10}%` : '0%',
+        }));
+      return {
+        title: 'Most Customer Ordered State & City Report',
+        subtitle: rangeLabel,
+        columns: [
+          { header: 'City', key: 'city', width: 22 },
+          { header: 'State', key: 'state', width: 22 },
+          { header: 'Orders Count', key: 'orderCount', width: 14 },
+          { header: 'Total Revenue (INR)', key: 'totalRevenue', width: 18 },
+          { header: 'Unique Customers', key: 'uniqueCustomers', width: 16 },
+          { header: 'Avg Order Value (INR)', key: 'aov', width: 18 },
+          { header: 'Order Share (%)', key: 'share', width: 14 },
         ],
         rows,
       };

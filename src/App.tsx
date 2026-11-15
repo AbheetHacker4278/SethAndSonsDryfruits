@@ -23,6 +23,7 @@ const CustomerService = lazy(() => import('./pages/CustomerService'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+const AdminOrderLocations = lazy(() => import('./pages/admin/AdminOrderLocations'));
 const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
 const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory'));
@@ -395,6 +396,14 @@ function AppRoutes() {
                 element={
                   <AdminRoute permission="orders">
                     <AdminOrders />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/order-locations"
+                element={
+                  <AdminRoute permission="orders">
+                    <AdminOrderLocations />
                   </AdminRoute>
                 }
               />

@@ -151,8 +151,8 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
                 type="button"
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
                 className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer shrink-0 ${isProfileMenuOpen || location.pathname === '/account'
-                    ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]'
-                    : 'bg-[#251a13]/80 text-[#dfc471] border-[#dfc471]/50 hover:border-[#dfc471]'
+                  ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]'
+                  : 'bg-[#251a13]/80 text-[#dfc471] border-[#dfc471]/50 hover:border-[#dfc471]'
                   }`}
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="true"
@@ -229,8 +229,8 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
             <Link
               to="/login"
               className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors shrink-0 ${location.pathname === '/login'
-                  ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
-                  : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
+                ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
+                : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
                 }`}
             >
               <User className="w-3.5 h-3.5 text-[#dfc471]" />

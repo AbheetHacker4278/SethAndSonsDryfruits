@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Truck,
   Package,
@@ -879,6 +880,14 @@ export default function AdminOrders() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/admin/order-locations"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-[#E9E4D9] text-[#183D32] hover:bg-[#F8F6F0] cursor-pointer shadow-xs transition-all"
+              title="View Most Customer Ordered State & City Analytics"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#C8A96B]" />
+              <span className="hidden sm:inline">Orders by</span> State &amp; City
+            </Link>
             <button
               onClick={() => {
                 resetCreateForm();

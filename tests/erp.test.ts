@@ -688,11 +688,18 @@ describe('Seth And Sons DryFruits ERP — RBAC, Catalog, Inventory, Purchases, R
     expect(cpnDel.status).toBe(200);
 
     // Reports preview & exports (PDF, XLSX, CSV)
-    for (const type of ['daily_sales', 'inventory', 'profit_loss', 'gst_summary', 'expense']) {
+    for (const type of ['daily_sales', 'inventory', 'profit_loss', 'gst_summary', 'expense', 'order_locations']) {
       const r = await adminAgent.get(`/api/admin/reports/preview?type=${type}`);
       expect(r.status).toBe(200);
       expect(Array.isArray(r.body.report.columns)).toBe(true);
     }
+
+    // Most customer ordered state & city analytics endpoint
+    const locRes = await adminAgent.get('/api/admin/analytics/order-locations');
+    expect(locRes.status).toBe(200);
+    expect(locRes.body.summary).toBeDefined();
+    expect(Array.isArray(locRes.body.states)).toBe(true);
+    expect(Array.isArray(locRes.body.cities)).toBe(true);
 
     const pdfExp = await adminAgent
       .get('/api/admin/reports/export?type=profit_loss&format=pdf')

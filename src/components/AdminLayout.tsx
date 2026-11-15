@@ -29,6 +29,7 @@ import {
   PanelLeftOpen,
   Store,
   LifeBuoy,
+  MapPin,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
@@ -44,6 +45,7 @@ interface AdminNavItem {
 const NAV_ITEMS: AdminNavItem[] = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: 'dashboard' },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, perm: 'orders' },
+  { to: '/admin/order-locations', label: 'Most Ordered State & City', icon: MapPin, perm: 'orders' },
   { to: '/admin/products', label: 'Products', icon: Package, perm: 'products' },
   { to: '/admin/categories', label: 'Categories', icon: FolderTree, perm: 'categories' },
   { to: '/admin/inventory', label: 'Inventory', icon: Boxes, perm: 'inventory' },

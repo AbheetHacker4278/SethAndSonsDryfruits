@@ -11,6 +11,7 @@ const REPORT_TYPES = [
   { id: 'monthly_sales', label: 'Monthly Sales Report', desc: 'Month-level revenue and order volume trends.' },
   { id: 'yearly_sales', label: 'Yearly Sales Report', desc: 'Annual revenue rollup across fiscal years.' },
   { id: 'product_performance', label: 'Product Performance Report', desc: 'SKU-wise units sold, gross revenue, and share.' },
+  { id: 'order_locations', label: 'Most Ordered State & City Report', desc: 'State and city ranking by customer orders, revenue, and regional market share.' },
   { id: 'inventory', label: 'Inventory Valuation Report', desc: 'Stock levels, purchase cost basis, and warehouse valuation.' },
   { id: 'customer', label: 'Customer Spend Report', desc: 'Customer lifetime orders, verified status, and spend tiers.' },
   { id: 'supplier_purchase', label: 'Supplier Purchase Report', desc: 'Vendor PO totals, paid balances, and pending payables.' },
@@ -36,6 +37,7 @@ const CURRENCY_KEYS = new Set([
   'value',
   'gstAmount',
   'total',
+  'aov',
 ]);
 
 export default function AdminReports() {
