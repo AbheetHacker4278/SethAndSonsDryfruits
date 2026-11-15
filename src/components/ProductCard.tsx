@@ -68,7 +68,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         )}
 
         {/* Subtle Origin tag */}
-        <div className="absolute top-4 left-4 z-20 pointer-events-none">
+        <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 pointer-events-none">
           <span className="text-[11px] font-sans font-medium tracking-wider uppercase text-[#ecdda7] bg-[#0d0805]/80 backdrop-blur-md px-3 py-1 rounded-full border border-[#38281d]">
             {product.origin}
           </span>
@@ -76,7 +76,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
 
         {/* Hindi traditional name subtly placed */}
         {product.hindiName && (
-          <div className="absolute top-4 right-4 z-20 pointer-events-none">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-none">
             <span className="text-xs font-serif text-[#dfc471]/70 bg-[#0d0805]/60 backdrop-blur-md px-2.5 py-1 rounded-md">
               {product.hindiName}
             </span>
@@ -85,7 +85,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
       </div>
 
       {/* Card Content & Editorial Details */}
-      <div className="p-6 sm:p-7 flex flex-col flex-grow justify-between">
+      <div className="p-4 sm:p-7 flex flex-col flex-grow justify-between">
         <div>
           {/* Subtitle / Grade */}
           <div className="text-[12px] font-sans font-medium tracking-wider uppercase text-[#d4af37] mb-1.5">
@@ -93,7 +93,7 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
           </div>
 
           {/* Product Name */}
-          <h3 className="font-serif text-2xl font-semibold text-[#f9f6f2] group-hover:text-[#dfc471] transition-colors leading-snug">
+          <h3 className="font-serif text-xl sm:text-2xl font-semibold text-[#f9f6f2] group-hover:text-[#dfc471] transition-colors leading-snug">
             {product.name}
           </h3>
 
@@ -114,12 +114,12 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         </div>
 
         {/* Price & Action Module */}
-        <div className="mt-6 pt-5 border-t border-[#38281d]/80 flex items-center justify-between gap-4">
+        <div className="mt-5 pt-4 sm:mt-6 sm:pt-5 border-t border-[#38281d]/80 flex items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-[#d5c4b4]/60 font-sans">
               Price / {product.unit}
             </div>
-            <div className="font-sans font-bold text-xl text-[#f9f6f2] tabular-nums tracking-tight">
+            <div className="font-sans font-bold text-lg sm:text-xl text-[#f9f6f2] tabular-nums tracking-tight">
               {formatINR(product.price)}{' '}
               <span className="text-xs font-normal text-[#d5c4b4]/70">
                 / {product.unit}
@@ -129,9 +129,9 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
 
           <button
             onClick={() => onRequestPurchase(product.id)}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#dfc471]/30 hover:border-transparent transition-all duration-300 cursor-pointer shadow-md group-hover:shadow-[#dfc471]/20"
+            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#dfc471]/30 hover:border-transparent transition-all duration-300 cursor-pointer shadow-md group-hover:shadow-[#dfc471]/20 whitespace-nowrap shrink-0"
           >
-            <span>Request to Purchase</span>
+            <span>Request<span className="hidden sm:inline"> to Purchase</span></span>
             <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </div>

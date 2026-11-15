@@ -139,7 +139,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
   return (
     <section
       ref={containerRef}
-      className="relative py-28 sm:py-36 bg-[#0d0805] text-[#ede4dc] overflow-hidden border-t border-[#38281d]/50"
+      className="relative py-14 sm:py-32 bg-[#0d0805] text-[#ede4dc] overflow-hidden border-t border-[#38281d]/50"
     >
       {/* Floating subtle background watermark typography */}
       <div
@@ -151,7 +151,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
+        <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-20">
           <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Customer Favorites</span>
@@ -159,18 +159,18 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
 
           <h2
             ref={headlineRef}
-            className="font-serif text-3xl sm:text-5xl lg:text-6xl font-normal text-[#f9f6f2] tracking-tight leading-tight"
+            className="font-serif text-2xl sm:text-5xl lg:text-6xl font-normal text-[#f9f6f2] tracking-tight leading-tight"
           >
             Top Selling Products
           </h2>
 
-          <p className="mt-4 text-base sm:text-lg text-[#d5c4b4]/80 font-sans leading-relaxed">
+          <p className="mt-3 sm:mt-4 text-xs sm:text-lg text-[#d5c4b4]/80 font-sans leading-relaxed">
             Experience our most celebrated selections, where extraordinary terroir meets artisanal curing.
           </p>
         </div>
 
         {/* 3 Floating Parallax Cards with staggered depth */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 pt-8 pb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-10 pt-4 pb-8 sm:pt-8 sm:pb-12">
           {featured.map((prod, cardIdx) => {
             const cardRef = cardIdx === 0 ? card1Ref : cardIdx === 1 ? card2Ref : card3Ref;
             const isCenter = cardIdx === 1;
@@ -208,11 +208,11 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
                   />
                 </div>
 
-                <div className="p-6">
+                <div className="p-5 sm:p-6">
                   <span className="text-[11px] font-sans tracking-wider uppercase text-[#dfc471] block mb-1">
                     {prod.origin}
                   </span>
-                  <h3 className="font-serif text-2xl font-medium text-[#f9f6f2]">{prod.name}</h3>
+                  <h3 className="font-serif text-xl sm:text-2xl font-medium text-[#f9f6f2]">{prod.name}</h3>
                   <p className="text-xs text-[#d5c4b4]/80 mt-2 line-clamp-2">{prod.description}</p>
                   <div className="mt-5 flex items-center justify-between pt-4 border-t border-[#38281d]">
                     <span className="text-base font-bold text-[#dfc471] tabular-nums">

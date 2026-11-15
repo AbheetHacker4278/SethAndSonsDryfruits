@@ -447,12 +447,39 @@ export default function Account({ onReorder }: AccountProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-20 sm:pt-28 pb-16 sm:pb-24 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        {/* Mobile Quick Tab Carousel */}
+        <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => switchTab(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                  active
+                    ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40 shadow-sm'
+                    : 'bg-[#150d09] text-[#d5c4b4] border border-[#38281d]'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#251a13] text-[#dfc471]">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Sidebar */}
         <aside className="lg:col-span-3 space-y-4">
-          <div className="bg-[#150d09] border border-[#38281d] rounded-3xl p-6 text-center space-y-3">
-            <div className="w-20 h-20 rounded-full mx-auto overflow-hidden bg-[#251a13] border-2 border-[#dfc471]/60 flex items-center justify-center text-[#dfc471] text-2xl font-serif">
+          <div className="bg-[#150d09] border border-[#38281d] rounded-2xl sm:rounded-3xl p-5 sm:p-6 text-center space-y-3">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto overflow-hidden bg-[#251a13] border-2 border-[#dfc471]/60 flex items-center justify-center text-[#dfc471] text-xl sm:text-2xl font-serif">
               {user.profilePicture ? (
                 <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
               ) : (
@@ -460,7 +487,7 @@ export default function Account({ onReorder }: AccountProps) {
               )}
             </div>
             <div>
-              <h2 className="font-serif text-xl text-[#f9f6f2]">{user.name}</h2>
+              <h2 className="font-serif text-lg sm:text-xl text-[#f9f6f2]">{user.name}</h2>
               <p className="text-xs text-[#d5c4b4]/70 break-all">{user.email}</p>
             </div>
             <div className="flex justify-center">
@@ -479,9 +506,27 @@ export default function Account({ onReorder }: AccountProps) {
                 </button>
               )}
             </div>
+
+            <div className="lg:hidden flex items-center justify-center gap-3 pt-2 border-t border-[#251a13]">
+              <Link
+                to="/customer-service"
+                className="inline-flex items-center gap-1.5 text-xs text-[#dfc471] hover:underline"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Support</span>
+              </Link>
+              <span className="text-[#38281d]">•</span>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:underline cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
 
-          <nav className="bg-[#150d09] border border-[#38281d] rounded-3xl p-3 space-y-1">
+          <nav className="hidden lg:block bg-[#150d09] border border-[#38281d] rounded-3xl p-3 space-y-1">
             {navItems.map(item => {
               const Icon = item.icon;
               const active = activeTab === item.id;

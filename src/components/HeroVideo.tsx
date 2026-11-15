@@ -447,9 +447,9 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
       {/* Act I: Primary Hero Title & Intro (0% to 30% scroll) - Majestic Golden Typography */}
       <div
         ref={heroContentRef}
-        className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center will-change-transform pt-12 sm:pt-6"
+        className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center will-change-transform pt-14 sm:pt-6 pb-20 sm:pb-0"
       >
-        <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl lg:text-[5.5rem] xl:text-8xl font-normal tracking-tight leading-[1.06] max-w-5xl text-balance">
+        <h1 className="font-serif text-3xl sm:text-6xl md:text-7xl lg:text-[5.5rem] xl:text-8xl font-normal tracking-tight leading-[1.08] max-w-5xl text-balance">
           <span className="bg-gradient-to-r from-[#fffbf0] via-[#dfc471] to-[#b99225] bg-clip-text text-transparent drop-shadow-[0_4px_28px_rgba(0,0,0,0.98)]">
             Nature’s Finest.
           </span>{' '}
@@ -458,14 +458,14 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
           </span>
         </h1>
 
-        <p className="mt-6 sm:mt-8 text-base sm:text-lg md:text-xl text-[#faebd0]/95 max-w-2xl font-sans font-light leading-relaxed text-balance drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)]">
+        <p className="mt-4 sm:mt-8 text-xs sm:text-lg md:text-xl text-[#faebd0]/95 max-w-2xl font-sans font-light leading-relaxed text-balance drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)]">
           Discover the richness of premium dry fruits and rare Kashmiri saffron, curated across three generations in Jammu for pure authenticity, fragrance, and taste.
         </p>
 
-        <div className="mt-9 sm:mt-11 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 w-full sm:w-auto">
+        <div className="mt-6 sm:mt-11 flex flex-col sm:flex-row items-center gap-2.5 sm:gap-5 w-full sm:w-auto">
           <button
             onClick={onRequestOrder}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 sm:px-9 py-4 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-gradient-to-r from-[#dfc471] via-[#faeaad] to-[#c79d2b] text-[#1c120c] hover:brightness-110 shadow-2xl shadow-[#dfc471]/35 hover:shadow-[#dfc471]/60 transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 sm:px-9 py-3 sm:py-4 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-gradient-to-r from-[#dfc471] via-[#faeaad] to-[#c79d2b] text-[#1c120c] hover:brightness-110 shadow-2xl shadow-[#dfc471]/35 hover:shadow-[#dfc471]/60 transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
           >
             <span>Request Your Order</span>
             <ArrowRight className="w-4 h-4 text-[#1c120c]" />
@@ -473,14 +473,14 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
 
           <button
             onClick={onExplore}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 sm:px-9 py-4 rounded-full text-xs sm:text-sm font-medium tracking-wider uppercase text-[#faebd0] bg-[#1c120c]/60 hover:bg-[#dfc471]/20 border border-[#dfc471]/60 hover:border-[#dfc471] backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-xl drop-shadow"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-9 py-3 sm:py-4 rounded-full text-xs sm:text-sm font-medium tracking-wider uppercase text-[#faebd0] bg-[#1c120c]/60 hover:bg-[#dfc471]/20 border border-[#dfc471]/60 hover:border-[#dfc471] backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-xl drop-shadow"
           >
             <span>Explore Collection</span>
           </button>
 
           <Link
             to="/customer-service"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-full text-xs sm:text-sm font-medium tracking-wider uppercase text-[#dfc471] bg-[#1c120c]/75 hover:bg-[#2a1d14] border border-[#dfc471]/45 hover:border-[#dfc471] backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-xl drop-shadow"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-3 sm:py-4 rounded-full text-xs sm:text-sm font-medium tracking-wider uppercase text-[#dfc471] bg-[#1c120c]/75 hover:bg-[#2a1d14] border border-[#dfc471]/45 hover:border-[#dfc471] backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-xl drop-shadow"
           >
             <LifeBuoy className="w-4 h-4 text-[#dfc471]" />
             <span>Customer Service</span>
@@ -546,31 +546,31 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
       </div>
 
       {/* Floating Manual Play/Pause & Status */}
-      <div className="absolute bottom-8 left-6 sm:left-10 z-20 flex items-center gap-3">
+      <div className="absolute bottom-4 sm:bottom-8 left-3 sm:left-10 z-20 flex items-center gap-2 sm:gap-3">
         <button
           onClick={handleTogglePlay}
-          className="w-11 h-11 rounded-full bg-[#1c120c]/85 border border-[#dfc471]/40 text-[#dfc471] hover:text-[#0d0805] hover:bg-[#dfc471] backdrop-blur-md transition-all shadow-xl cursor-pointer flex items-center justify-center"
+          className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#1c120c]/85 border border-[#dfc471]/40 text-[#dfc471] hover:text-[#0d0805] hover:bg-[#dfc471] backdrop-blur-md transition-all shadow-xl cursor-pointer flex items-center justify-center"
           title={isPlaying ? 'Pause video' : 'Play video'}
           aria-label={isPlaying ? 'Pause video' : 'Play video'}
         >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          {isPlaying ? <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
         </button>
 
         {/* Video Chapter Indicator & Interactive Pills */}
-        <div className="flex items-center gap-2.5 bg-[#1c120c]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#dfc471]/35 shadow-xl">
+        <div className="flex items-center gap-2 sm:gap-2.5 bg-[#1c120c]/85 backdrop-blur-md px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-[#dfc471]/35 shadow-xl">
           <div className="flex items-center gap-1">
             {HERO_PLAYLIST.map((item, i) => (
               <button
                 key={i}
                 onClick={() => handleSelectVideo(i)}
-                className="py-2 px-1 cursor-pointer flex items-center justify-center"
+                className="py-1.5 sm:py-2 px-1 cursor-pointer flex items-center justify-center"
                 title={`Switch to: ${item.title}`}
                 aria-label={`Switch to: ${item.title}`}
               >
                 <span
-                  className={`h-2 rounded-full transition-all duration-300 block ${currentIdx === i
-                    ? 'w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
-                    : 'w-2.5 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
+                  className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 block ${currentIdx === i
+                    ? 'w-5 sm:w-6 bg-[#dfc471] shadow-[0_0_8px_rgba(223,196,113,0.6)]'
+                    : 'w-2 sm:w-2.5 bg-[#dfc471]/30 hover:bg-[#dfc471]/60'
                     }`}
                 />
               </button>
@@ -585,13 +585,13 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
       {/* Animated Scroll Down Indicator */}
       <button
         onClick={onExplore}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 p-2 text-[#ecdda7]/80 hover:text-[#dfc471] transition-colors cursor-pointer group"
+        className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 sm:gap-1.5 p-1 sm:p-2 text-[#ecdda7]/80 hover:text-[#dfc471] transition-colors cursor-pointer group"
         aria-label="Scroll to explore collection"
       >
-        <span className="text-[11px] tracking-[0.25em] uppercase font-sans font-medium">
+        <span className="text-[9px] sm:text-[11px] tracking-[0.2em] sm:tracking-[0.25em] uppercase font-sans font-medium whitespace-nowrap">
           Scroll to Explore Harvest
         </span>
-        <ChevronDown className="w-4 h-4 animate-bounce text-[#dfc471]" />
+        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-bounce text-[#dfc471]" />
       </button>
     </section>
   );

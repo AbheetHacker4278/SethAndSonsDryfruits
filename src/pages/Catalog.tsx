@@ -1080,7 +1080,7 @@ export default function Catalog({
     : null;
 
   return (
-    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-28 pb-24">
+    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-20 sm:pt-28 pb-20 sm:pb-24">
       <a
         href="#catalog-products"
         className="sr-only focus:not-sr-only focus:fixed focus:top-20 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:rounded-full focus:bg-[#dfc471] focus:text-[#0d0805] focus:font-semibold focus:text-xs"
@@ -1090,25 +1090,25 @@ export default function Catalog({
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <ScrollReveal>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 pb-7 border-b border-[#38281d]">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6 mb-8 pb-7 border-b border-[#38281d]">
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-2.5">
+              <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-2 sm:mb-2.5">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Seth And Sons DryFruits • Direct Harvest Selection</span>
               </div>
-              <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#f9f6f2] tracking-tight">
+              <h1 className="font-serif text-2xl sm:text-5xl font-normal text-[#f9f6f2] tracking-tight">
                 Authentic Jammu Dry Fruits Catalog
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-[#d5c4b4] font-sans max-w-2xl">
+              <p className="mt-2 text-xs sm:text-base text-[#d5c4b4] font-sans max-w-2xl leading-relaxed">
                 Choose your preferred pack size (250g, 500g, 1kg, or custom Admin packs), filter by category or origin, and order direct from Jammu.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => navigate('/custom-order')}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#38281d] text-[#dfc471] border border-[#dfc471]/40 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#38281d] text-[#dfc471] border border-[#dfc471]/40 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471]"
               >
                 <Gift className="w-3.5 h-3.5" />
                 <span>Bespoke Custom Demand</span>
@@ -1117,7 +1117,7 @@ export default function Catalog({
               <button
                 type="button"
                 onClick={() => setIsCartDrawerOpen(true)}
-                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#dfc471]/20 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#dfc471]/20 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>Checkout Bag {totalCartCount > 0 ? `(${totalCartCount})` : ''}</span>
@@ -1128,7 +1128,7 @@ export default function Catalog({
 
         {/* Quick Category Jump Strip */}
         <div
-          className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none"
+          className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0"
           role="region"
           aria-label="Quick category navigation"
         >
@@ -1683,7 +1683,7 @@ export default function Catalog({
           onClick={() => setIsCartDrawerOpen(false)}
         >
           <div
-            className="relative w-full max-w-xl bg-[#150d09] border-l border-[#38281d] h-full overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6"
+            className="relative w-full max-w-xl bg-[#150d09] border-l border-[#38281d] h-full overflow-y-auto shadow-2xl p-4 sm:p-8 space-y-5 sm:space-y-6"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-4 border-b border-[#38281d]">
@@ -2211,14 +2211,14 @@ export default function Catalog({
       {/* Product Detail Modal with Pack Size & Quantity Selector */}
       {detailProduct && detailSelectedPack && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-[#0d0805]/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
+          className="fixed inset-0 z-50 overflow-y-auto bg-[#0d0805]/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="detail-modal-title"
           onClick={() => setDetailProduct(null)}
         >
           <div
-            className="relative w-full max-w-4xl bg-[#150d09] border border-[#dfc471]/40 rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col my-auto"
+            className="relative w-full max-w-4xl bg-[#150d09] border border-[#dfc471]/40 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[96vh] sm:max-h-[92vh] flex flex-col my-auto"
             onClick={e => e.stopPropagation()}
           >
             <button
@@ -2230,7 +2230,7 @@ export default function Catalog({
               <X className="w-5 h-5" />
             </button>
 
-            <div className="overflow-y-auto p-5 sm:p-8 space-y-6">
+            <div className="overflow-y-auto p-4 sm:p-8 space-y-4 sm:space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 <div className="space-y-3">
                   {detailProduct.videoUrl && (
@@ -2492,6 +2492,26 @@ export default function Catalog({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Floating Sticky Mobile Bag Bar */}
+      {totalCartCount > 0 && !isCartDrawerOpen && !detailProduct && (
+        <div className="lg:hidden fixed bottom-4 inset-x-3 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <button
+            type="button"
+            onClick={() => setIsCartDrawerOpen(true)}
+            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] font-semibold text-xs tracking-wider uppercase flex items-center justify-between shadow-[0_8px_30px_rgba(0,0,0,0.85)] border border-[#fffcf5]/30 cursor-pointer active:scale-[0.98] transition-all"
+            aria-label={`View checkout bag with ${totalCartCount} items, total ${formatINR(subtotal)}`}
+          >
+            <span className="flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 text-[#0d0805]" />
+              <span>View Bag ({totalCartCount} {totalCartCount === 1 ? 'item' : 'items'})</span>
+            </span>
+            <span className="font-bold tabular-nums text-sm">
+              {formatINR(subtotal)} →
+            </span>
+          </button>
         </div>
       )}
     </div>

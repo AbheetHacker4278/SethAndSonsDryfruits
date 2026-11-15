@@ -496,15 +496,15 @@ export default function CustomerService() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-20 sm:pt-28 pb-16 sm:pb-24 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
         <ScrollReveal>
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold uppercase tracking-[0.22em]">
               <LifeBuoy className="w-3.5 h-3.5 text-[#dfc471]" />
               <span>Seth And Sons DryFruits • Jammu Concierge Desk</span>
             </div>
-            <h1 className="font-serif text-3xl sm:text-5xl font-normal text-[#f9f6f2]">
+            <h1 className="font-serif text-2xl sm:text-5xl font-normal text-[#f9f6f2]">
               Customer Service &amp; Complaint Tracker
             </h1>
             <p className="text-xs sm:text-sm text-[#d5c4b4]/80 max-w-2xl mx-auto leading-relaxed">

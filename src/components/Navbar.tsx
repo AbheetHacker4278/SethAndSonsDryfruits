@@ -78,16 +78,18 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
     >
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#dfc471]/35 to-transparent pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-6">
         <Link
           to="/"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-label="Seth And Sons Dryfruits Homepage"
-          className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
+          className="flex items-center gap-2 sm:gap-3 group min-w-0 shrink"
         >
-          <AnimatedLogo size="md" showSubtitle={false} />
-          <div className="flex flex-col justify-center">
-            <span className="font-serif font-bold text-sm sm:text-base md:text-lg lg:text-lg xl:text-xl tracking-[0.02em] sm:tracking-[0.03em] leading-tight text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] group-hover:brightness-110 transition-all duration-300 whitespace-nowrap">
+          <div className="shrink-0">
+            <AnimatedLogo size="md" showSubtitle={false} />
+          </div>
+          <div className="flex flex-col justify-center min-w-0">
+            <span className="font-serif font-bold text-xs sm:text-base md:text-lg lg:text-lg xl:text-xl tracking-[0.01em] sm:tracking-[0.03em] leading-tight text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] group-hover:brightness-110 transition-all duration-300 truncate max-w-[130px] xs:max-w-[170px] sm:max-w-none">
               Seth And Sons Dryfruits.
             </span>
             <span className="hidden sm:block text-[9px] xl:text-[10px] tracking-[0.22em] uppercase text-[#dfc471]/90 font-sans font-semibold mt-0.5 leading-none">
@@ -148,11 +150,10 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
               <button
                 type="button"
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
-                className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
-                  isProfileMenuOpen || location.pathname === '/account'
+                className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer shrink-0 ${isProfileMenuOpen || location.pathname === '/account'
                     ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]'
                     : 'bg-[#251a13]/80 text-[#dfc471] border-[#dfc471]/50 hover:border-[#dfc471]'
-                }`}
+                  }`}
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="true"
                 aria-label="User profile menu"
@@ -168,13 +169,12 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="whitespace-nowrap max-w-[65px] sm:max-w-[110px] truncate text-xs text-[#ede4dc] font-medium">
+                <span className="whitespace-nowrap max-w-[50px] xs:max-w-[75px] sm:max-w-[110px] truncate text-xs text-[#ede4dc] font-medium">
                   {user.name.split(' ')[0]}
                 </span>
                 <ChevronDown
-                  className={`w-3 h-3 text-[#dfc471]/80 transition-transform duration-200 shrink-0 ${
-                    isProfileMenuOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`w-3 h-3 text-[#dfc471]/80 transition-transform duration-200 shrink-0 ${isProfileMenuOpen ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
 
@@ -228,11 +228,10 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           ) : (
             <Link
               to="/login"
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors shrink-0 ${
-                location.pathname === '/login'
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors shrink-0 ${location.pathname === '/login'
                   ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
                   : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
-              }`}
+                }`}
             >
               <User className="w-3.5 h-3.5 text-[#dfc471]" />
               <span className="whitespace-nowrap text-xs font-medium">Login</span>
@@ -245,7 +244,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
               if (onOpenCart) onOpenCart();
               else navigate('/catalog?cart=open');
             }}
-            className="relative inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs font-semibold tracking-wide border border-[#dfc471]/60 bg-[#1c120c] text-[#dfc471] hover:bg-[#dfc471] hover:text-[#0d0805] hover:border-[#dfc471] transition-all duration-200 active:scale-95 shadow-md shadow-black/40 cursor-pointer whitespace-nowrap"
+            className="relative inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs font-semibold tracking-wide border border-[#dfc471]/60 bg-[#1c120c] text-[#dfc471] hover:bg-[#dfc471] hover:text-[#0d0805] hover:border-[#dfc471] transition-all duration-200 active:scale-95 shadow-md shadow-black/40 cursor-pointer whitespace-nowrap"
             aria-label={`View Cart with ${selectedCount} items`}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
@@ -267,7 +266,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer min-w-[40px] min-h-[40px] flex items-center justify-center"
+            className="lg:hidden p-1.5 sm:p-2 rounded-lg text-[#d5c4b4] hover:text-[#ede4dc] hover:bg-[#251a13] transition-colors cursor-pointer min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center"
             aria-label="Toggle navigation menu"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -309,7 +308,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
             Home
           </Link>
           <Link to="/catalog" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 border-b border-[#251a13] text-[#d5c4b4]">
-            Jammu Catalog {selectedCount > 0 && `(${selectedCount})`}
+            Catalog {selectedCount > 0 && `(${selectedCount})`}
           </Link>
           <Link to="/custom-order" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 border-b border-[#251a13] text-[#dfc471]">
             Custom Demand &amp; Gifting
