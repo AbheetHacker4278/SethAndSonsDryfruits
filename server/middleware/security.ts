@@ -169,12 +169,72 @@ export function createRateLimiter(opts: { windowMs: number; max: number; keyPref
   };
 }
 
-export function securityHeaders(_req: Request, res: Response, next: NextFunction) {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  next();
+export function createSecurityHeaders(config?: AppConfig) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // 1. MIME & Sniffing Protection
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    // 2. Clickjacking Protection (Legacy Header + Modern CSP frame-ancestors)
+    res.setHeader('X-Frame-Options', 'DENY');
+
+    // 3. Referrer Policy
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // 4. Permissions Policy
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self "https://checkout.razorpay.com")');
+
+    // 5. Cross-Origin Policies (COOP & CORP)
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // Generate per-request cryptographically secure nonce for CSP (OWASP ASVS 4.0.3)
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+
+    // 6. Content Security Policy (OWASP ASVS 4.0.3 hardened)
+    const scriptSrc = [
+      "'self'",
+      `'nonce-${nonce}'`,
+      ...(config?.isProduction ? [] : ["'unsafe-inline'"]),
+      ...(config?.isProduction ? [] : ["'unsafe-eval'"]),
+      'https://checkout.razorpay.com',
+      'https://accounts.google.com',
+    ].join(' ');
+
+    const styleSrc = [
+      "'self'",
+      `'nonce-${nonce}'`,
+      "'unsafe-inline'",
+      'https://fonts.googleapis.com',
+    ].join(' ');
+
+    const cspDirectives = [
+      "default-src 'self'",
+      `script-src ${scriptSrc}`,
+      `style-src ${styleSrc}`,
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.razorpay.com",
+      "media-src 'self' data: blob: https://res.cloudinary.com",
+      "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://res.cloudinary.com https://accounts.google.com",
+      "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ];
+    res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+
+    // 7. Strict-Transport-Security (HSTS) - Strictly production HTTPS only
+    const isHttps = req.secure || req.get('x-forwarded-proto') === 'https';
+    if (config?.isProduction && isHttps) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+    next();
+  };
+}
+
+export function securityHeaders(req: Request, res: Response, next: NextFunction) {
+  createSecurityHeaders()(req, res, next);
 }
 
 function shouldUseSecureCookie(config: AppConfig, req?: Request): boolean {
@@ -215,7 +275,11 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     return;
   }
   const fullPath = `${req.baseUrl}${req.path}`;
-  if (fullPath === '/api/webhooks/email' || fullPath === '/api/unsubscribe') {
+  if (
+    fullPath === '/api/webhooks/email' ||
+    fullPath === '/api/unsubscribe' ||
+    fullPath === '/api/payments/webhook'
+  ) {
     next();
     return;
   }

@@ -916,7 +916,10 @@ ${ctaButtonHtml('Track Your Complaint', escapeHtml(supportUrl))}`;
     },
 
     async sendRefundProcessedEmail(order: OrderEmailRecord) {
-      if (order.refundStatus !== 'refunded' || !order.refundReferenceId) {
+      if (
+        (order.refundStatus !== 'refunded' && order.refundStatus !== 'partially_refunded') ||
+        !order.refundReferenceId
+      ) {
         return { skipped: true, reason: 'Refund is not verified as completed' };
       }
       const cust = await getOrderCustomer(order);

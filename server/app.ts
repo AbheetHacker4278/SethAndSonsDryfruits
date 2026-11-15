@@ -3,9 +3,10 @@ import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { AppConfig, loadConfig } from './config.ts';
-import { connectDatabase, MongoDatabase, seedDatabase } from './db/mongo.ts';
+import { connectDatabase, MongoDatabase, seedDatabase, syncAllIndexes } from './db/mongo.ts';
 import {
   attachSession,
+  createSecurityHeaders,
   csrfProtection,
   ensureCsrfCookie,
   sanitizeNoSqlInput,
@@ -16,12 +17,15 @@ import { createAdminRouter } from './routes/admin.ts';
 import { createAdminErpRouter } from './routes/adminErp.ts';
 import { createAuthRouter } from './routes/auth.ts';
 import { createOrdersRouter } from './routes/orders.ts';
+import { createPaymentsRouter } from './routes/payments.ts';
 import { createPublicRouter } from './routes/public.ts';
 import { createAdminSupportRouter, createSupportRouter } from './routes/support.ts';
 import { createCloudinaryStorage, MediaStorageService } from './services/cloudinaryService.ts';
 import { createEmailTransport, EmailTransport } from './services/emailProvider.ts';
 import { createEmailQueue, EmailQueueService } from './services/emailQueue.ts';
 import { createEmailService, EmailService } from './services/emailService.ts';
+import { CacheService, createCacheService } from './services/cacheService.ts';
+import { requestLogger } from './utils/logger.ts';
 
 export interface AppInstance {
   app: express.Express;
@@ -31,6 +35,7 @@ export interface AppInstance {
   queue: EmailQueueService;
   emailService: EmailService;
   mediaStorage: MediaStorageService;
+  cache: CacheService;
   close: () => Promise<void>;
 }
 
@@ -93,11 +98,13 @@ export async function createApp(overrides?: {
 
   const db = await connectDatabase(config.mongodbUri);
   await seedDatabase(db, config);
+  await syncAllIndexes(db);
 
   const transport = overrides?.emailTransport || createEmailTransport(config);
   const queue = createEmailQueue(db, config, transport);
   const emailService = createEmailService(db, config, queue);
   const mediaStorage = overrides?.mediaStorage || createCloudinaryStorage(config);
+  const cache = createCacheService(config);
 
   if (overrides?.startQueueWorker !== false) {
     queue.startWorker(2000);
@@ -106,7 +113,8 @@ export async function createApp(overrides?: {
   const app = express();
   app.set('trust proxy', 1);
 
-  app.use(securityHeaders);
+  app.use(createSecurityHeaders(config));
+  app.use(requestLogger);
 
   // Cross-origin resource sharing (CORS) for separate frontend deployments (e.g. Render Static Site)
   app.use((req, res, next) => {
@@ -148,10 +156,11 @@ export async function createApp(overrides?: {
   }
 
   // API Routes (wrapped to forward async/await rejections cleanly into Express 4 error middleware)
-  app.use('/api', wrapRouterAsync(createPublicRouter(db, config, { transport, queue, mediaStorage })));
+  app.use('/api', wrapRouterAsync(createPublicRouter(db, config, { transport, queue, mediaStorage, cache })));
   app.use('/api/auth', wrapRouterAsync(createAuthRouter(db, config, emailService)));
   app.use('/api/account', wrapRouterAsync(createAccountRouter(db, config, emailService, mediaStorage)));
   app.use('/api/orders', wrapRouterAsync(createOrdersRouter(db, emailService)));
+  app.use('/api/payments', wrapRouterAsync(createPaymentsRouter(db, config)));
   app.use('/api/support', wrapRouterAsync(createSupportRouter(db, mediaStorage, emailService)));
   app.use('/api/admin', wrapRouterAsync(createAdminRouter(db, config, transport, queue, emailService, mediaStorage)));
   app.use('/api/admin', wrapRouterAsync(createAdminErpRouter(db, transport, queue, mediaStorage, emailService, config)));
@@ -162,6 +171,7 @@ export async function createApp(overrides?: {
   if (fs.existsSync(distDir)) {
     app.use(
       express.static(distDir, {
+        index: false,
         maxAge: '1h',
         setHeaders: (res, filePath) => {
           if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes('/assets/')) {
@@ -172,13 +182,30 @@ export async function createApp(overrides?: {
         },
       })
     );
+
+    let cachedIndexHtml: string | null = null;
+
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
         next();
         return;
       }
       res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-      res.sendFile(path.join(distDir, 'index.html'));
+      const nonce = (res.locals.cspNonce as string) || '';
+
+      try {
+        if (!cachedIndexHtml || !config.isProduction) {
+          cachedIndexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+        }
+        let renderedHtml = cachedIndexHtml;
+        if (nonce) {
+          renderedHtml = renderedHtml.replace(/<script(?=[\s>])(?![^>]*\bnonce=)/gi, `<script nonce="${nonce}"`);
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(renderedHtml);
+      } catch {
+        res.sendFile(path.join(distDir, 'index.html'));
+      }
     });
   }
 
@@ -214,7 +241,9 @@ export async function createApp(overrides?: {
     queue,
     emailService,
     mediaStorage,
+    cache,
     async close() {
+      await cache.close();
       await queue.stopWorker();
       await db.close();
     },

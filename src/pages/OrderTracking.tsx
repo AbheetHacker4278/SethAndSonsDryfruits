@@ -402,8 +402,8 @@ export default function OrderTracking() {
                 <span>{order.shippingCharge > 0 ? formatINR(order.shippingCharge) : 'Complimentary'}</span>
               </div>
               <div className="flex justify-between text-[#d5c4b4]/80">
-                <span>Taxes (5% GST)</span>
-                <span>{formatINR(order.taxAmount)}</span>
+                <span>Taxes {order.taxAmount > 0 ? '(GST)' : '(GST 0%)'}</span>
+                <span>{formatINR(order.taxAmount || 0)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-[#251a13] text-base font-bold text-[#dfc471]">
                 <span>Final Amount</span>

@@ -153,7 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setUser(null);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setSessionChecked(true);
+        }
       });
 
     void withTransientRetry(() => fetchPublishedProducts(), isCancelled)
@@ -198,6 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [applyBrowserBranding]);
+
+  // Re-fetch products when user authentication or delivery city changes so server-calculated prices refresh
+  useEffect(() => {
+    if (sessionChecked) {
+      void refreshProducts();
+    }
+  }, [user?.id, user?.shippingAddress?.city, profitMargin, sessionChecked, refreshProducts]);
 
   useEffect(() => {
     const onExpired = () => {

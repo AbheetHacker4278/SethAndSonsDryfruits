@@ -36,7 +36,7 @@ import {
   StatusBadge,
   ToastBanner,
 } from '../../components/admin/AdminUI';
-import { apiRequest, apiUpload, ApiError, PersistedOrder, fetchPublishedProducts, CatalogProduct } from '../../services/api';
+import { apiRequest, apiUpload, ApiError, PersistedOrder, fetchPublishedProducts, type CatalogProduct } from '../../services/api';
 import {
   formatINR,
   getProductBaseCost,
@@ -222,7 +222,7 @@ export default function AdminOrders() {
     setPickerVariantId(varId);
     const prod = catalogProducts.find(p => p.id === pickerProductId);
     if (!prod) return;
-    const variant = prod.weightVariants?.find(v => v.id === varId);
+    const variant = prod.weightVariants?.find((v: any) => v.id === varId);
     if (variant) {
       setPickerUnitPrice(String(variant.sellingPrice || prod.price));
     }
@@ -231,7 +231,7 @@ export default function AdminOrders() {
   const handleAddItem = () => {
     const prod = catalogProducts.find(p => p.id === pickerProductId);
     if (!prod) return;
-    const variant = prod.weightVariants?.find(v => v.id === pickerVariantId);
+    const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
     const unitPrice = Number(pickerUnitPrice) > 0 ? Number(pickerUnitPrice) : prod.price;
     const qty = Math.max(0.1, Number(pickerQuantity) || 1);
     const lineSubtotal = Math.round(unitPrice * qty);
@@ -480,7 +480,7 @@ export default function AdminOrders() {
     setEditPickerVariantId(varId);
     const prod = catalogProducts.find(p => p.id === editPickerProductId);
     if (!prod) return;
-    const variant = prod.weightVariants?.find(v => v.id === varId);
+    const variant = prod.weightVariants?.find((v: any) => v.id === varId);
     if (variant) {
       setEditPickerUnitPrice(String(variant.sellingPrice || prod.price));
     }
@@ -1740,7 +1740,7 @@ export default function AdminOrders() {
                           onChange={e => handleVariantSelect(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
                         >
-                          {prod.weightVariants.map(v => {
+                          {prod.weightVariants.map((v: any) => {
                             const vCost = getVariantBaseCost(v);
                             const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
                             const p25 = calculateDynamicSellingPrice(vCost, 25);
@@ -1775,7 +1775,7 @@ export default function AdminOrders() {
                   {(() => {
                     const prod = catalogProducts.find(p => p.id === pickerProductId);
                     if (!prod) return null;
-                    const variant = prod.weightVariants?.find(v => v.id === pickerVariantId);
+                    const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
                     const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
                     const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
                     const p25 = calculateDynamicSellingPrice(cost, 25);
@@ -2220,7 +2220,7 @@ export default function AdminOrders() {
                           onChange={e => handleEditVariantSelect(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
                         >
-                          {prod.weightVariants.map(v => {
+                          {prod.weightVariants.map((v: any) => {
                             const vCost = getVariantBaseCost(v);
                             const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
                             const p25 = calculateDynamicSellingPrice(vCost, 25);

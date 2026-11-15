@@ -77,7 +77,7 @@ const erpProductSchema = z.object({
   purchasePrice: z.number().min(0).default(0),
   price: z.number().positive('Selling price must be positive'),
   discountPrice: z.number().min(0).optional().nullable(),
-  gstRate: z.number().min(0).max(28).default(5),
+  gstRate: z.number().min(0).max(28).default(0),
   stock: z.number().min(0).default(0),
   minStockAlert: z.number().min(0).default(5),
   unit: z.enum(['kg', 'gram', 'ml', 'piece']).default('kg'),

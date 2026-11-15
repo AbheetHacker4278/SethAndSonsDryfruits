@@ -91,7 +91,7 @@ export const DEFAULT_BUSINESS_SETTINGS = {
   contactNumber: '+91 6356038361',
   businessEmail: 'aseth9588@gmail.com',
   currency: 'INR ₹',
-  defaultGstRate: 5,
+  defaultGstRate: 0,
   invoicePrefix: 'AS-INV',
   nextInvoiceNumber: 1001,
   defaultShippingCharge: 120,
@@ -285,6 +285,7 @@ function createModels(conn: Connection) {
       profilePicture: { type: String, default: null },
       tier: { type: String, default: 'Privileged Patron' },
       loyaltyPoints: { type: Number, default: 0 },
+      loyaltyDeficit: { type: Number, default: 0 },
       marketingConsent: { type: Boolean, default: false },
       marketingConsentAt: { type: String, default: null },
       consentSource: { type: String, default: null },
@@ -391,7 +392,7 @@ function createModels(conn: Connection) {
       purchasePrice: { type: Number, default: 0 },
       price: { type: Number, required: true },
       discountPrice: { type: Number, default: null },
-      gstRate: { type: Number, default: 5 },
+      gstRate: { type: Number, default: 0 },
       stock: { type: Number, default: 25, index: true },
       minStockAlert: { type: Number, default: 5 },
       unit: { type: String, enum: ['kg', 'gram', 'ml', 'piece'], default: 'kg' },
@@ -425,6 +426,8 @@ function createModels(conn: Connection) {
     },
     baseOpts
   );
+  ProductSchema.index({ status: 1, createdAt: 1 });
+  ProductSchema.index({ status: 1, category: 1 });
 
   const ProductVariantSchema = new Schema(
     {
@@ -442,6 +445,8 @@ function createModels(conn: Connection) {
     },
     baseOpts
   );
+  ProductVariantSchema.index({ productId: 1, active: 1 });
+  ProductVariantSchema.index({ active: 1, sellingPrice: 1 });
 
   const InventorySchema = new Schema(
     {
@@ -544,7 +549,7 @@ function createModels(conn: Connection) {
       productName: { type: String, required: true },
       quantity: { type: Number, required: true },
       purchasePrice: { type: Number, required: true },
-      gstRate: { type: Number, default: 5 },
+      gstRate: { type: Number, default: 0 },
       totalCost: { type: Number, required: true },
       batchNumber: { type: String, default: null },
       expiryDate: { type: String, default: null },
@@ -582,6 +587,7 @@ function createModels(conn: Connection) {
       subtotal: { type: Number, required: true },
       discountAmount: { type: Number, default: 0 },
       couponCode: { type: String, default: null },
+      idempotencyKey: { type: String, default: null, index: true },
       shippingCharge: { type: Number, default: 0 },
       appliedProfitMargin: { type: Number, default: 25 },
       shippingCity: { type: String, default: '' },
@@ -604,6 +610,7 @@ function createModels(conn: Connection) {
       returnReason: { type: String, default: null },
       refundStatus: { type: String, default: 'none' },
       refundAmount: { type: Number, default: null },
+      refundedPaise: { type: Number, default: 0 },
       refundMethod: { type: String, default: null },
       refundReferenceId: { type: String, default: null },
       refundDate: { type: String, default: null },
@@ -613,6 +620,13 @@ function createModels(conn: Connection) {
     },
     baseOpts
   );
+  OrderSchema.index(
+    { customerId: 1, idempotencyKey: 1 },
+    { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+  );
+  OrderSchema.index({ customerId: 1, createdAt: -1 });
+  OrderSchema.index({ status: 1, createdAt: -1 });
+  OrderSchema.index({ paymentStatus: 1, createdAt: -1 });
 
   const OrderItemSchema = new Schema(
     {
@@ -690,6 +704,15 @@ function createModels(conn: Connection) {
     },
     baseOpts
   );
+  PaymentSchema.index(
+    { transactionRef: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { transactionRef: { $type: 'string' } },
+    }
+  );
+  PaymentSchema.index({ referenceId: 1, paymentType: 1 });
+  PaymentSchema.index({ customerId: 1, createdAt: -1 });
 
   const CouponSchema = new Schema(
     {
@@ -891,6 +914,7 @@ function createModels(conn: Connection) {
       bannerImage: { type: String, default: null },
       discountPercentage: { type: Number, default: null },
       couponCode: { type: String, default: null },
+      idempotencyKey: { type: String, default: null, index: true },
       startDate: { type: String, default: null },
       endDate: { type: String, default: null },
       applicableProducts: { type: [String], default: [] },
@@ -957,6 +981,199 @@ function createModels(conn: Connection) {
     baseOpts
   );
 
+  const IdempotencyRecordSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      customerId: { type: String, required: true, index: true },
+      idempotencyKey: { type: String, required: true, index: true },
+      requestFingerprint: { type: String, required: true },
+      status: {
+        type: String,
+        enum: ['processing', 'completed', 'failed', 'recovering'],
+        default: 'processing',
+        index: true,
+      },
+      orderId: { type: String, default: null },
+      orderNumber: { type: String, default: null },
+      responseSnapshot: { type: Schema.Types.Mixed, default: null },
+      lockedUntil: { type: String, required: true },
+      recoveryMetadata: { type: Schema.Types.Mixed, default: null },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+  IdempotencyRecordSchema.index(
+    { customerId: 1, idempotencyKey: 1 },
+    { unique: true }
+  );
+
+  const CouponReservationSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      couponId: { type: String, required: true, index: true },
+      couponCode: { type: String, required: true, uppercase: true, index: true },
+      customerId: { type: String, required: true, index: true },
+      orderId: { type: String, default: null, index: true },
+      idempotencyKey: { type: String, default: null, index: true },
+      status: {
+        type: String,
+        enum: ['claimed', 'consumed', 'released', 'expired'],
+        default: 'claimed',
+        index: true,
+      },
+      discountAmount: { type: Number, default: 0 },
+      claimedAt: { type: String, required: true },
+      expiresAt: { type: String, required: true },
+      consumedAt: { type: String, default: null },
+      releasedAt: { type: String, default: null },
+      releaseReason: { type: String, default: null },
+      retryCount: { type: Number, default: 0 },
+      lastError: { type: String, default: null },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+  CouponReservationSchema.index({ customerId: 1, couponId: 1, status: 1 });
+  CouponReservationSchema.index({ idempotencyKey: 1, status: 1 });
+
+  const InventoryOperationSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      orderId: { type: String, default: null, index: true },
+      orderNumber: { type: String, default: null },
+      customerId: { type: String, required: true, index: true },
+      idempotencyKey: { type: String, default: null, index: true },
+      couponReservationId: { type: String, default: null },
+      items: [
+        {
+          productId: { type: String, required: true },
+          variantId: { type: String, default: null },
+          packWeight: { type: Number, required: true },
+          quantity: { type: Number, required: true },
+          weightDeducted: { type: Number, required: true },
+          previousStock: { type: Number, default: 0 },
+          updatedStock: { type: Number, default: 0 },
+        },
+      ],
+      status: {
+        type: String,
+        enum: [
+          'initiated',
+          'reserved',
+          'order_created',
+          'committed',
+          'compensation_pending',
+          'compensated',
+          'recovery_required',
+        ],
+        default: 'initiated',
+        index: true,
+      },
+      leaseExpiresAt: { type: String, required: true, index: true },
+      recoveryAttempts: { type: Number, default: 0 },
+      lastRecoveryError: { type: String, default: null },
+      recoveryClaimedBy: { type: String, default: null, index: true },
+      recoveryClaimedAt: { type: String, default: null },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+  InventoryOperationSchema.index({ status: 1, leaseExpiresAt: 1 });
+
+  const RefundOperationSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      orderId: { type: String, required: true, index: true },
+      orderNumber: { type: String, required: true, index: true },
+      customerId: { type: String, default: null, index: true },
+      idempotencyKey: { type: String, required: true, unique: true, index: true },
+      amount: { type: Number, required: true },
+      amountPaise: { type: Number, required: true },
+      currency: { type: String, default: 'INR' },
+      status: {
+        type: String,
+        enum: ['requested', 'processing', 'succeeded', 'failed', 'cancelled', 'reconciliation_required'],
+        default: 'requested',
+        index: true,
+      },
+      paymentMethod: { type: String, default: 'UPI / Bank' },
+      refundReferenceId: { type: String, default: null, index: true },
+      refundBankEta: { type: String, default: null },
+      reason: { type: String, default: 'Customer requested refund' },
+      gatewayResponse: { type: Schema.Types.Mixed, default: null },
+      failureReason: { type: String, default: null },
+      retryCount: { type: Number, default: 0 },
+      initiatedBy: { type: String, default: 'System' },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+  RefundOperationSchema.index({ orderNumber: 1, status: 1 });
+  RefundOperationSchema.index({ orderId: 1, status: 1 });
+  RefundOperationSchema.index({ status: 1, createdAt: -1 });
+
+  const LoyaltyLedgerSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      customerId: { type: String, required: true, index: true },
+      orderId: { type: String, default: null, index: true },
+      orderNumber: { type: String, default: null },
+      transactionType: {
+        type: String,
+        enum: ['earned', 'redeemed', 'reversed', 'expired', 'adjustment', 'opening_balance'],
+        required: true,
+        index: true,
+      },
+      pointsDelta: { type: Number, required: true },
+      balanceAfter: { type: Number, required: true },
+      reversalDeficit: { type: Number, default: 0 },
+      deficitOffset: { type: Number, default: 0 },
+      status: {
+        type: String,
+        enum: ['posted', 'pending', 'cancelled'],
+        default: 'posted',
+        index: true,
+      },
+      reason: { type: String, default: '' },
+      relatedTransactionId: { type: String, default: null, index: true },
+      idempotencyKey: { type: String, required: true, index: true },
+      createdAt: { type: String, required: true, index: true },
+    },
+    baseOpts
+  );
+  LoyaltyLedgerSchema.index({ customerId: 1, idempotencyKey: 1 }, { unique: true });
+  LoyaltyLedgerSchema.index({ customerId: 1, createdAt: -1 });
+
+  const PaymentWebhookEventSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      eventId: { type: String, required: true, index: true },
+      gateway: { type: String, required: true, index: true },
+      eventType: { type: String, required: true, index: true },
+      orderNumber: { type: String, default: null, index: true },
+      amount: { type: Number, default: null },
+      status: {
+        type: String,
+        enum: ['received', 'processing', 'processed', 'ignored', 'failed'],
+        default: 'received',
+        index: true,
+      },
+      processingStartedAt: { type: String, default: null },
+      retryCount: { type: Number, default: 0 },
+      payload: { type: Schema.Types.Mixed, default: {} },
+      error: { type: String, default: null },
+      receivedAt: { type: String, required: true, index: true },
+      processedAt: { type: String, default: null },
+    },
+    baseOpts
+  );
+  PaymentWebhookEventSchema.index({ gateway: 1, eventId: 1 }, { unique: true });
+  PaymentWebhookEventSchema.index({ status: 1, receivedAt: 1 });
+
   function getOrCompile<T>(name: string, schema: Schema<T>): Model<T> {
     return (conn.models[name] as Model<T>) || conn.model<T>(name, schema);
   }
@@ -999,6 +1216,12 @@ function createModels(conn: Connection) {
     BusinessSetting: getOrCompile('BusinessSetting', BusinessSettingSchema),
     WebsiteSetting: getOrCompile('WebsiteSetting', WebsiteSettingSchema),
     AuditLog: getOrCompile('AuditLog', AuditLogSchema),
+    IdempotencyRecord: getOrCompile('IdempotencyRecord', IdempotencyRecordSchema),
+    CouponReservation: getOrCompile('CouponReservation', CouponReservationSchema),
+    InventoryOperation: getOrCompile('InventoryOperation', InventoryOperationSchema),
+    RefundOperation: getOrCompile('RefundOperation', RefundOperationSchema),
+    LoyaltyLedger: getOrCompile('LoyaltyLedger', LoyaltyLedgerSchema),
+    PaymentWebhookEvent: getOrCompile('PaymentWebhookEvent', PaymentWebhookEventSchema),
   };
 }
 
@@ -1008,6 +1231,7 @@ export interface MongoDatabase {
   conn: Connection;
   models: MongoModels;
   close: () => Promise<void>;
+  isReplicaSet: boolean;
 }
 
 export async function connectDatabase(mongoUri: string): Promise<MongoDatabase> {
@@ -1022,9 +1246,21 @@ export async function connectDatabase(mongoUri: string): Promise<MongoDatabase> 
   const models = createModels(conn);
   await Promise.all(Object.values(models).map(m => m.syncIndexes().catch(() => { })));
 
+  let isReplicaSet = false;
+  try {
+    const adminDb = conn.db?.admin();
+    if (adminDb) {
+      const serverStatus = await adminDb.command({ hello: 1 }).catch(() => null);
+      isReplicaSet = Boolean(serverStatus?.setName || serverStatus?.hosts || serverStatus?.isreplicaset);
+    }
+  } catch {
+    isReplicaSet = false;
+  }
+
   return {
     conn,
     models,
+    isReplicaSet,
     async close() {
       await conn.close();
     },
@@ -1115,8 +1351,8 @@ export async function syncInventoryRecord(db: MongoDatabase, productId: string):
     prod.unit === 'ml'
       ? parseWeightGrams(String(prod.weightLabel || '100ml')) || 100
       : prod.unit === 'gram'
-      ? parseWeightGrams(String(prod.weightLabel || '1g')) || 1
-      : 1;
+        ? parseWeightGrams(String(prod.weightLabel || '1g')) || 1
+        : 1;
   const valuation = Math.round((stockQuantity / baseUnitsPerPack) * purchaseCost);
   await db.models.Inventory.updateOne(
     { productId },
@@ -1136,6 +1372,22 @@ export async function syncInventoryRecord(db: MongoDatabase, productId: string):
     },
     { upsert: true }
   );
+}
+
+export async function syncAllIndexes(
+  db: MongoDatabase
+): Promise<{ synced: string[]; errors: Array<{ model: string; error: string }> }> {
+  const synced: string[] = [];
+  const errors: Array<{ model: string; error: string }> = [];
+  for (const [name, model] of Object.entries(db.models)) {
+    try {
+      await (model as any).syncIndexes();
+      synced.push(name);
+    } catch (err: any) {
+      errors.push({ model: name, error: err?.message || String(err) });
+    }
+  }
+  return { synced, errors };
 }
 
 export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promise<void> {
@@ -1255,20 +1507,20 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
   // 4. Seed Storefront Catalog Products, Weight Variants & Inventory (safe upsert for new catalog additions, skipping permanently deleted IDs)
   const futureExpiry = new Date(Date.now() + 270 * 86400_000).toISOString().slice(0, 10);
   for (const p of PRODUCTS_SEED) {
-      if (deletedProductIds.has(p.id)) continue;
-      const meta = PRODUCT_CATEGORY_MAP[p.id] || {
-        catId: 'cat_other',
-        sku: `AS-${p.id.toUpperCase()}`,
-        purchasePrice: Math.round(p.price * 0.65),
-        stock: 25,
-        minAlert: 5,
-      };
-      const isFeatured = ['kaju', 'badam', 'kesar'].includes(p.id);
-      const gallery = p.gallery || [p.image];
+    if (deletedProductIds.has(p.id)) continue;
+    const meta = PRODUCT_CATEGORY_MAP[p.id] || {
+      catId: 'cat_other',
+      sku: `AS-${p.id.toUpperCase()}`,
+      purchasePrice: Math.round(p.price * 0.65),
+      stock: 25,
+      minAlert: 5,
+    };
+    const isFeatured = ['kaju', 'badam', 'kesar'].includes(p.id);
+    const gallery = p.gallery || [p.image];
 
-      const resolvedWeightLabel =
-        p.weightLabel || (p.unit === 'gram' ? '1g' : p.unit === 'ml' ? '100ml' : p.unit === 'piece' ? '1 Piece' : '1kg');
-      const initialSeedStock = includeDemoSeed ? meta.stock : 0;
+    const resolvedWeightLabel =
+      p.weightLabel || (p.unit === 'gram' ? '1g' : p.unit === 'ml' ? '100ml' : p.unit === 'piece' ? '1 Piece' : '1kg');
+    const initialSeedStock = includeDemoSeed ? meta.stock : 0;
 
       await models.Product.updateOne(
         { id: p.id },
@@ -1283,7 +1535,7 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
             purchasePrice: meta.purchasePrice,
             price: p.price,
             discountPrice: null,
-            gstRate: 5,
+            gstRate: 0,
             stock: initialSeedStock,
             minStockAlert: meta.minAlert,
             unit: p.unit,
@@ -1319,140 +1571,140 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         { upsert: true }
       );
 
-      // Sync product image and gallery to seed
-      await models.Product.updateOne(
-        { id: p.id },
-        {
-          $set: {
-            image: p.image,
-            images: gallery,
-            gallery,
-            fallbackImage: p.fallbackImage || null,
-            updatedAt: now,
-          },
-        }
-      );
+    // Sync product image and gallery to seed
+    await models.Product.updateOne(
+      { id: p.id },
+      {
+        $set: {
+          image: p.image,
+          images: gallery,
+          gallery,
+          fallbackImage: p.fallbackImage || null,
+          updatedAt: now,
+        },
+      }
+    );
 
-      const basePackUnits =
-        p.unit === 'piece'
-          ? parsePackPieces(resolvedWeightLabel)
-          : p.unit === 'gram'
+    const basePackUnits =
+      p.unit === 'piece'
+        ? parsePackPieces(resolvedWeightLabel)
+        : p.unit === 'gram'
           ? parseWeightGrams(resolvedWeightLabel) || 1
           : p.unit === 'ml'
-          ? parseWeightGrams(resolvedWeightLabel) || 100
-          : 1;
+            ? parseWeightGrams(resolvedWeightLabel) || 100
+            : 1;
 
-      const weights =
-        p.unit === 'piece'
-          ? (Array.isArray(p.variants) && p.variants.length > 0 ? p.variants : [resolvedWeightLabel]).map(label => {
-              const pcs = parsePackPieces(label);
-              return { label, mult: pcs / basePackUnits, units: pcs };
+    const weights =
+      p.unit === 'piece'
+        ? (Array.isArray(p.variants) && p.variants.length > 0 ? p.variants : [resolvedWeightLabel]).map(label => {
+          const pcs = parsePackPieces(label);
+          return { label, mult: pcs / basePackUnits, units: pcs };
+        })
+        : p.unit === 'gram' && basePackUnits > 1 && Array.isArray(p.variants) && p.variants.length > 0
+          ? p.variants
+            .map(label => {
+              const grams = parseWeightGrams(label);
+              return grams ? { label, mult: grams / basePackUnits, units: grams } : null;
             })
-          : p.unit === 'gram' && basePackUnits > 1 && Array.isArray(p.variants) && p.variants.length > 0
-          ? p.variants
-              .map(label => {
-                const grams = parseWeightGrams(label);
-                return grams ? { label, mult: grams / basePackUnits, units: grams } : null;
-              })
-              .filter((w): w is { label: string; mult: number; units: number } => Boolean(w))
+            .filter((w): w is { label: string; mult: number; units: number } => Boolean(w))
           : p.unit === 'gram'
-          ? [
-            { label: '1g', mult: 1, units: 1 },
-            { label: '2g', mult: 2, units: 2 },
-            { label: '5g', mult: 5, units: 5 },
-          ]
-          : p.unit === 'ml' && basePackUnits !== 100 && Array.isArray(p.variants) && p.variants.length > 0
-          ? p.variants
-              .map(label => {
-                const ml = parseWeightGrams(label);
-                return ml ? { label, mult: ml / basePackUnits, units: ml } : null;
-              })
-              .filter((w): w is { label: string; mult: number; units: number } => Boolean(w))
-          : p.unit === 'ml'
-          ? [
-            { label: '100ml', mult: 1, units: 100 },
-            { label: '250ml', mult: 2.5, units: 250 },
-            { label: '500ml', mult: 5, units: 500 },
-            { label: '1000ml', mult: 10, units: 1000 },
-          ]
-          : Array.isArray(p.variants) && p.variants.includes('100g')
-          ? [
-            { label: '100g', mult: 0.1, units: 0.1 },
-            { label: '250g', mult: 0.25, units: 0.25 },
-            { label: '500g', mult: 0.5, units: 0.5 },
-            { label: '1kg', mult: 1, units: 1 },
-          ]
-          : [
-            { label: '250g', mult: 0.25, units: 0.25 },
-            { label: '500g', mult: 0.5, units: 0.5 },
-            { label: '1kg', mult: 1, units: 1 },
-          ];
+            ? [
+              { label: '1g', mult: 1, units: 1 },
+              { label: '2g', mult: 2, units: 2 },
+              { label: '5g', mult: 5, units: 5 },
+            ]
+            : p.unit === 'ml' && basePackUnits !== 100 && Array.isArray(p.variants) && p.variants.length > 0
+              ? p.variants
+                .map(label => {
+                  const ml = parseWeightGrams(label);
+                  return ml ? { label, mult: ml / basePackUnits, units: ml } : null;
+                })
+                .filter((w): w is { label: string; mult: number; units: number } => Boolean(w))
+              : p.unit === 'ml'
+                ? [
+                  { label: '100ml', mult: 1, units: 100 },
+                  { label: '250ml', mult: 2.5, units: 250 },
+                  { label: '500ml', mult: 5, units: 500 },
+                  { label: '1000ml', mult: 10, units: 1000 },
+                ]
+                : Array.isArray(p.variants) && p.variants.includes('100g')
+                  ? [
+                    { label: '100g', mult: 0.1, units: 0.1 },
+                    { label: '250g', mult: 0.25, units: 0.25 },
+                    { label: '500g', mult: 0.5, units: 0.5 },
+                    { label: '1kg', mult: 1, units: 1 },
+                  ]
+                  : [
+                    { label: '250g', mult: 0.25, units: 0.25 },
+                    { label: '500g', mult: 0.5, units: 0.5 },
+                    { label: '1kg', mult: 1, units: 1 },
+                  ];
 
-      for (const w of weights) {
-        const varId = `var_${p.id}_${w.label}`;
-        await models.ProductVariant.updateOne(
-          { id: varId },
-          {
-            $setOnInsert: {
-              id: varId,
-              productId: p.id,
-              weightLabel: w.label,
-              sku: `${meta.sku}-${w.label.toUpperCase()}`,
-              purchasePrice: Math.round(meta.purchasePrice * w.mult),
-              sellingPrice: Math.round(p.price * w.mult),
-              stock: !includeDemoSeed
-                ? 0
-                : p.unit === 'ml' || (p.unit === 'gram' && basePackUnits > 1) || p.unit === 'piece'
-                ? Math.max(1, Math.floor(initialSeedStock / w.units))
-                : Math.max(5, Math.round(initialSeedStock / 2)),
-              active: true,
-              createdAt: now,
-              updatedAt: now,
-            },
-          },
-          { upsert: true }
-        );
-      }
-
-      const initValuation = Math.round((initialSeedStock / basePackUnits) * meta.purchasePrice);
-
-      await models.Inventory.updateOne(
-        { productId: p.id },
+    for (const w of weights) {
+      const varId = `var_${p.id}_${w.label}`;
+      await models.ProductVariant.updateOne(
+        { id: varId },
         {
           $setOnInsert: {
-            id: `inv_${p.id}`,
+            id: varId,
             productId: p.id,
-            sku: meta.sku,
-            stockQuantity: initialSeedStock,
-            minStockAlert: meta.minAlert,
-            purchaseCost: meta.purchasePrice,
-            valuation: initValuation,
+            weightLabel: w.label,
+            sku: `${meta.sku}-${w.label.toUpperCase()}`,
+            purchasePrice: Math.round(meta.purchasePrice * w.mult),
+            sellingPrice: Math.round(p.price * w.mult),
+            stock: !includeDemoSeed
+              ? 0
+              : p.unit === 'ml' || (p.unit === 'gram' && basePackUnits > 1) || p.unit === 'piece'
+                ? Math.max(1, Math.floor(initialSeedStock / w.units))
+                : Math.max(5, Math.round(initialSeedStock / 2)),
+            active: true,
+            createdAt: now,
             updatedAt: now,
           },
         },
         { upsert: true }
       );
-
-      if (includeDemoSeed) {
-        await models.InventoryBatch.updateOne(
-          { id: `batch_${p.id}_init` },
-          {
-            $setOnInsert: {
-              id: `batch_${p.id}_init`,
-              productId: p.id,
-              batchNumber: `JMU-2026-${p.id.slice(0, 3).toUpperCase()}`,
-              quantity: meta.stock,
-              remainingQty: meta.stock,
-              purchaseCost: meta.purchasePrice,
-              expiryDate: futureExpiry,
-              notes: 'Opening Jammu cellar harvest stock',
-              receivedAt: now,
-            },
-          },
-          { upsert: true }
-        );
-      }
     }
+
+    const initValuation = Math.round((initialSeedStock / basePackUnits) * meta.purchasePrice);
+
+    await models.Inventory.updateOne(
+      { productId: p.id },
+      {
+        $setOnInsert: {
+          id: `inv_${p.id}`,
+          productId: p.id,
+          sku: meta.sku,
+          stockQuantity: initialSeedStock,
+          minStockAlert: meta.minAlert,
+          purchaseCost: meta.purchasePrice,
+          valuation: initValuation,
+          updatedAt: now,
+        },
+      },
+      { upsert: true }
+    );
+
+    if (includeDemoSeed) {
+      await models.InventoryBatch.updateOne(
+        { id: `batch_${p.id}_init` },
+        {
+          $setOnInsert: {
+            id: `batch_${p.id}_init`,
+            productId: p.id,
+            batchNumber: `JMU-2026-${p.id.slice(0, 3).toUpperCase()}`,
+            quantity: meta.stock,
+            remainingQty: meta.stock,
+            purchaseCost: meta.purchasePrice,
+            expiryDate: futureExpiry,
+            notes: 'Opening Jammu cellar harvest stock',
+            receivedAt: now,
+          },
+        },
+        { upsert: true }
+      );
+    }
+  }
 
   // Repair any gram-unit product whose base price was saved at its 1kg variant rate while weightLabel stayed '1g'
   const mismatchedGramProducts = await models.Product.find({
@@ -1643,6 +1895,26 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         createdAt: now,
         updatedAt: now,
       });
+
+      await models.LoyaltyLedger.updateOne(
+        { id: 'loyalty_seed_demo_vikram' },
+        {
+          $setOnInsert: {
+            id: 'loyalty_seed_demo_vikram',
+            customerId: 'cust_demo_vikram',
+            orderId: null,
+            orderNumber: null,
+            transactionType: 'opening_balance',
+            pointsDelta: 350,
+            balanceAfter: 350,
+            status: 'posted',
+            reason: 'Opening legacy patronage points',
+            idempotencyKey: 'seed_opening_demo_vikram',
+            createdAt: now,
+          },
+        },
+        { upsert: true }
+      );
 
       await models.CustomerAddress.updateOne(
         { id: 'addr_demo_vikram' },

@@ -436,7 +436,13 @@ export function createAccountRouter(
     const now = new Date().toISOString();
 
     const existingCount = await db.models.CustomerAddress.countDocuments({ customerId: req.user!.id });
-    const shouldBeDefault = Boolean(data.isDefault) || existingCount === 0;
+    if (existingCount > 0) {
+      res.status(400).json({
+        error: 'You already have a registered shipping address. To update your address, you must delete your existing address first.',
+      });
+      return;
+    }
+    const shouldBeDefault = true;
 
     if (shouldBeDefault) {
       await db.models.CustomerAddress.updateMany(
@@ -471,57 +477,10 @@ export function createAccountRouter(
     res.status(201).json({ address: created.toObject(), user });
   });
 
-  router.put('/addresses/:id', async (req, res) => {
-    const existing = await db.models.CustomerAddress.findOne({
-      id: req.params.id,
-      customerId: req.user!.id,
-    }).lean();
-    if (!existing) {
-      res.status(404).json({ error: 'Address not found.' });
-      return;
-    }
-    const parsed = addressSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid address data' });
-      return;
-    }
-    const data = parsed.data;
-    const now = new Date().toISOString();
-
-    if (data.isDefault) {
-      await db.models.CustomerAddress.updateMany(
-        { customerId: req.user!.id },
-        { $set: { isDefault: false } }
-      );
-    }
-
-    const finalAddressLine = data.addressLine || [data.houseFlat, data.streetArea].filter(Boolean).join(', ');
-    const finalHouseFlat = data.houseFlat || finalAddressLine.split(',')[0]?.trim() || '';
-    const finalStreetArea = data.streetArea || finalAddressLine.split(',').slice(1).join(', ')?.trim() || '';
-
-    const updated = await db.models.CustomerAddress.findOneAndUpdate(
-      { id: req.params.id, customerId: req.user!.id },
-      {
-        $set: {
-          label: data.label,
-          fullName: data.fullName,
-          phone: normalizeMobile(data.phone),
-          houseFlat: finalHouseFlat,
-          streetArea: finalStreetArea,
-          addressLine: finalAddressLine,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          country: data.country || 'India',
-          isDefault: Boolean(data.isDefault),
-          updatedAt: now,
-        },
-      },
-      { new: true }
-    ).lean();
-
-    const user = await getCustomerWithDefaultAddress(db, req.user!.id);
-    res.json({ address: updated, user });
+  router.put('/addresses/:id', async (_req, res) => {
+    res.status(400).json({
+      error: 'Direct address editing is disabled. Please delete your current address first and register your new shipping address.',
+    });
   });
 
   router.delete('/addresses/:id', async (req, res) => {

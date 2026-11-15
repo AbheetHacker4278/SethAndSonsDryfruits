@@ -458,11 +458,10 @@ export default function Account({ onReorder }: AccountProps) {
               <button
                 key={item.id}
                 onClick={() => switchTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                  active
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${active
                     ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40 shadow-sm'
                     : 'bg-[#150d09] text-[#d5c4b4] border border-[#38281d]'
-                }`}
+                  }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
@@ -902,13 +901,6 @@ export default function Account({ onReorder }: AccountProps) {
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleStartEditAddress(a)}
-                                className="p-1 rounded-lg hover:bg-[#2a1a12] text-[#d5c4b4]/70 hover:text-[#dfc471] cursor-pointer"
-                                title="Edit address"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
                                 onClick={() => handleDeleteAddress(a.id)}
                                 className="p-1 rounded-lg hover:bg-red-950/40 text-red-400/70 hover:text-red-400 cursor-pointer"
                                 title="Delete address"
@@ -947,166 +939,181 @@ export default function Account({ onReorder }: AccountProps) {
                 )}
               </div>
 
-              {/* Add / Edit Form */}
-              <form onSubmit={handleSaveAddress} className="bg-[#150d09] border border-[#38281d] rounded-3xl p-6 sm:p-8 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="font-serif text-xl text-[#f9f6f2] flex items-center gap-2">
-                    {editingAddressId ? <Edit2 className="w-4 h-4 text-[#dfc471]" /> : <Plus className="w-4 h-4 text-[#dfc471]" />}
-                    <span>{editingAddressId ? 'Edit Shipping Address' : 'Add New Shipping Address'}</span>
-                  </h3>
-                  {editingAddressId && (
+              {/* Single Address Policy: Show Add Form only when no address exists; otherwise show policy card */}
+              {addresses.length === 0 ? (
+                <form onSubmit={handleSaveAddress} className="bg-[#150d09] border border-[#38281d] rounded-3xl p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h3 className="font-serif text-xl text-[#f9f6f2] flex items-center gap-2">
+                      <Plus className="w-4 h-4 text-[#dfc471]" />
+                      <span>Add New Shipping Address</span>
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Address Label *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.label}
+                        onChange={e => setAddrForm({ ...addrForm, label: e.target.value })}
+                        placeholder="Home / Office / Other"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Recipient Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.fullName}
+                        onChange={e => setAddrForm({ ...addrForm, fullName: e.target.value })}
+                        placeholder="Full Name"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Mobile Number (10 digits) *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={addrForm.phone}
+                        onChange={e => setAddrForm({ ...addrForm, phone: e.target.value })}
+                        placeholder="9876543210"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">House Number / Flat Number *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.houseFlat}
+                        onChange={e => setAddrForm({ ...addrForm, houseFlat: e.target.value })}
+                        placeholder="Flat 402, Krishna Tower / Plot 45"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Street / Area / Locality *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.streetArea}
+                        onChange={e => setAddrForm({ ...addrForm, streetArea: e.target.value })}
+                        placeholder="Vesu Main Road, Near City Mall"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">City *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.city}
+                        onChange={e => setAddrForm({ ...addrForm, city: e.target.value })}
+                        placeholder="Surat"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">State *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.state}
+                        onChange={e => setAddrForm({ ...addrForm, state: e.target.value })}
+                        placeholder="Gujarat"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">PIN Code (6 digits) *</label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={addrForm.pincode}
+                        onChange={e => setAddrForm({ ...addrForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                        placeholder="395007"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Country *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.country}
+                        onChange={e => setAddrForm({ ...addrForm, country: e.target.value })}
+                        placeholder="India"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between flex-wrap gap-3">
+                    <label className="flex items-center gap-2 text-xs text-[#d5c4b4] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addrForm.isDefault}
+                        onChange={e => setAddrForm({ ...addrForm, isDefault: e.target.checked })}
+                        className="accent-[#dfc471]"
+                      />
+                      <span>Set as primary default shipping address</span>
+                    </label>
+
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#dfc471] text-[#0d0805] hover:brightness-110 cursor-pointer transition-all shadow-md"
+                    >
+                      Save Shipping Address
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="bg-[#150d09] border border-[#38281d] rounded-3xl p-6 sm:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[#dfc471]">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg text-[#f9f6f2]">Single Saved Address Policy</h3>
+                      <p className="text-xs text-[#d5c4b4]/60">One verified shipping destination per patron account</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d]/80 text-xs text-[#d5c4b4]/85 leading-relaxed space-y-2">
+                    <p>
+                      Under our Single Address Policy, your account maintains one primary shipping address. If you wish to update or change to a new delivery address, please delete your current saved address first.
+                    </p>
+                    <p className="text-[11px] text-[#d5c4b4]/60">
+                      This ensures accurate regional delivery fulfillment and will automatically deliver to your saved default address.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => {
-                        setEditingAddressId(null);
-                        setAddrForm({
-                          label: 'Home',
-                          fullName: user?.name || '',
-                          phone: user?.phone || '',
-                          houseFlat: '',
-                          streetArea: '',
-                          city: '',
-                          state: '',
-                          pincode: '',
-                          country: 'India',
-                          isDefault: false,
-                        });
+                        if (window.confirm('Are you sure you want to delete your current address to add a new address?')) {
+                          handleDeleteAddress(addresses[0].id);
+                        }
                       }}
-                      className="text-xs text-[#d5c4b4]/60 hover:text-[#f9f6f2] underline cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold bg-red-950/60 border border-red-500/40 text-red-300 hover:bg-red-900/60 transition-all cursor-pointer"
                     >
-                      Cancel Editing
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Current Address to Add New Address</span>
                     </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Address Label *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.label}
-                      onChange={e => setAddrForm({ ...addrForm, label: e.target.value })}
-                      placeholder="Home / Office / Other"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Recipient Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.fullName}
-                      onChange={e => setAddrForm({ ...addrForm, fullName: e.target.value })}
-                      placeholder="Full Name"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Mobile Number (10 digits) *</label>
-                    <input
-                      type="tel"
-                      required
-                      value={addrForm.phone}
-                      onChange={e => setAddrForm({ ...addrForm, phone: e.target.value })}
-                      placeholder="9876543210"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">House Number / Flat Number *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.houseFlat}
-                      onChange={e => setAddrForm({ ...addrForm, houseFlat: e.target.value })}
-                      placeholder="Flat 402, Krishna Tower / Plot 45"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Street / Area / Locality *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.streetArea}
-                      onChange={e => setAddrForm({ ...addrForm, streetArea: e.target.value })}
-                      placeholder="Vesu Main Road, Near City Mall"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">City *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.city}
-                      onChange={e => setAddrForm({ ...addrForm, city: e.target.value })}
-                      placeholder="Surat"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">State *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.state}
-                      onChange={e => setAddrForm({ ...addrForm, state: e.target.value })}
-                      placeholder="Gujarat"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">PIN Code (6 digits) *</label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={addrForm.pincode}
-                      onChange={e => setAddrForm({ ...addrForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                      placeholder="395007"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] uppercase tracking-wider text-[#d5c4b4]/70 mb-1">Country *</label>
-                    <input
-                      type="text"
-                      required
-                      value={addrForm.country}
-                      onChange={e => setAddrForm({ ...addrForm, country: e.target.value })}
-                      placeholder="India"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between flex-wrap gap-3">
-                  <label className="flex items-center gap-2 text-xs text-[#d5c4b4] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={addrForm.isDefault}
-                      onChange={e => setAddrForm({ ...addrForm, isDefault: e.target.checked })}
-                      className="accent-[#dfc471]"
-                    />
-                    <span>Set as primary default shipping address</span>
-                  </label>
-
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#dfc471] text-[#0d0805] hover:brightness-110 cursor-pointer transition-all shadow-md"
-                  >
-                    {editingAddressId ? 'Update Shipping Address' : 'Save Shipping Address'}
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
           )}
 

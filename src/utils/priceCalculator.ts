@@ -43,27 +43,45 @@ export function adjustProductPricingForMargin<T extends CatalogProduct | Product
   product: T,
   marginPercent: number
 ): T {
+  // If the product and its variants already have the target profit margin applied, return as-is
+  if (product.appliedProfitMargin === marginPercent) {
+    return product;
+  }
+
   const baseCost = getProductBaseCost(product);
   const adjustedPrice = calculateDynamicSellingPrice(baseCost, marginPercent);
+  const sourceMargin = typeof product.appliedProfitMargin === 'number' && product.appliedProfitMargin > 0
+    ? product.appliedProfitMargin
+    : 40;
+  const discountMultiplier = 1 + sourceMargin / 100;
   const adjustedDiscount =
     product.discountPrice && product.discountPrice > 0
-      ? calculateDynamicSellingPrice(Math.round(product.discountPrice / 1.40), marginPercent)
+      ? calculateDynamicSellingPrice(Math.round(product.discountPrice / discountMultiplier), marginPercent)
       : null;
 
   const adjustedVariants = product.weightVariants?.map(v => {
+    if (v.appliedProfitMargin === marginPercent) {
+      return v;
+    }
     const vBaseCost = getVariantBaseCost(v);
+    const vSourceMargin = typeof v.appliedProfitMargin === 'number' && v.appliedProfitMargin > 0
+      ? v.appliedProfitMargin
+      : sourceMargin;
+    const vDiscountMultiplier = 1 + vSourceMargin / 100;
     return {
       ...v,
+      appliedProfitMargin: marginPercent,
       sellingPrice: calculateDynamicSellingPrice(vBaseCost, marginPercent),
       discountPrice:
         v.discountPrice && v.discountPrice > 0
-          ? calculateDynamicSellingPrice(Math.round(v.discountPrice / 1.40), marginPercent)
+          ? calculateDynamicSellingPrice(Math.round(v.discountPrice / vDiscountMultiplier), marginPercent)
           : null,
     };
   });
 
   return {
     ...product,
+    appliedProfitMargin: marginPercent,
     price: adjustedPrice,
     discountPrice: adjustedDiscount,
     weightVariants: adjustedVariants,

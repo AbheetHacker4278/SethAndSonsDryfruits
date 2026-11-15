@@ -1,6 +1,10 @@
-import { PDFViewer } from '@embedpdf/viewer-react';
+import { lazy, Suspense } from 'react';
 import { ExternalLink, FileText, X } from 'lucide-react';
 import { AdminModal } from './AdminUI';
+
+const LazyPDFViewer = lazy(() =>
+  import('@embedpdf/viewer-react').then((mod) => ({ default: mod.PDFViewer }))
+);
 
 export function adminPdfFetch(url: string, init?: RequestInit): Promise<Response> {
   const isSameOriginApi =
@@ -56,13 +60,22 @@ export function AdminPdfCanvas({
 }) {
   return (
     <div className={className}>
-      <PDFViewer
-        key={src}
-        src={src}
-        theme="light"
-        fetch={adminPdfFetch}
-        style={{ width: '100%', height: '100%', display: 'block' }}
-      />
+      <Suspense
+        fallback={
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#F8F6F0] text-[#183D32] gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-[#183D32] border-t-transparent animate-spin" />
+            <span className="text-xs uppercase tracking-wider font-semibold">Loading Secure Document Engine...</span>
+          </div>
+        }
+      >
+        <LazyPDFViewer
+          key={src}
+          src={src}
+          theme="light"
+          fetch={adminPdfFetch}
+          style={{ width: '100%', height: '100%', display: 'block' }}
+        />
+      </Suspense>
     </div>
   );
 }

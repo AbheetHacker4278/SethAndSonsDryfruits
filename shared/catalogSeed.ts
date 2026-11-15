@@ -17,6 +17,7 @@ export interface ProductWeightVariant {
   discountPrice?: number | null;
   stock: number;
   active: boolean;
+  appliedProfitMargin?: number;
 }
 
 export interface Product {
@@ -27,6 +28,7 @@ export interface Product {
   sku?: string;
   price: number;
   discountPrice?: number | null;
+  appliedProfitMargin?: number;
   stock?: number;
   unit: 'kg' | 'gram' | 'ml' | 'piece';
   weightLabel?: string;
@@ -166,7 +168,7 @@ export function getCustomerProfitMargin(city?: string | null, isRegistered: bool
 /**
  * Determine location-based shipping fee:
  * - Surat, Gujarat: ₹0 (Free Shipping)
- * - All other cities: Free if cart value > ₹5000, otherwise ₹158 fixed fee
+ * - All other destinations: Flat ₹158 fixed fee (Free shipping on orders above ₹5,000)
  */
 export function getLocationShippingFee(city?: string | null, cartValue: number = 0): number {
   if (isSuratCity(city)) {
@@ -181,21 +183,27 @@ export function getLocationShippingFee(city?: string | null, cartValue: number =
 /**
  * Get base cost price of a product (before any margin is applied)
  */
-export function getProductBaseCost(product: { purchasePrice?: number; price: number }): number {
+export function getProductBaseCost(product: { purchasePrice?: number; price: number; appliedProfitMargin?: number }): number {
   if (typeof product.purchasePrice === 'number' && product.purchasePrice > 0) {
     return product.purchasePrice;
   }
-  return Math.round(product.price / 1.40);
+  const sourceMargin = typeof product.appliedProfitMargin === 'number' && product.appliedProfitMargin > 0
+    ? product.appliedProfitMargin
+    : 40;
+  return Math.round(product.price / (1 + sourceMargin / 100));
 }
 
 /**
  * Get base cost price of a product weight variant (before margin)
  */
-export function getVariantBaseCost(variant: { purchasePrice?: number; sellingPrice: number }): number {
+export function getVariantBaseCost(variant: { purchasePrice?: number; sellingPrice: number; appliedProfitMargin?: number }): number {
   if (typeof variant.purchasePrice === 'number' && variant.purchasePrice > 0) {
     return variant.purchasePrice;
   }
-  return Math.round(variant.sellingPrice / 1.40);
+  const sourceMargin = typeof variant.appliedProfitMargin === 'number' && variant.appliedProfitMargin > 0
+    ? variant.appliedProfitMargin
+    : 40;
+  return Math.round(variant.sellingPrice / (1 + sourceMargin / 100));
 }
 
 /**
@@ -210,7 +218,7 @@ export function calculateDynamicSellingPrice(baseCost: number, marginPercent: nu
 /**
  * Calculate order/cart shipping charge:
  * - Customers from Surat, Gujarat: ₹0 (Free Shipping)
- * - Customers from all other cities: ₹158 fixed shipping fee, or ₹0 (Free Shipping) if cart value is above ₹5000
+ * - Customers from all other destinations: Flat ₹158 fixed shipping fee
  */
 export function calculateOrderShippingCharge(
   items: Array<{
@@ -234,7 +242,10 @@ export function calculateOrderShippingCharge(
     return getLocationShippingFee(options.shippingCity, netAfterDiscount);
   }
 
-  return netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD ? 0 : OTHER_CITY_SHIPPING_FEE;
+  if (netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD) {
+    return 0;
+  }
+  return OTHER_CITY_SHIPPING_FEE;
 }
 
 export const PRODUCTS_SEED: CatalogProduct[] = [

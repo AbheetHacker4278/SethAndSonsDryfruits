@@ -18,6 +18,7 @@ import { createEmailTransport, EmailTransport } from '../services/emailProvider.
 import { EmailQueueService } from '../services/emailQueue.ts';
 import { runSystemPreflight } from '../services/preflightService.ts';
 import { hashToken, normalizeEmail, verifyHmacSignature } from '../utils/crypto.ts';
+import { CacheService, createCacheService } from '../services/cacheService.ts';
 
 function parseProductRow(row: Record<string, any>) {
   const safeArr = (val: unknown, fallback: unknown[] = []) => {
@@ -56,7 +57,7 @@ function parseProductRow(row: Record<string, any>) {
     purchasePrice: Number(row.purchasePrice || 0),
     price: Number(row.price),
     discountPrice: row.discountPrice ? Number(row.discountPrice) : null,
-    gstRate: Number(row.gstRate ?? 5),
+    gstRate: Number(row.gstRate ?? 0),
     stock: Number(row.stock ?? 0),
     minStockAlert: Number(row.minStockAlert ?? 5),
     unit: row.unit,
@@ -92,11 +93,16 @@ function parseProductRow(row: Record<string, any>) {
 let cachedSettings: { data: any; expiresAt: number } | null = null;
 let cachedCategories: { data: any; expiresAt: number } | null = null;
 let cachedProducts: { data: any; expiresAt: number } | null = null;
+let activeCacheService: CacheService | null = null;
 
-export function invalidatePublicCache() {
+export function invalidatePublicCache(cache?: CacheService) {
   cachedSettings = null;
   cachedCategories = null;
   cachedProducts = null;
+  const targetCache = cache || activeCacheService;
+  if (targetCache) {
+    targetCache.invalidateCatalog().catch(() => {});
+  }
 }
 
 export function createPublicRouter(
@@ -106,9 +112,13 @@ export function createPublicRouter(
     transport?: EmailTransport;
     queue?: EmailQueueService;
     mediaStorage?: MediaStorageService;
+    cache?: CacheService;
   }
 ) {
   const router = Router();
+  const cache = deps?.cache || createCacheService(config);
+  activeCacheService = cache;
+
   const preflightRateLimit = createRateLimiter({
     windowMs: 60 * 1000,
     max: 60,
@@ -117,10 +127,48 @@ export function createPublicRouter(
   const transport = deps?.transport || createEmailTransport(config);
   const mediaStorage = deps?.mediaStorage || createCloudinaryStorage(config);
 
+  // Public Liveness Probe (Kubernetes / Cloud Load Balancers)
+  router.get('/health/live', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Internal Readiness Probe (checks essential service dependencies)
+  router.get('/health/ready', (_req, res) => {
+    const isDbReady = db.conn.readyState === 1;
+    if (!isDbReady) {
+      res.status(503).json({ status: 'unready', database: 'disconnected', timestamp: new Date().toISOString() });
+      return;
+    }
+    res.json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+  });
+
   router.get('/health', (_req, res) => {
+    const isDbConnected = db.conn.readyState === 1;
+    const cacheStats = cache.getStats();
+    const memory = process.memoryUsage();
+
     res.json({
-      status: 'ok',
-      database: db.conn.readyState === 1 ? 'mongodb-connected' : 'mongodb-connecting',
+      status: isDbConnected ? 'ok' : 'degraded',
+      database: isDbConnected ? 'mongodb-connected' : 'mongodb-connecting',
+      databaseState: {
+        status: isDbConnected ? 'mongodb-connected' : 'mongodb-connecting',
+        readyState: db.conn.readyState,
+      },
+      cache: {
+        backend: cacheStats.backend,
+        isRedisConnected: cacheStats.isRedisConnected,
+        hits: cacheStats.hits,
+        misses: cacheStats.misses,
+      },
+      queue: {
+        provider: config.emailProvider,
+        running: deps?.queue ? true : false,
+      },
+      process: {
+        uptimeSeconds: Math.round(process.uptime()),
+        memoryRssMb: Math.round(memory.rss / (1024 * 1024)),
+        memoryHeapUsedMb: Math.round(memory.heapUsed / (1024 * 1024)),
+      },
       emailProvider: config.emailProvider,
       timestamp: new Date().toISOString(),
     });
@@ -143,9 +191,9 @@ export function createPublicRouter(
 
   router.get('/settings/public', async (_req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
-    const now = Date.now();
-    if (cachedSettings && cachedSettings.expiresAt > now) {
-      return res.json(cachedSettings.data);
+    const cached = await cache.get<any>('public:settings');
+    if (cached) {
+      return res.json(cached);
     }
     const website = await getWebsiteSettingsDoc(db);
     const biz = await getBusinessSettingsDoc(db);
@@ -154,22 +202,22 @@ export function createPublicRouter(
       currency: biz.currency || 'INR ₹',
       business: {
         businessName: biz.businessName,
-        defaultGstRate: Number(biz.defaultGstRate ?? 5),
-        defaultShippingCharge: Number(biz.defaultShippingCharge ?? 120),
-        freeShippingThreshold: Number(biz.freeShippingThreshold ?? 5000),
+        defaultGstRate: Number(biz.defaultGstRate ?? 0),
+        defaultShippingCharge: Number(biz.defaultShippingCharge ?? 0),
+        freeShippingThreshold: Number(biz.freeShippingThreshold ?? 0),
         contactNumber: biz.contactNumber,
         businessEmail: biz.businessEmail,
       },
     };
-    cachedSettings = { data, expiresAt: now + 60000 };
+    await cache.set('public:settings', data, 60);
     res.json(data);
   });
 
   router.get('/categories', async (_req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
-    const now = Date.now();
-    if (cachedCategories && cachedCategories.expiresAt > now) {
-      return res.json(cachedCategories.data);
+    const cached = await cache.get<{ categories: any[] }>('public:categories');
+    if (cached) {
+      return res.json(cached);
     }
     const categories = await db.models.Category.find(
       { active: true },
@@ -178,7 +226,7 @@ export function createPublicRouter(
       .sort({ sortOrder: 1, name: 1 })
       .lean();
     const data = { categories };
-    cachedCategories = { data, expiresAt: now + 60000 };
+    await cache.set('public:categories', data, 120);
     res.json(data);
   });
 
@@ -230,7 +278,7 @@ export function createPublicRouter(
             productId: String(v.productId),
             weightLabel: String(v.weightLabel),
             sku: String(v.sku),
-            purchasePrice: vBaseCost,
+            appliedProfitMargin: userMargin,
             sellingPrice: vDynamicPrice,
             discountPrice: vDynamicDiscount,
             stock: Number(v.stock ?? 0),
@@ -238,8 +286,15 @@ export function createPublicRouter(
           };
         });
 
+      const {
+        purchasePrice: _sensitivePurchasePrice,
+        minStockAlert: _sensitiveMinStockAlert,
+        ...publicBase
+      } = base;
+
       return {
-        ...base,
+        ...publicBase,
+        appliedProfitMargin: userMargin,
         price: dynamicPrice,
         discountPrice: dynamicDiscountPrice,
         categoryName: r.categoryId ? catMap.get(String(r.categoryId)) || String(r.category) : String(r.category),

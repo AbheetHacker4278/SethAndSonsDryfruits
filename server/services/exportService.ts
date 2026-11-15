@@ -235,7 +235,7 @@ export function generateOrderInvoicePdf(params: {
     doc.text(params.shippingCharge > 0 ? `Rs. ${params.shippingCharge}` : 'Complimentary', 455, y);
     y += 16;
 
-    doc.text('GST (Taxes):', summaryX, y);
+    doc.text('GST (0%):', summaryX, y);
     doc.text(`Rs. ${params.taxAmount.toLocaleString('en-IN')}`, 455, y);
     y += 20;
 

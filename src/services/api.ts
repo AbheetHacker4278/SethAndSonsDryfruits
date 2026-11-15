@@ -1,4 +1,5 @@
 import type { CatalogProduct } from '../data/products';
+export type { CatalogProduct };
 import type { OrderStatus } from '../types/product';
 
 export interface AddressItem {

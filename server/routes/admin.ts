@@ -17,6 +17,13 @@ import { MediaStorageService } from '../services/cloudinaryService.ts';
 import { EmailTransport } from '../services/emailProvider.ts';
 import { EmailQueueService } from '../services/emailQueue.ts';
 import { CustomerRecord, EmailService, OrderEmailRecord, ShipmentRecord } from '../services/emailService.ts';
+import {
+  calculateLoyaltyPoints,
+  reverseLoyaltyPoints,
+  migrateHistoricalLoyaltyLedger,
+} from '../services/loyaltyService.ts';
+import { recoverStaleWebhookEvents } from './payments.ts';
+import { reconcileFinancials } from '../services/financialReconciliation.ts';
 import { isValidEmail, isValidHttpUrl, normalizeEmail, sanitizeEmailHtml } from '../utils/crypto.ts';
 import { hydrateOrder } from './orders.ts';
 import { parseProductRow } from './public.ts';
@@ -56,6 +63,7 @@ const refundSchema = z.object({
   refundReferenceId: z.string().trim().min(3, 'Refund Reference ID is required').max(120),
   paymentMethod: z.string().trim().min(2).max(80),
   refundBankEta: z.string().trim().max(120).optional().default(''),
+  idempotencyKey: z.string().trim().max(120).optional(),
 });
 
 const ALLOWED_SEGMENTS = [
@@ -86,6 +94,27 @@ export function createAdminRouter(
       return requirePermission('products')(req, res, next);
     }
     return next();
+  });
+
+  // Authenticated Administrative Diagnostics (Internal / Operations Only)
+  router.get('/system/diagnostics', requirePermission('dashboard'), async (_req, res) => {
+    const memory = process.memoryUsage();
+    const isDbConnected = db.conn.readyState === 1;
+    res.json({
+      status: isDbConnected ? 'operational' : 'degraded',
+      nodeVersion: process.version,
+      uptimeSeconds: Math.floor(process.uptime()),
+      memoryUsage: {
+        rssMb: Math.round(memory.rss / (1024 * 1024)),
+        heapUsedMb: Math.round(memory.heapUsed / (1024 * 1024)),
+        heapTotalMb: Math.round(memory.heapTotal / (1024 * 1024)),
+      },
+      database: {
+        readyState: db.conn.readyState,
+        modelsRegistered: Object.keys(db.models).length,
+      },
+      timestamp: new Date().toISOString(),
+    });
   });
 
   async function querySegmentCustomers(segment: string, category?: string | null): Promise<CustomerRecord[]> {
@@ -379,6 +408,9 @@ export function createAdminRouter(
 
     if (targetStatus === 'delivered') {
       updateSet.deliveredAt = now;
+      if (row.paymentStatus === 'pending' || row.paymentStatus === 'unpaid') {
+        updateSet.paymentStatus = 'paid';
+      }
     } else if (targetStatus === 'cancelled') {
       updateSet.cancelledAt = now;
       updateSet.cancellationReason = notes || 'Cancelled by administrator';
@@ -391,8 +423,40 @@ export function createAdminRouter(
     const updated = await db.models.Order.findOneAndUpdate(
       { id: row.id },
       { $set: updateSet },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
+
+    if (targetStatus === 'cancelled' && row.status !== 'cancelled') {
+      const items = await db.models.OrderItem.find({ orderId: row.id }).lean();
+      for (const ci of items) {
+        const restockWeight = Number((ci as any).stockQuantity ?? (ci as any).quantity ?? 1);
+        await db.models.Product.findOneAndUpdate(
+          { id: (ci as any).productId },
+          { $inc: { stock: restockWeight }, $set: { inStock: true, updatedAt: now } },
+          { returnDocument: 'after' }
+        );
+        if ((ci as any).variantId) {
+          await db.models.ProductVariant.updateOne(
+            { id: (ci as any).variantId },
+            { $inc: { stock: (ci as any).quantity }, $set: { active: true, updatedAt: now } }
+          );
+        }
+      }
+
+      if (row.customerId) {
+        const pointsToReverse = calculateLoyaltyPoints(row.totalAmount);
+        if (pointsToReverse > 0) {
+          await reverseLoyaltyPoints(db, {
+            customerId: row.customerId,
+            orderId: row.id,
+            orderNumber: row.orderNumber,
+            pointsToReverse,
+            reason: notes || `Admin cancellation reversal for Order #${row.orderNumber}`,
+            idempotencyKey: `reverse_cancel_${row.id}`,
+          });
+        }
+      }
+    }
 
     await db.models.OrderStatusHistory.create({
       id: `osh_${crypto.randomUUID()}`,
@@ -704,7 +768,7 @@ export function createAdminRouter(
     });
   });
 
-  // Verified Refund Processed
+  // Verified Refund Processed (NEW-SEC-01: Financial Integrity, Cumulative Limit & Concurrency Protection)
   router.post('/orders/:orderNumber/refund', async (req, res) => {
     const parsed = refundSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -713,6 +777,54 @@ export function createAdminRouter(
     }
 
     const { refundAmount, refundReferenceId, paymentMethod, refundBankEta } = parsed.data;
+    const rawKey =
+      req.get('idempotency-key') ||
+      req.get('x-idempotency-key') ||
+      (parsed.data.idempotencyKey ? String(parsed.data.idempotencyKey).trim() : null);
+
+    // 1. Idempotency Check
+    if (rawKey) {
+      const existingRefundOp = await db.models.RefundOperation.findOne({ idempotencyKey: rawKey }).lean();
+      if (existingRefundOp) {
+        if ((existingRefundOp as any).status === 'processing') {
+          res.status(409).json({ error: 'A refund operation with this idempotency key is currently processing.' });
+          return;
+        }
+        if (
+          (existingRefundOp as any).orderNumber !== req.params.orderNumber &&
+          (existingRefundOp as any).orderId !== req.params.orderNumber
+        ) {
+          res.status(409).json({ error: 'Idempotency key reuse across different orders is forbidden.' });
+          return;
+        }
+        if (Math.round(Number((existingRefundOp as any).amount) * 100) !== Math.round(Number(refundAmount) * 100)) {
+          res.status(409).json({ error: 'Idempotency key reuse with different refund amount is forbidden.' });
+          return;
+        }
+        if ((existingRefundOp as any).status === 'succeeded') {
+          const currentOrder = await db.models.Order.findOne({
+            $or: [{ orderNumber: req.params.orderNumber }, { id: req.params.orderNumber }],
+          }).lean();
+          res.status(200).json({
+            message: 'Verified refund recorded and refund notification queued. (idempotent replay)',
+            order: currentOrder ? await hydrateOrder(db, currentOrder as unknown as OrderEmailRecord) : null,
+            refundOperation: existingRefundOp,
+            idempotentReplay: true,
+          });
+          return;
+        }
+        if ((existingRefundOp as any).status === 'reconciliation_required') {
+          res.status(409).json({
+            error: 'Refund operation with this idempotency key requires manual reconciliation before retry.',
+            code: 'REFUND_RECONCILIATION_REQUIRED',
+            refundOperation: existingRefundOp,
+          });
+          return;
+        }
+      }
+    }
+
+    // 2. Order Lookup
     const row = await db.models.Order.findOne({
       $or: [{ orderNumber: req.params.orderNumber }, { id: req.params.orderNumber }],
     }).lean();
@@ -722,47 +834,294 @@ export function createAdminRouter(
       return;
     }
 
+    const totalAmountPaise = Math.round(Number(row.totalAmount || 0) * 100);
+    const requestedPaise = Math.round(Number(refundAmount) * 100);
+
+    // 3. Payment Status Check (Prevent refunding unpaid orders)
+    if (['refunded'].includes(row.paymentStatus)) {
+      res.status(400).json({
+        error: `Order #${row.orderNumber} has already been fully refunded.`,
+        code: 'REFUND_EXCEEDS_CAPTURED_AMOUNT',
+        totalCaptured: Number((totalAmountPaise / 100).toFixed(2)),
+        alreadyRefunded: Number((totalAmountPaise / 100).toFixed(2)),
+        remainingRefundable: 0,
+      });
+      return;
+    }
+
+    const isCaptured =
+      ['paid', 'partially_refunded'].includes(row.paymentStatus) ||
+      row.status === 'delivered';
+
+    if (!isCaptured) {
+      res.status(400).json({
+        error: `Cannot issue a refund for order #${row.orderNumber} with payment status '${row.paymentStatus}'. Only paid or partially refunded orders can be refunded.`,
+        code: 'ORDER_NOT_PAID',
+      });
+      return;
+    }
+
+    // 4. Cumulative Refund Accounting in Integer Paise
+    if (requestedPaise <= 0) {
+      res.status(400).json({ error: 'Refund amount must be positive.' });
+      return;
+    }
+
+    const priorRefundPayments = await db.models.Payment.find({
+      orderNumber: row.orderNumber,
+      paymentType: 'order_refund',
+      status: 'completed',
+    }).lean();
+    const priorRefundedPaise = priorRefundPayments.reduce(
+      (sum, p) => sum + Math.round(Number((p as any).amount || 0) * 100),
+      0
+    );
+
+    const remainingRefundablePaise = Math.max(0, totalAmountPaise - priorRefundedPaise);
+    if (requestedPaise > remainingRefundablePaise) {
+      res.status(400).json({
+        error: `Requested refund of ₹${refundAmount} exceeds remaining refundable amount of ₹${(remainingRefundablePaise / 100).toFixed(2)}.`,
+        code: 'REFUND_EXCEEDS_CAPTURED_AMOUNT',
+        totalCaptured: Number((totalAmountPaise / 100).toFixed(2)),
+        alreadyRefunded: Number((priorRefundedPaise / 100).toFixed(2)),
+        remainingRefundable: Number((remainingRefundablePaise / 100).toFixed(2)),
+      });
+      return;
+    }
+
+    const cumulativeRefundedPaise = priorRefundedPaise + requestedPaise;
+    const cumulativeRefunded = Number((cumulativeRefundedPaise / 100).toFixed(2));
+    const isFullRefund = cumulativeRefundedPaise >= totalAmountPaise;
+    const nextPaymentStatus = isFullRefund ? 'refunded' : 'partially_refunded';
+    const nextRefundStatus = isFullRefund ? 'refunded' : 'partially_refunded';
+
     const now = new Date().toISOString();
+    const refundOpId = `refop_${crypto.randomUUID()}`;
+    const idempotencyKey = rawKey || refundOpId;
+
+    // 5. Create RefundOperation State Machine Record (processing)
+    let refundOp: any;
+    try {
+      refundOp = await db.models.RefundOperation.create({
+        id: refundOpId,
+        orderId: row.id,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        idempotencyKey,
+        amount: refundAmount,
+        amountPaise: requestedPaise,
+        currency: 'INR',
+        status: 'processing',
+        paymentMethod,
+        refundReferenceId,
+        refundBankEta: refundBankEta || null,
+        reason: 'Verified refund issued by administrator',
+        initiatedBy: req.user!.email,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        res.status(409).json({ error: 'Concurrent refund operation with this idempotency key already initiated.' });
+        return;
+      }
+      throw err;
+    }
+
+    // 6. Atomically Update Order with Conditional Reservation in a Single Aggregation Pipeline (Eliminates separate updateOne race window)
     const updated = await db.models.Order.findOneAndUpdate(
-      { id: row.id },
       {
-        $set: {
-          paymentStatus: 'refunded',
-          refundStatus: 'refunded',
-          refundAmount,
-          refundMethod: paymentMethod,
-          refundReferenceId,
-          refundDate: now,
-          refundBankEta: refundBankEta || null,
-          paymentMethod,
-          updatedAt: now,
+        id: row.id,
+        $or: [
+          { paymentStatus: { $in: ['paid', 'partially_refunded'] } },
+          { status: 'delivered' },
+        ],
+        $expr: {
+          $lte: [
+            { $add: [{ $ifNull: ['$refundedPaise', 0] }, requestedPaise] },
+            totalAmountPaise,
+          ],
         },
       },
-      { new: true }
+      [
+        {
+          $set: {
+            refundedPaise: { $add: [{ $ifNull: ['$refundedPaise', 0] }, requestedPaise] },
+            refundMethod: paymentMethod,
+            refundReferenceId,
+            refundDate: now,
+            refundBankEta: refundBankEta || null,
+            paymentMethod,
+            updatedAt: now,
+          },
+        },
+        {
+          $set: {
+            refundAmount: { $round: [{ $divide: ['$refundedPaise', 100] }, 2] },
+            paymentStatus: {
+              $cond: [{ $gte: ['$refundedPaise', totalAmountPaise] }, 'refunded', 'partially_refunded'],
+            },
+            refundStatus: {
+              $cond: [{ $gte: ['$refundedPaise', totalAmountPaise] }, 'refunded', 'partially_refunded'],
+            },
+          },
+        },
+      ] as any,
+      { updatePipeline: true, returnDocument: 'after' } as any
     ).lean();
 
-    await db.models.Payment.create({
-      id: `pay_${crypto.randomUUID()}`,
-      paymentType: 'order_refund',
-      referenceId: row.orderNumber,
-      orderNumber: row.orderNumber,
-      customerId: row.customerId,
-      amount: refundAmount,
-      method: paymentMethod,
-      status: 'completed',
-      transactionRef: refundReferenceId,
-      notes: refundBankEta || 'Verified refund issued',
-      recordedBy: req.user!.email,
-      createdAt: now,
-    });
+    if (!updated) {
+      await db.models.RefundOperation.updateOne(
+        { id: refundOpId },
+        {
+          $set: {
+            status: 'failed',
+            failureReason: 'Refund exceeds available balance due to concurrent contention',
+            updatedAt: new Date().toISOString(),
+          },
+        }
+      );
+      res.status(400).json({
+        error: `Requested refund of ₹${refundAmount} exceeds remaining refundable amount due to concurrent operations.`,
+        code: 'REFUND_EXCEEDS_CAPTURED_AMOUNT',
+      });
+      return;
+    }
 
+    // Determine actual cumulative post-atomic state from the atomic pipeline result
+    const confirmedCumulativePaise = Number(updated.refundedPaise || requestedPaise);
+    const confirmedCumulativeRefunded = Number(updated.refundAmount ?? Number((confirmedCumulativePaise / 100).toFixed(2)));
+    const confirmedFullRefund = confirmedCumulativePaise >= totalAmountPaise;
+    const confirmedPaymentStatus = (updated.paymentStatus as any) || (confirmedFullRefund ? 'refunded' : 'partially_refunded');
+    const confirmedRefundStatus = (updated.refundStatus as any) || (confirmedFullRefund ? 'refunded' : 'partially_refunded');
+
+    const finalCumulativeRefunded = confirmedCumulativeRefunded;
+    const finalIsFullRefund = confirmedFullRefund;
+
+    try {
+      // 7. Record Completed Refund Payment
+      await db.models.Payment.create({
+        id: `pay_${crypto.randomUUID()}`,
+        paymentType: 'order_refund',
+        referenceId: row.orderNumber,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        amount: refundAmount,
+        method: paymentMethod,
+        status: 'completed',
+        transactionRef: refundReferenceId,
+        notes: refundBankEta || 'Verified refund issued',
+        recordedBy: req.user!.email,
+        createdAt: now,
+      });
+
+      // 8. Update RefundOperation to 'succeeded'
+      await db.models.RefundOperation.updateOne(
+        { id: refundOpId },
+        { $set: { status: 'succeeded', updatedAt: new Date().toISOString() } }
+      );
+    } catch (postResvErr: any) {
+      const isAmbiguousTimeout =
+        postResvErr?.name === 'TimeoutError' ||
+        postResvErr?.message?.includes('timeout') ||
+        postResvErr?.code === 'ETIMEDOUT';
+
+      if (isAmbiguousTimeout) {
+        await db.models.RefundOperation.updateOne(
+          { id: refundOpId },
+          {
+            $set: {
+              status: 'reconciliation_required',
+              failureReason: `Ambiguous failure during post-reservation execution: ${postResvErr.message}`,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        );
+        res.status(502).json({
+          error: 'Refund reservation completed, but payment recording timed out. Marked for automated reconciliation.',
+          code: 'REFUND_RECONCILIATION_REQUIRED',
+          refundOpId,
+        });
+        return;
+      }
+
+      // Definitive failure -> compensate by releasing reserved paise in a single atomic pipeline update
+      await db.models.Order.updateOne(
+        { id: row.id },
+        [
+          {
+            $set: {
+              refundedPaise: {
+                $max: [0, { $subtract: [{ $ifNull: ['$refundedPaise', 0] }, requestedPaise] }],
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          {
+            $set: {
+              refundAmount: { $round: [{ $divide: ['$refundedPaise', 100] }, 2] },
+              paymentStatus: {
+                $cond: [
+                  { $gt: ['$refundedPaise', 0] },
+                  { $cond: [{ $gte: ['$refundedPaise', totalAmountPaise] }, 'refunded', 'partially_refunded'] },
+                  'paid',
+                ],
+              },
+              refundStatus: {
+                $cond: [
+                  { $gt: ['$refundedPaise', 0] },
+                  { $cond: [{ $gte: ['$refundedPaise', totalAmountPaise] }, 'refunded', 'partially_refunded'] },
+                  'none',
+                ],
+              },
+            },
+          },
+        ] as any,
+        { updatePipeline: true } as any
+      );
+
+      await db.models.RefundOperation.updateOne(
+        { id: refundOpId },
+        {
+          $set: {
+            status: 'failed',
+            failureReason: postResvErr.message || 'Post-reservation failure',
+            updatedAt: new Date().toISOString(),
+          },
+        }
+      );
+
+      res.status(500).json({
+        error: 'Refund operation failed downstream; capacity reservation safely released.',
+        code: 'REFUND_EXECUTION_FAILED',
+      });
+      return;
+    }
+
+    // 9. Reverse Proportional Loyalty Points
+    if (row.customerId) {
+      const pointsToReverse = Math.floor(refundAmount / 100);
+      if (pointsToReverse > 0) {
+        await reverseLoyaltyPoints(db, {
+          customerId: row.customerId,
+          orderId: row.id,
+          orderNumber: row.orderNumber,
+          pointsToReverse,
+          reason: `Proportional loyalty reversal for refund of ₹${refundAmount} on Order #${row.orderNumber}`,
+          idempotencyKey: `reverse_refund_${refundOpId}`,
+          relatedTransactionId: refundOpId,
+        });
+      }
+    }
+
+    // 10. Audit & Notifications
     await db.models.OrderStatusHistory.create({
       id: `osh_${crypto.randomUUID()}`,
       orderId: row.id,
       previousStatus: row.status,
       newStatus: row.status,
       updatedBy: req.user!.name,
-      notes: `Verified refund processed: ₹${refundAmount} (Ref: ${refundReferenceId})`,
+      notes: `Verified ${finalIsFullRefund ? 'full' : 'partial'} refund processed: ₹${refundAmount} (Cumulative: ₹${finalCumulativeRefunded}, Ref: ${refundReferenceId})`,
       timestamp: now,
     });
 
@@ -780,7 +1139,15 @@ export function createAdminRouter(
       action: 'refund_processed',
       entityType: 'order',
       entityId: row.orderNumber,
-      details: { refundAmount, refundReferenceId, paymentMethod, refundBankEta },
+      details: {
+        refundAmount,
+        refundReferenceId,
+        paymentMethod,
+        refundBankEta,
+        isFullRefund: finalIsFullRefund,
+        cumulativeRefunded: finalCumulativeRefunded,
+        refundOpId,
+      },
       ipAddress: req.ip || '',
     });
 
@@ -795,8 +1162,79 @@ export function createAdminRouter(
     res.json({
       message: 'Verified refund recorded and refund notification queued.',
       order: await hydrateOrder(db, updatedObj),
+      refundOperation: refundOp,
+      cumulativeRefunded: finalCumulativeRefunded,
+      isFullRefund: finalIsFullRefund,
       emailResult,
     });
+  });
+
+  // Automated Financial & Loyalty Ledger Reconciliation Audit
+  router.post('/financials/reconcile', async (req, res) => {
+    try {
+      const dryRun = req.body?.dryRun !== false;
+      const stalledThresholdMs = typeof req.body?.stalledThresholdMs === 'number' ? req.body.stalledThresholdMs : undefined;
+      const report = await reconcileFinancials(db, { dryRun, stalledThresholdMs });
+
+      await logAudit(db, {
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'financials_reconcile',
+        entityType: 'financials',
+        entityId: 'reconciliation_audit',
+        details: { dryRun, healthy: report.healthy, totalOrdersAudited: report.totalOrdersAudited },
+        ipAddress: req.ip || '',
+      });
+
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Financial reconciliation failed.' });
+    }
+  });
+
+  // Historical Loyalty Ledger Opening Balance Migration
+  router.post('/financials/loyalty-migration', async (req, res) => {
+    try {
+      const dryRun = req.body?.dryRun !== false;
+      const report = await migrateHistoricalLoyaltyLedger(db, { dryRun });
+
+      await logAudit(db, {
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'loyalty_migration',
+        entityType: 'financials',
+        entityId: 'loyalty_migration_audit',
+        details: { dryRun, totalAudited: report.totalCustomersAudited, migratedCount: report.migratedCount },
+        ipAddress: req.ip || '',
+      });
+
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Loyalty migration failed.' });
+    }
+  });
+
+  // Stale Webhook Processing Lease Recovery
+  router.post('/payments/webhooks/recover', async (req, res) => {
+    try {
+      const maxAgeMs = typeof req.body?.maxAgeMs === 'number' ? req.body.maxAgeMs : undefined;
+      const maxRetries = typeof req.body?.maxRetries === 'number' ? req.body.maxRetries : undefined;
+      const report = await recoverStaleWebhookEvents(db, { maxAgeMs, maxRetries });
+
+      await logAudit(db, {
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'webhooks_recover',
+        entityType: 'payments',
+        entityId: 'webhook_recovery_job',
+        details: { scanned: report.scanned, recovered: report.recovered, exhausted: report.exhausted },
+        ipAddress: req.ip || '',
+      });
+
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Webhook recovery failed.' });
+    }
   });
 
   // =============================================

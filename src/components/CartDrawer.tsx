@@ -11,6 +11,7 @@ import {
 import {
   formatINR,
   getProductPackOptions,
+  parseWeightGrams,
 } from '../utils/priceCalculator';
 import { generateWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../context/AuthContext';
@@ -60,11 +61,11 @@ function parseCartKey(cartKey: string): { productId: string; variantId: string |
 }
 
 function getDefaultPack(product: CatalogProduct, packs: ProductWeightVariant[]): ProductWeightVariant {
-  const g1000 = packs.find(p => p.weightGrams === 1000);
+  const g1000 = packs.find(p => parseWeightGrams(p.weightLabel) === 1000);
   if (g1000) return g1000;
-  const g500 = packs.find(p => p.weightGrams === 500);
+  const g500 = packs.find(p => parseWeightGrams(p.weightLabel) === 500);
   if (g500) return g500;
-  const g250 = packs.find(p => p.weightGrams === 250);
+  const g250 = packs.find(p => parseWeightGrams(p.weightLabel) === 250);
   if (g250) return g250;
   return packs[0];
 }
@@ -158,22 +159,32 @@ export default function CartDrawer({
       return;
     }
 
-    setCustomer(prev => ({
-      ...prev,
-      fullName: prev.fullName || user.name,
-      mobileNumber: prev.mobileNumber || user.phone,
-    }));
+    if (user.shippingAddress) {
+      const sa = user.shippingAddress;
+      const addrLine = sa.addressLine || [sa.houseFlat, sa.streetArea].filter(Boolean).join(', ');
+      setCustomer(prev => ({
+        ...prev,
+        fullName: sa.fullName || user.name || prev.fullName,
+        mobileNumber: sa.phone || user.phone || prev.mobileNumber,
+        deliveryAddress: addrLine || prev.deliveryAddress,
+        city: sa.city || prev.city,
+        state: sa.state || prev.state,
+        pincode: sa.pincode || prev.pincode,
+      }));
+    }
 
     apiRequest<{ addresses: AddressItem[] }>('/api/account/addresses')
       .then(res => {
-        setSavedAddresses(res.addresses);
-        const def = res.addresses.find(a => a.isDefault) || res.addresses[0];
+        const list = res.addresses || [];
+        setSavedAddresses(list);
+        const def = list.find(a => a.isDefault) || list[0];
         if (def) {
+          const displayAddr = def.houseFlat && def.streetArea ? `${def.houseFlat}, ${def.streetArea}` : def.addressLine;
           setCustomer(prev => ({
             ...prev,
-            fullName: prev.fullName || def.fullName,
-            mobileNumber: prev.mobileNumber || def.phone,
-            deliveryAddress: prev.deliveryAddress || def.addressLine,
+            fullName: def.fullName || user.name || prev.fullName,
+            mobileNumber: def.phone || user.phone || prev.mobileNumber,
+            deliveryAddress: displayAddr || def.addressLine,
             city: def.city,
             state: def.state,
             pincode: def.pincode,
@@ -222,7 +233,7 @@ export default function CartDrawer({
   }, [cartItems, products, packOptionsByProduct]);
 
   const bizRules = publicSettings?.business;
-  const gstRatePct = typeof bizRules?.defaultGstRate === 'number' ? bizRules.defaultGstRate : 5;
+  const gstRatePct = typeof bizRules?.defaultGstRate === 'number' ? bizRules.defaultGstRate : 0;
 
   const subtotal = activeOrderItems.reduce((sum, it) => sum + it.subtotal, 0);
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discountAmount, subtotal) : 0;
@@ -230,6 +241,11 @@ export default function CartDrawer({
 
   const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
   const isSurat = isSuratCity(effectiveShippingCity);
+  const hasSavedAddress = Boolean(
+    (customer.city && customer.pincode) ||
+    (user?.shippingAddress?.city && user?.shippingAddress?.pincode) ||
+    savedAddresses.length > 0
+  );
   const isFreeNonSurat = netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD;
   const shippingCharge = activeOrderItems.length > 0
     ? (isSurat
@@ -375,18 +391,26 @@ export default function CartDrawer({
             className="relative w-full max-w-xl bg-[#150d09] border-l border-[#38281d] h-full overflow-y-auto shadow-2xl p-4 sm:p-8 space-y-5 sm:space-y-6"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-4 border-b border-[#38281d]">
-              <div className="flex items-center gap-2.5">
-                <ShoppingBag className="w-5 h-5 text-[#dfc471]" />
-                <h2 id="checkout-drawer-title" className="font-serif text-2xl text-[#f9f6f2]">
-                  Verified Checkout
-                </h2>
+            <div className="flex items-center justify-between pb-4 border-b border-[#38281d] gap-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <ShoppingBag className="w-5 h-5 text-[#dfc471]" />
+                  <h2 id="checkout-drawer-title" className="font-serif text-2xl text-[#f9f6f2]">
+                    Verified Checkout
+                  </h2>
+                </div>
+                {!isSurat && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
+                    <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Above ₹5,000 No Shipping Charges</span>
+                  </span>
+                )}
               </div>
               <button
                 type="button"
                 aria-label="Close checkout drawer"
                 onClick={onClose}
-                className="p-2 rounded-lg text-[#d5c4b4] hover:text-white cursor-pointer"
+                className="p-2 rounded-lg text-[#d5c4b4] hover:text-white cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -540,22 +564,18 @@ export default function CartDrawer({
                         ? (isSuratCity(user.shippingAddress.city)
                             ? 'Shipping Charges (Surat — Free Delivery)'
                             : isFreeNonSurat
-                              ? 'Shipping Charges (Free over ₹5,000)'
+                              ? `Shipping Charges (${user.shippingAddress.city} — Free over ₹5,000)`
                               : 'Shipping Charges (Standard Courier)')
-                        : (isFreeNonSurat
-                            ? 'Shipping Charges (Free over ₹5,000)'
-                            : 'Shipping Charges'))}
+                        : (isSurat
+                            ? 'Shipping Charges (Surat — Free Delivery)'
+                            : isFreeNonSurat
+                              ? 'Shipping Charges (Free over ₹5,000)'
+                              : 'Shipping Charges (Standard Courier)'))}
                 </span>
                 <span className={shippingCharge === 0 ? 'text-emerald-400 font-semibold' : 'text-[#f9f6f2] font-medium'}>
                   {shippingCharge === 0 ? '₹0 (Free Shipping)' : formatINR(shippingCharge)}
                 </span>
               </div>
-              {!isSurat && !isFreeNonSurat && activeOrderItems.length > 0 && (
-                <div className="text-[11px] text-[#dfc471] bg-[#dfc471]/10 px-2.5 py-1 rounded-lg border border-[#dfc471]/20 flex items-center justify-between">
-                  <span>Free shipping for other cities on orders above ₹5,000</span>
-                  <span className="font-semibold text-white">Add {formatINR(NON_SURAT_FREE_SHIPPING_THRESHOLD - netAfterDiscount + 1)} more</span>
-                </div>
-              )}
               <div className="flex justify-between items-center">
                 <span className="text-[#d5c4b4]/80">GST ({gstRatePct}%)</span>
                 <span>{formatINR(taxAmount)}</span>
@@ -637,14 +657,14 @@ export default function CartDrawer({
                   )}
                 </div>
 
-                {!user.shippingAddress && (!customer.city || !customer.pincode) && (
+                {!hasSavedAddress ? (
                   <div className="p-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-xs space-y-2">
                     <div className="flex items-center gap-2 text-amber-300 font-semibold">
                       <MapPin className="w-4 h-4 shrink-0" />
                       <span>Mandatory Shipping Address</span>
                     </div>
                     <p className="text-[#d5c4b4]/85 leading-relaxed">
-                      Completing your shipping address is mandatory before placing an order. Please update your delivery details to proceed.
+                      Completing your shipping address is mandatory before placing an order. Under our Single Address Policy, please add your shipping address in your profile to proceed.
                     </p>
                     <Link
                       to="/account?tab=addresses"
@@ -654,102 +674,45 @@ export default function CartDrawer({
                       Complete Shipping Address in Profile &rarr;
                     </Link>
                   </div>
-                )}
+                ) : (
+                  <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#dfc471] uppercase tracking-wider text-[11px]">
+                          Delivery Address
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                          <Lock className="w-3 h-3" />
+                          Default (Selected)
+                        </span>
+                      </div>
+                      <Link
+                        to="/account?tab=addresses"
+                        onClick={onClose}
+                        className="text-[10px] font-semibold text-[#dfc471] hover:underline"
+                        title="Manage delivery address in Profile"
+                      >
+                        Manage in Profile &rarr;
+                      </Link>
+                    </div>
 
-                {checkoutError && (
-                  <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs">
-                    {checkoutError}
+                    <div className="font-medium text-[#f9f6f2]">
+                      {customer.fullName || user.shippingAddress?.fullName || user.name}{' '}
+                      <span className="text-[#d5c4b4]/70">({customer.mobileNumber || user.shippingAddress?.phone || user.phone})</span>
+                    </div>
+
+                    <div className="text-[#d5c4b4]/85 leading-relaxed">
+                      {customer.deliveryAddress || user.shippingAddress?.addressLine || [user.shippingAddress?.houseFlat, user.shippingAddress?.streetArea].filter(Boolean).join(', ')}
+                      <br />
+                      {customer.city || user.shippingAddress?.city}, {customer.state || user.shippingAddress?.state} -{' '}
+                      <span className="font-mono text-[#f9f6f2]">{customer.pincode || user.shippingAddress?.pincode}</span>
+                    </div>
+
+                    <p className="text-[10px] text-[#d5c4b4]/60 pt-1 border-t border-[#38281d]/50">
+                      Under Single Address Policy, address cannot be changed at checkout. To update, delete existing address in Profile first.
+                    </p>
                   </div>
                 )}
-
-                {savedAddresses.length > 0 && (
-                  <select
-                    aria-label="Choose saved delivery address"
-                    onChange={e => {
-                      const found = savedAddresses.find(a => a.id === e.target.value);
-                      if (found) {
-                        setCustomer(prev => ({
-                          ...prev,
-                          fullName: found.fullName,
-                          mobileNumber: found.phone,
-                          deliveryAddress: found.addressLine,
-                          city: found.city,
-                          state: found.state,
-                          pincode: found.pincode,
-                        }));
-                      }
-                    }}
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#dfc471]"
-                  >
-                    <option value="">Choose a saved delivery address...</option>
-                    {savedAddresses.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.label} — {a.addressLine}, {a.city}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    required
-                    aria-label="Full Name"
-                    value={customer.fullName}
-                    onChange={e => setCustomer({ ...customer, fullName: e.target.value })}
-                    placeholder="Full Name *"
-                    className="px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    aria-label="Mobile Number"
-                    value={customer.mobileNumber}
-                    onChange={e => setCustomer({ ...customer, mobileNumber: e.target.value })}
-                    placeholder="Mobile Number *"
-                    className="px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                </div>
-
-                <textarea
-                  rows={2}
-                  required
-                  aria-label="Delivery Address"
-                  value={customer.deliveryAddress}
-                  onChange={e => setCustomer({ ...customer, deliveryAddress: e.target.value })}
-                  placeholder="Delivery Address *"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                />
-
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    required
-                    aria-label="City"
-                    value={customer.city}
-                    onChange={e => setCustomer({ ...customer, city: e.target.value })}
-                    placeholder="City *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="text"
-                    required
-                    aria-label="State"
-                    value={customer.state}
-                    onChange={e => setCustomer({ ...customer, state: e.target.value })}
-                    placeholder="State *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="text"
-                    required
-                    aria-label="PIN Code"
-                    value={customer.pincode}
-                    onChange={e => setCustomer({ ...customer, pincode: e.target.value })}
-                    placeholder="PIN *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                </div>
 
                 <select
                   aria-label="Payment method"
@@ -774,13 +737,15 @@ export default function CartDrawer({
 
                 <button
                   type="submit"
-                  disabled={activeOrderItems.length === 0 || submittingOrder}
+                  disabled={!hasSavedAddress || activeOrderItems.length === 0 || submittingOrder}
                   className="w-full py-3.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
                   <span>
                     {submittingOrder
                       ? 'Placing Order...'
+                      : !hasSavedAddress
+                      ? 'Add Shipping Address in Profile to Checkout'
                       : `Place Verified Order (${formatINR(finalTotal)})`}
                   </span>
                 </button>

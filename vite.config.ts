@@ -27,23 +27,17 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('@embedpdf')) {
-                return 'vendor-pdf-viewer';
-              }
-              if (id.includes('exceljs') || id.includes('pdfkit')) {
-                return 'vendor-data-export';
-              }
-              if (id.includes('recharts')) {
-                return 'vendor-charts';
+              // Match core React packages specifically without capturing other packages that happen to have 'react' in their name
+              if (
+                /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|react-is)[\\/]/.test(id)
+              ) {
+                return 'vendor-react';
               }
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }
               if (id.includes('gsap') || id.includes('motion')) {
                 return 'vendor-motion';
-              }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'vendor-react';
               }
             }
           },
