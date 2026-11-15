@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 
@@ -240,14 +241,23 @@ function AppRoutes() {
     setCartItems(newCart);
   };
 
-  const [openCartSignal, setOpenCartSignal] = useState(0);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('cart') === 'open') {
+      setIsCartOpen(true);
+      params.delete('cart');
+      const nextSearch = params.toString();
+      navigate(
+        { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' },
+        { replace: true }
+      );
+    }
+  }, [location.pathname, location.search, navigate]);
 
   const handleOpenCart = () => {
-    if (location.pathname === '/catalog') {
-      setOpenCartSignal(s => s + 1);
-    } else {
-      navigate('/catalog?cart=open');
-    }
+    setIsCartOpen(true);
   };
 
   const activeSelectedCount = Object.entries(cartItems).filter(([key, qty]) => {
@@ -265,7 +275,19 @@ function AppRoutes() {
 
   return (
     <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] flex flex-col font-sans selection:bg-[#dfc471] selection:text-[#0d0805]">
-      {!isAdminPath && <Navbar selectedCount={activeSelectedCount} onOpenCart={handleOpenCart} />}
+      {!isAdminPath && (
+        <>
+          <Navbar selectedCount={activeSelectedCount} onOpenCart={handleOpenCart} />
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            cartItems={cartItems}
+            products={products}
+            onUpdateQuantity={handleUpdateQuantity}
+            onClearCart={handleClearCart}
+          />
+        </>
+      )}
 
       <main className="flex-grow">
         <Suspense fallback={<RouteLoadingFallback isAdmin={isAdminPath} />}>
@@ -292,7 +314,8 @@ function AppRoutes() {
                     cartItems={cartItems}
                     onUpdateQuantity={handleUpdateQuantity}
                     onClearCart={handleClearCart}
-                    openCartSignal={openCartSignal}
+                    openCartSignal={isCartOpen ? 1 : 0}
+                    onOpenCart={handleOpenCart}
                   />
                 }
               />

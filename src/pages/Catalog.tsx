@@ -61,6 +61,7 @@ interface CatalogProps {
   onUpdateQuantity: (cartKey: string, quantity: number) => void;
   onClearCart: () => void;
   openCartSignal?: number;
+  onOpenCart?: () => void;
 }
 
 const DEFAULT_FALLBACK_IMG =
@@ -150,6 +151,7 @@ export default function Catalog({
   onUpdateQuantity,
   onClearCart,
   openCartSignal,
+  onOpenCart,
 }: CatalogProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -196,97 +198,31 @@ export default function Catalog({
   const [isDetailVideoMuted, setIsDetailVideoMuted] = useState<boolean>(true);
   const detailVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Checkout Drawer & Order State
-  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
-
   useEffect(() => {
     if (openCartSignal && openCartSignal > 0) {
-      setIsCartDrawerOpen(true);
+      onOpenCart?.();
     }
-  }, [openCartSignal]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('cart') === 'open') {
-      setIsCartDrawerOpen(true);
-      params.delete('cart');
-      const nextSearch = params.toString();
-      navigate(
-        { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' },
-        { replace: true }
-      );
-    }
-  }, [location.pathname, location.search, navigate]);
-  const [submittedOrder, setSubmittedOrder] = useState<PersistedOrder | null>(null);
-  const [checkoutError, setCheckoutError] = useState('');
-  const [submittingOrder, setSubmittingOrder] = useState(false);
-  const [resendVerificationMsg, setResendVerificationMsg] = useState('');
-
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    discountAmount: number;
-    title: string;
-  } | null>(null);
-  const [couponError, setCouponError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Concierge Invoice / COD');
-
-  const [customer, setCustomer] = useState({
-    fullName: user?.name || '',
-    mobileNumber: user?.phone || '',
-    deliveryAddress: '',
-    city: '',
-    state: '',
-    pincode: '',
-    instructions: '',
-  });
+  }, [openCartSignal, onOpenCart]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (detailProduct) setDetailProduct(null);
         else if (mobileFiltersOpen) setMobileFiltersOpen(false);
-        else if (submittedOrder) setSubmittedOrder(null);
-        else if (isCartDrawerOpen) setIsCartDrawerOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [detailProduct, mobileFiltersOpen, submittedOrder, isCartDrawerOpen]);
+  }, [detailProduct, mobileFiltersOpen]);
 
   useEffect(() => {
     if (!user) {
       setWishlistIds(new Set());
-      setSavedAddresses([]);
       return;
     }
 
-    setCustomer(prev => ({
-      ...prev,
-      fullName: prev.fullName || user.name,
-      mobileNumber: prev.mobileNumber || user.phone,
-    }));
-
     apiRequest<{ items: Array<{ product: { id: string } }> }>('/api/account/wishlist')
       .then(res => setWishlistIds(new Set(res.items.map(i => i.product.id))))
-      .catch(() => {});
-
-    apiRequest<{ addresses: AddressItem[] }>('/api/account/addresses')
-      .then(res => {
-        setSavedAddresses(res.addresses);
-        const def = res.addresses.find(a => a.isDefault) || res.addresses[0];
-        if (def) {
-          setCustomer(prev => ({
-            ...prev,
-            fullName: prev.fullName || def.fullName,
-            mobileNumber: prev.mobileNumber || def.phone,
-            deliveryAddress: prev.deliveryAddress || def.addressLine,
-            city: def.city,
-            state: def.state,
-            pincode: def.pincode,
-          }));
-        }
-      })
       .catch(() => {});
   }, [user]);
 
@@ -498,24 +434,8 @@ export default function Catalog({
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [cartItems, products, packOptionsByProduct]);
 
-  const bizRules = publicSettings?.business;
-  const gstRatePct = typeof bizRules?.defaultGstRate === 'number' ? bizRules.defaultGstRate : 5;
-
   const subtotal = activeOrderItems.reduce((sum, it) => sum + it.subtotal, 0);
-  const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discountAmount, subtotal) : 0;
-  const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-
-  const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
-  const isSurat = isSuratCity(effectiveShippingCity);
-  const isFreeNonSurat = netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD;
-  const shippingCharge = activeOrderItems.length > 0
-    ? (isSurat
-        ? SURAT_SHIPPING_FEE
-        : (isFreeNonSurat ? 0 : OTHER_CITY_SHIPPING_FEE))
-    : 0;
-
-  const taxAmount = Math.round(netAfterDiscount * (gstRatePct / 100));
-  const finalTotal = netAfterDiscount + shippingCharge + taxAmount;
+  const totalCartCount = activeOrderItems.length;
 
   const getPackDraftKey = (productId: string, packId: string) => `${productId}::${packId}`;
 
@@ -567,124 +487,6 @@ export default function Catalog({
     }
   };
 
-  const handleApplyCoupon = async () => {
-    setCouponError('');
-    if (!couponCode.trim()) return;
-    try {
-      const res = await apiRequest<{
-        coupon: { code: string; title: string };
-        discountAmount: number;
-      }>('/api/coupons/validate', {
-        method: 'POST',
-        body: { code: couponCode.trim(), subtotal },
-      });
-      setAppliedCoupon({
-        code: res.coupon.code,
-        title: res.coupon.title,
-        discountAmount: res.discountAmount,
-      });
-    } catch (err) {
-      setAppliedCoupon(null);
-      setCouponError(err instanceof ApiError ? err.message : 'Invalid coupon code.');
-    }
-  };
-
-  const handleResendVerify = async () => {
-    if (!user) return;
-    setResendVerificationMsg('');
-    try {
-      const res = await apiRequest<{ message: string }>('/api/auth/resend-verification', {
-        method: 'POST',
-        body: { email: user.email },
-      });
-      setResendVerificationMsg(res.message);
-    } catch (err) {
-      setResendVerificationMsg(err instanceof ApiError ? err.message : 'Unable to resend link.');
-    }
-  };
-
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCheckoutError('');
-
-    if (!user) {
-      setCheckoutError('Please sign in to place your order.');
-      return;
-    }
-    if (!user.emailVerified) {
-      setCheckoutError('Please verify your email address before completing checkout.');
-      return;
-    }
-    if (activeOrderItems.length === 0) {
-      setCheckoutError('Please select at least one product.');
-      return;
-    }
-
-    const effectiveCity = (customer.city || user.shippingAddress?.city || '').trim();
-    const effectiveState = (customer.state || user.shippingAddress?.state || '').trim();
-    const effectivePincode = (customer.pincode || user.shippingAddress?.pincode || '').trim();
-    const effectiveHouseFlat = (user.shippingAddress?.houseFlat || '').trim();
-    const effectiveStreetArea = (user.shippingAddress?.streetArea || '').trim();
-    const effectiveDeliveryAddress = (
-      customer.deliveryAddress ||
-      user.shippingAddress?.addressLine ||
-      [effectiveHouseFlat, effectiveStreetArea].filter(Boolean).join(', ')
-    ).trim();
-
-    if (!effectiveCity || !effectiveState || !/^\d{6}$/.test(effectivePincode) || !effectiveDeliveryAddress) {
-      setCheckoutError(
-        'A complete shipping address (Address, City, State, 6-digit PIN) is mandatory before placing an order. Please update your shipping details.'
-      );
-      return;
-    }
-
-    setSubmittingOrder(true);
-    try {
-      const res = await apiRequest<{ order: PersistedOrder }>('/api/orders', {
-        method: 'POST',
-        body: {
-          orderType: 'standard',
-          items: activeOrderItems.map(it => ({
-            productId: it.product.id,
-            quantity: it.quantity,
-            variantId: it.variantId || undefined,
-            weightLabel: it.weightLabel || undefined,
-          })),
-          couponCode: appliedCoupon?.code || null,
-          paymentMethod,
-          deliveryAddress: {
-            fullName: (customer.fullName || user.shippingAddress?.fullName || user.name).trim(),
-            mobileNumber: (customer.mobileNumber || user.shippingAddress?.phone || user.phone).trim(),
-            houseFlat: effectiveHouseFlat,
-            streetArea: effectiveStreetArea,
-            deliveryAddress: effectiveDeliveryAddress,
-            city: effectiveCity,
-            state: effectiveState,
-            pincode: effectivePincode,
-            country: user.shippingAddress?.country || 'India',
-          },
-          instructions: customer.instructions.trim(),
-        },
-      });
-
-      try {
-        confetti({
-          particleCount: 65,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#dfc471', '#d4af37', '#f9f6f2', '#b99225'],
-        });
-      } catch {}
-
-      setSubmittedOrder(res.order);
-      onClearCart();
-    } catch (err) {
-      setCheckoutError(err instanceof ApiError ? err.message : 'Order submission failed.');
-    } finally {
-      setSubmittingOrder(false);
-    }
-  };
-
   const toggleGrade = (gradeId: string) => {
     setSelectedGrades(prev =>
       prev.includes(gradeId) ? prev.filter(g => g !== gradeId) : [...prev, gradeId]
@@ -694,8 +496,6 @@ export default function Catalog({
   const toggleSection = (key: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const totalCartCount = activeOrderItems.length;
 
   // Shared Filter Sidebar Panel (rendered in desktop sticky aside + mobile drawer)
   const renderFilterPanel = (idPrefix: string) => (
@@ -1062,7 +862,7 @@ export default function Catalog({
           type="button"
           onClick={() => {
             setMobileFiltersOpen(false);
-            setIsCartDrawerOpen(true);
+            onOpenCart?.();
           }}
           className="w-full py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
         >
@@ -1089,42 +889,45 @@ export default function Catalog({
       </a>
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        <ScrollReveal>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6 mb-8 pb-7 border-b border-[#38281d]">
-            <div>
-              <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-2 sm:mb-2.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Seth And Sons DryFruits • Direct Harvest Selection</span>
+        {/* Top Header Banner - Hidden in Phone view as requested */}
+        <div className="hidden sm:block">
+          <ScrollReveal>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6 mb-8 pb-7 border-b border-[#38281d]">
+              <div>
+                <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-2 sm:mb-2.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Seth And Sons DryFruits • Direct Harvest Selection</span>
+                </div>
+                <h1 className="font-serif text-2xl sm:text-5xl font-normal text-[#f9f6f2] tracking-tight">
+                  Authentic Jammu Dry Fruits Catalog
+                </h1>
+                <p className="mt-2 text-xs sm:text-base text-[#d5c4b4] font-sans max-w-2xl leading-relaxed">
+                  Choose your preferred pack size (250g, 500g, 1kg, or custom Admin packs), filter by category or origin, and order direct from Jammu.
+                </p>
               </div>
-              <h1 className="font-serif text-2xl sm:text-5xl font-normal text-[#f9f6f2] tracking-tight">
-                Authentic Jammu Dry Fruits Catalog
-              </h1>
-              <p className="mt-2 text-xs sm:text-base text-[#d5c4b4] font-sans max-w-2xl leading-relaxed">
-                Choose your preferred pack size (250g, 500g, 1kg, or custom Admin packs), filter by category or origin, and order direct from Jammu.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => navigate('/custom-order')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#38281d] text-[#dfc471] border border-[#dfc471]/40 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471]"
-              >
-                <Gift className="w-3.5 h-3.5" />
-                <span>Bespoke Custom Demand</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => navigate('/custom-order')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#38281d] text-[#dfc471] border border-[#dfc471]/40 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471]"
+                >
+                  <Gift className="w-3.5 h-3.5" />
+                  <span>Bespoke Custom Demand</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setIsCartDrawerOpen(true)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#dfc471]/20 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Checkout Bag {totalCartCount > 0 ? `(${totalCartCount})` : ''}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenCart?.()}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl shadow-[#dfc471]/20 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Checkout Bag {totalCartCount > 0 ? `(${totalCartCount})` : ''}</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </ScrollReveal>
+          </ScrollReveal>
+        </div>
 
         {/* Quick Category Jump Strip */}
         <div
@@ -1673,541 +1476,6 @@ export default function Catalog({
         </div>
       )}
 
-      {/* Checkout Drawer */}
-      {isCartDrawerOpen && (
-        <div
-          className="fixed inset-0 z-50 overflow-hidden bg-[#0d0805]/80 backdrop-blur-sm flex justify-end"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="checkout-drawer-title"
-          onClick={() => setIsCartDrawerOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-xl bg-[#150d09] border-l border-[#38281d] h-full overflow-y-auto shadow-2xl p-4 sm:p-8 space-y-5 sm:space-y-6"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-[#38281d]">
-              <div className="flex items-center gap-2.5">
-                <ShoppingBag className="w-5 h-5 text-[#dfc471]" />
-                <h2 id="checkout-drawer-title" className="font-serif text-2xl text-[#f9f6f2]">
-                  Verified Checkout
-                </h2>
-              </div>
-              <button
-                type="button"
-                aria-label="Close checkout drawer"
-                onClick={() => setIsCartDrawerOpen(false)}
-                className="p-2 rounded-lg text-[#d5c4b4] hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Selected Items */}
-            <div>
-              <span className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold block mb-2">
-                Selected Products ({activeOrderItems.length})
-              </span>
-              {activeOrderItems.length === 0 ? (
-                <div className="p-5 text-center text-xs text-[#d5c4b4]/75 border border-dashed border-[#38281d] rounded-2xl">
-                  Your bag is empty. Select a pack size from the catalog to proceed.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#251a13] max-h-56 overflow-y-auto pr-1">
-                  {activeOrderItems.map(item => (
-                    <div
-                      key={item.cartKey}
-                      className="py-3 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img
-                          src={item.product.image}
-                          alt={item.product.name}
-                          referrerPolicy="no-referrer"
-                          onError={e => {
-                            const img = e.currentTarget;
-                            if (img.dataset.fallbackApplied) return;
-                            img.dataset.fallbackApplied = '1';
-                            img.src = item.product.fallbackImage || DEFAULT_FALLBACK_IMG;
-                          }}
-                          className="w-11 h-11 rounded-lg object-cover shrink-0 bg-[#1c120c]"
-                        />
-                        <div className="min-w-0">
-                          <div className="font-medium text-[#ede4dc] truncate">
-                            {item.product.name}
-                          </div>
-                          <div className="text-[#d5c4b4]/80 flex items-center gap-1.5 flex-wrap">
-                            {item.weightLabel && (
-                              <span className="px-1.5 py-0.5 rounded bg-[#251a13] text-[#dfc471] border border-[#dfc471]/30 text-[10px] font-semibold">
-                                {item.weightLabel} Pack
-                              </span>
-                            )}
-                            <span>
-                              {item.quantity} × {formatINR(item.unitPrice)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="inline-flex items-center bg-[#1c120c] border border-[#38281d] rounded-lg">
-                          <button
-                            type="button"
-                            aria-label={`Decrease quantity for ${item.product.name}`}
-                            onClick={() =>
-                              onUpdateQuantity(
-                                item.cartKey,
-                                item.quantity <= 1 ? 0 : item.quantity - 1
-                              )
-                            }
-                            className="w-6 h-6 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-6 text-center text-[11px] font-semibold text-[#f9f6f2] tabular-nums">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`Increase quantity for ${item.product.name}`}
-                            onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
-                            className="w-6 h-6 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <span className="font-bold text-[#dfc471] tabular-nums min-w-[3.5rem] text-right">
-                          {formatINR(item.subtotal)}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Remove ${item.product.name} from bag`}
-                          onClick={() => onUpdateQuantity(item.cartKey, 0)}
-                          className="text-[#d5c4b4]/60 hover:text-red-400 cursor-pointer p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Coupon Input */}
-            <div className="space-y-2 pt-2 border-t border-[#251a13]">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <label htmlFor="checkout-coupon" className="sr-only">
-                    Coupon code
-                  </label>
-                  <Tag className="w-3.5 h-3.5 text-[#dfc471] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="checkout-coupon"
-                    type="text"
-                    value={couponCode}
-                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                    placeholder="Coupon code (e.g. JAMMU10)"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleApplyCoupon}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#251a13] hover:bg-[#dfc471] text-[#dfc471] hover:text-[#0d0805] border border-[#dfc471]/40 cursor-pointer"
-                >
-                  Apply
-                </button>
-              </div>
-              {couponError && <p className="text-[11px] text-red-400">{couponError}</p>}
-              {appliedCoupon && (
-                <p className="text-[11px] text-emerald-300">
-                  Applied {appliedCoupon.code} ({appliedCoupon.title}): -
-                  {formatINR(appliedCoupon.discountAmount)}
-                </p>
-              )}
-            </div>
-
-            {/* Order Totals Breakdown */}
-            <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-[#d5c4b4]/80">Product Subtotal</span>
-                <span className="font-medium text-[#f9f6f2]">{formatINR(subtotal)}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between items-center text-emerald-300">
-                  <span>Discount ({appliedCoupon?.code})</span>
-                  <span>-{formatINR(discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-[#d5c4b4]/80">
-                  {effectiveShippingCity
-                    ? (isSurat
-                        ? 'Shipping Charges (Surat — Free Delivery)'
-                        : isFreeNonSurat
-                          ? `Shipping Charges (${effectiveShippingCity} — Free over ₹5,000)`
-                          : `Shipping Charges (${effectiveShippingCity} Courier)`)
-                    : (user?.shippingAddress?.city
-                        ? (isSuratCity(user.shippingAddress.city)
-                            ? 'Shipping Charges (Surat — Free Delivery)'
-                            : isFreeNonSurat
-                              ? 'Shipping Charges (Free over ₹5,000)'
-                              : 'Shipping Charges (Standard Courier)')
-                        : (isFreeNonSurat
-                            ? 'Shipping Charges (Free over ₹5,000)'
-                            : 'Shipping Charges'))}
-                </span>
-                <span className={shippingCharge === 0 ? 'text-emerald-400 font-semibold' : 'text-[#f9f6f2] font-medium'}>
-                  {shippingCharge === 0 ? '₹0 (Free Shipping)' : formatINR(shippingCharge)}
-                </span>
-              </div>
-              {!isSurat && !isFreeNonSurat && activeOrderItems.length > 0 && (
-                <div className="text-[11px] text-[#dfc471] bg-[#dfc471]/10 px-2.5 py-1 rounded-lg border border-[#dfc471]/20 flex items-center justify-between">
-                  <span>Free shipping for other cities on orders above ₹5,000</span>
-                  <span className="font-semibold text-white">Add {formatINR(NON_SURAT_FREE_SHIPPING_THRESHOLD - netAfterDiscount + 1)} more</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-[#d5c4b4]/80">GST ({gstRatePct}%)</span>
-                <span>{formatINR(taxAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#251a13] font-bold text-base text-[#dfc471]">
-                <span>Total Order Amount</span>
-                <span>{formatINR(finalTotal)}</span>
-              </div>
-            </div>
-
-            {/* Auth / Email Verification Gate */}
-            {!user ? (
-              <div className="p-5 rounded-2xl bg-amber-950/50 border border-amber-500/40 space-y-3 text-xs">
-                <div className="flex items-center gap-2 font-semibold text-amber-200">
-                  <Lock className="w-4 h-4" />
-                  <span>Sign In Required to Complete Checkout</span>
-                </div>
-                <p className="text-[#ede4dc]/85">
-                  Please sign in or register with a verified email so you receive order confirmation, AWB shipment tracking, and delivery updates.
-                </p>
-                <div className="flex gap-2">
-                  <Link
-                    to="/login?redirect=/catalog"
-                    className="flex-1 py-2.5 rounded-full text-center font-semibold bg-[#dfc471] text-[#0d0805]"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="flex-1 py-2.5 rounded-full text-center font-semibold bg-[#251a13] text-[#ede4dc] border border-[#38281d]"
-                  >
-                    Register
-                  </Link>
-                </div>
-              </div>
-            ) : !user.emailVerified ? (
-              <div className="p-5 rounded-2xl bg-amber-950/60 border border-amber-500/50 space-y-3 text-xs">
-                <div className="flex items-center gap-2 font-semibold text-amber-200">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Email Verification Required Before Checkout</span>
-                </div>
-                <p className="text-[#ede4dc]/85">
-                  Your account ({user.email}) is unverified. You can browse freely, and checkout unlocks immediately once your email is verified.
-                </p>
-                {resendVerificationMsg && (
-                  <div className="p-2.5 rounded-xl bg-emerald-950/70 text-emerald-200">
-                    {resendVerificationMsg}
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleResendVerify}
-                    className="px-4 py-2 rounded-full font-semibold bg-[#dfc471] text-[#0d0805] cursor-pointer"
-                  >
-                    Resend Verification Email
-                  </button>
-                  <Link
-                    to={`/verify-email?email=${encodeURIComponent(user.email)}`}
-                    className="px-4 py-2 rounded-full bg-[#251a13] text-[#ede4dc] border border-[#38281d]"
-                  >
-                    Open Verification Page
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handlePlaceOrder} className="space-y-3.5 pt-2 border-t border-[#38281d]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold block">
-                    Delivery &amp; Payment Details
-                  </span>
-                  {user.shippingAddress?.city && (
-                    <span className="text-[10px] text-emerald-400/80 font-medium">
-                      Delivering to: {user.shippingAddress.city}
-                    </span>
-                  )}
-                </div>
-
-                {!user.shippingAddress && (!customer.city || !customer.pincode) && (
-                  <div className="p-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-xs space-y-2">
-                    <div className="flex items-center gap-2 text-amber-300 font-semibold">
-                      <MapPin className="w-4 h-4 shrink-0" />
-                      <span>Mandatory Shipping Address</span>
-                    </div>
-                    <p className="text-[#d5c4b4]/85 leading-relaxed">
-                      Completing your shipping address is mandatory before placing an order. Please update your delivery details to proceed.
-                    </p>
-                    <Link
-                      to="/account?tab=addresses"
-                      className="inline-block text-[11px] font-semibold text-[#dfc471] hover:underline"
-                    >
-                      Complete Shipping Address in Profile &rarr;
-                    </Link>
-                  </div>
-                )}
-
-                {checkoutError && (
-                  <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs">
-                    {checkoutError}
-                  </div>
-                )}
-
-                {savedAddresses.length > 0 && (
-                  <select
-                    aria-label="Choose saved delivery address"
-                    onChange={e => {
-                      const found = savedAddresses.find(a => a.id === e.target.value);
-                      if (found) {
-                        setCustomer(prev => ({
-                          ...prev,
-                          fullName: found.fullName,
-                          mobileNumber: found.phone,
-                          deliveryAddress: found.addressLine,
-                          city: found.city,
-                          state: found.state,
-                          pincode: found.pincode,
-                        }));
-                      }
-                    }}
-                    className="w-full px-3.5 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#dfc471]"
-                  >
-                    <option value="">Choose a saved delivery address...</option>
-                    {savedAddresses.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.label} — {a.addressLine}, {a.city}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    required
-                    aria-label="Full Name"
-                    value={customer.fullName}
-                    onChange={e => setCustomer({ ...customer, fullName: e.target.value })}
-                    placeholder="Full Name *"
-                    className="px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    aria-label="Mobile Number"
-                    value={customer.mobileNumber}
-                    onChange={e => setCustomer({ ...customer, mobileNumber: e.target.value })}
-                    placeholder="Mobile Number *"
-                    className="px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                </div>
-
-                <textarea
-                  rows={2}
-                  required
-                  aria-label="Delivery Address"
-                  value={customer.deliveryAddress}
-                  onChange={e => setCustomer({ ...customer, deliveryAddress: e.target.value })}
-                  placeholder="Delivery Address *"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                />
-
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    required
-                    aria-label="City"
-                    value={customer.city}
-                    onChange={e => setCustomer({ ...customer, city: e.target.value })}
-                    placeholder="City *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="text"
-                    required
-                    aria-label="State"
-                    value={customer.state}
-                    onChange={e => setCustomer({ ...customer, state: e.target.value })}
-                    placeholder="State *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                  <input
-                    type="text"
-                    required
-                    aria-label="PIN Code"
-                    value={customer.pincode}
-                    onChange={e => setCustomer({ ...customer, pincode: e.target.value })}
-                    placeholder="PIN *"
-                    className="px-3 py-2 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                  />
-                </div>
-
-                <select
-                  aria-label="Payment method"
-                  value={paymentMethod}
-                  onChange={e => setPaymentMethod(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                >
-                  <option value="Concierge Invoice / COD">Cash on Delivery / Concierge Invoice</option>
-                  <option value="UPI / Bank Transfer on Confirmation">
-                    UPI / Bank Transfer upon Order Confirmation
-                  </option>
-                </select>
-
-                <input
-                  type="text"
-                  aria-label="Optional packing notes"
-                  value={customer.instructions}
-                  onChange={e => setCustomer({ ...customer, instructions: e.target.value })}
-                  placeholder="Optional packing notes (e.g. Vacuum tin seal)"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
-                />
-
-                <button
-                  type="submit"
-                  disabled={activeOrderItems.length === 0 || submittingOrder}
-                  className="w-full py-3.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>
-                    {submittingOrder
-                      ? 'Placing Order...'
-                      : `Place Verified Order (${formatINR(finalTotal)})`}
-                  </span>
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {submittedOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0d0805]/85 backdrop-blur-md"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="order-confirm-title"
-        >
-          <div className="relative w-full max-w-lg bg-[#150d09] border border-[#dfc471]/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-[#ede4dc] space-y-5">
-            <div className="text-center">
-              <span className="text-[11px] tracking-[0.25em] text-[#dfc471] uppercase font-semibold">
-                Order #{submittedOrder.orderNumber}
-              </span>
-              <h2 id="order-confirm-title" className="font-serif text-3xl text-[#f9f6f2] mt-1">
-                Order Placed Successfully
-              </h2>
-              <p className="text-xs text-emerald-300 mt-1">
-                Confirmation email sent to {submittedOrder.customerObj.email}.
-              </p>
-            </div>
-
-            <div className="py-4 border-y border-[#38281d] space-y-2 text-xs">
-              {submittedOrder.items.map(it => (
-                <div key={it.id} className="flex justify-between">
-                  <span>
-                    {it.productName} (
-                    {it.weightLabel
-                      ? `${it.quantity} × ${it.weightLabel}`
-                      : `${it.quantity} ${it.unit === 'gram' ? 'g' : it.unit === 'ml' ? 'ml' : it.unit === 'piece' ? 'pc' : 'kg'}`}
-                    )
-                  </span>
-                  <span className="font-bold text-[#dfc471]">{formatINR(it.subtotal)}</span>
-                </div>
-              ))}
-              <div className="pt-2 border-t border-[#251a13] flex justify-between font-bold text-sm">
-                <span>Final Total:</span>
-                <span className="text-[#dfc471] text-base">
-                  {formatINR(submittedOrder.totalAmount)}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2.5">
-              <Link
-                to={`/account/orders/${submittedOrder.orderNumber}`}
-                onClick={() => {
-                  setSubmittedOrder(null);
-                  setIsCartDrawerOpen(false);
-                }}
-                className="w-full py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40 flex items-center justify-center gap-2"
-              >
-                <Truck className="w-4 h-4" />
-                <span>Track My Order</span>
-              </Link>
-
-              <a
-                href={generateWhatsAppUrl({
-                  id: submittedOrder.orderNumber,
-                  createdAt: submittedOrder.createdAt,
-                  items: submittedOrder.items.map(it => {
-                    const matchedProd =
-                      products.find(p => p.id === it.productId) || products[0];
-                    return {
-                      product: {
-                        ...matchedProd,
-                        name: it.weightLabel
-                          ? `${matchedProd.name} (${it.weightLabel} Pack)`
-                          : matchedProd.name,
-                        price: it.unitPrice,
-                      },
-                      quantity: it.quantity,
-                      subtotal: it.subtotal,
-                    };
-                  }),
-                  totalEstimatedAmount: submittedOrder.totalAmount,
-                  customer: {
-                    fullName: submittedOrder.deliveryAddressObj.fullName || '',
-                    mobileNumber: submittedOrder.deliveryAddressObj.mobileNumber || '',
-                    whatsappNumber: submittedOrder.deliveryAddressObj.mobileNumber || '',
-                    sameAsMobile: true,
-                    email: submittedOrder.customerObj.email || '',
-                    deliveryAddress: submittedOrder.deliveryAddressObj.deliveryAddress || '',
-                    city: submittedOrder.deliveryAddressObj.city || '',
-                    state: submittedOrder.deliveryAddressObj.state || '',
-                    pincode: submittedOrder.deliveryAddressObj.pincode || '',
-                    instructions: submittedOrder.instructions || '',
-                  },
-                })}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#25D366] text-white"
-              >
-                <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Share via WhatsApp Concierge</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmittedOrder(null);
-                  setIsCartDrawerOpen(false);
-                }}
-                className="w-full py-3 rounded-full text-xs font-semibold uppercase bg-[#251a13] text-[#ede4dc] cursor-pointer"
-              >
-                Continue Browsing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Product Detail Modal with Pack Size & Quantity Selector */}
       {detailProduct && detailSelectedPack && (
         <div
@@ -2496,11 +1764,11 @@ export default function Catalog({
       )}
 
       {/* Floating Sticky Mobile Bag Bar */}
-      {totalCartCount > 0 && !isCartDrawerOpen && !detailProduct && (
+      {totalCartCount > 0 && !detailProduct && (
         <div className="lg:hidden fixed bottom-4 inset-x-3 z-40 animate-in fade-in slide-in-from-bottom-3 duration-200">
           <button
             type="button"
-            onClick={() => setIsCartDrawerOpen(true)}
+            onClick={() => onOpenCart?.()}
             className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] font-semibold text-xs tracking-wider uppercase flex items-center justify-between shadow-[0_8px_30px_rgba(0,0,0,0.85)] border border-[#fffcf5]/30 cursor-pointer active:scale-[0.98] transition-all"
             aria-label={`View checkout bag with ${totalCartCount} items, total ${formatINR(subtotal)}`}
           >
