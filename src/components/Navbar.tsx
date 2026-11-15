@@ -142,13 +142,13 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {user ? (
-            <div className="relative" ref={profileMenuRef}>
+            <div className="relative shrink-0" ref={profileMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsProfileMenuOpen(prev => !prev)}
-                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer shrink-0 ${
                   isProfileMenuOpen || location.pathname === '/account'
                     ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]'
                     : 'bg-[#251a13]/80 text-[#dfc471] border-[#dfc471]/50 hover:border-[#dfc471]'
@@ -157,12 +157,22 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
                 aria-haspopup="true"
                 aria-label="User profile menu"
               >
-                <User className="w-3.5 h-3.5 text-[#dfc471]" />
-                <span className="hidden sm:inline whitespace-nowrap">
+                {user.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt={user.name}
+                    className="w-5 h-5 sm:w-5 sm:h-5 rounded-full object-cover border border-[#dfc471]/60 shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 sm:w-5 sm:h-5 rounded-full bg-[#dfc471]/25 border border-[#dfc471]/60 flex items-center justify-center text-[10px] font-serif font-bold text-[#dfc471] shrink-0">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="whitespace-nowrap max-w-[65px] sm:max-w-[110px] truncate text-xs text-[#ede4dc] font-medium">
                   {user.name.split(' ')[0]}
                 </span>
                 <ChevronDown
-                  className={`w-3 h-3 text-[#dfc471]/80 transition-transform duration-200 ${
+                  className={`w-3 h-3 text-[#dfc471]/80 transition-transform duration-200 shrink-0 ${
                     isProfileMenuOpen ? 'rotate-180' : ''
                   }`}
                 />
@@ -173,9 +183,22 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
                   role="menu"
                   className="absolute right-0 top-full mt-2 w-48 sm:w-56 rounded-2xl bg-[#150d09] border border-[#dfc471]/40 shadow-[0_12px_40px_rgba(0,0,0,0.95)] backdrop-blur-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
                 >
-                  <div className="px-3 py-2 border-b border-[#251a13]">
-                    <p className="text-xs font-semibold text-[#f9f6f2] truncate">{user.name}</p>
-                    <p className="text-[11px] text-[#d5c4b4]/70 truncate">{user.email}</p>
+                  <div className="px-3 py-2 border-b border-[#251a13] flex items-center gap-2.5">
+                    {user.profilePicture ? (
+                      <img
+                        src={user.profilePicture}
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover border border-[#dfc471]/50 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#dfc471]/20 border border-[#dfc471]/50 flex items-center justify-center text-xs font-serif font-bold text-[#dfc471] shrink-0">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-[#f9f6f2] truncate">{user.name}</p>
+                      <p className="text-[11px] text-[#d5c4b4]/70 truncate">{user.email}</p>
+                    </div>
                   </div>
 
                   <div className="pt-1 space-y-0.5">
@@ -205,14 +228,14 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           ) : (
             <Link
               to="/login"
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs font-medium border transition-colors shrink-0 ${
                 location.pathname === '/login'
                   ? 'bg-[#251a13] text-[#dfc471] border-[#dfc471]/50'
                   : 'bg-[#150d09]/70 text-[#d5c4b4] border-[#38281d] hover:border-[#dfc471]/40 hover:text-[#ede4dc]'
               }`}
             >
               <User className="w-3.5 h-3.5 text-[#dfc471]" />
-              <span className="hidden sm:inline whitespace-nowrap">Sign In</span>
+              <span className="whitespace-nowrap text-xs font-medium">Login</span>
             </Link>
           )}
 
@@ -325,7 +348,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
               onClick={() => setIsMobileMenuOpen(false)}
               className="block py-2 text-[#dfc471]"
             >
-              Sign In / Register
+              Login / Register
             </Link>
           )}
         </div>
