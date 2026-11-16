@@ -6,6 +6,7 @@ import {
   SURAT_MARGIN_PERCENT,
   OTHER_CITY_MARGIN_PERCENT,
   GUEST_MARGIN_PERCENT,
+  GUEST_HIDDEN_PRODUCT_IDS,
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
@@ -252,7 +253,11 @@ export function createPublicRouter(
 
     const catMap = new Map(categories.map(c => [String(c.id), String(c.name)]));
 
-    const products = rows.map(r => {
+    const visibleRows = req.user
+      ? rows
+      : rows.filter(r => !GUEST_HIDDEN_PRODUCT_IDS.includes(String(r.id)));
+
+    const products = visibleRows.map(r => {
       const base = parseProductRow(r);
       const baseCost = getProductBaseCost(base);
       const dynamicPrice = calculateDynamicSellingPrice(baseCost, userMargin);

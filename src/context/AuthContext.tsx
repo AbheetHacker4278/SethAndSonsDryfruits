@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PRODUCTS, type CatalogProduct, isSuratCity } from '../data/products';
+import { PRODUCTS, type CatalogProduct, isSuratCity, GUEST_HIDDEN_PRODUCT_IDS } from '../data/products';
 import {
   ApiError,
   apiRequest,
@@ -87,8 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const products = useMemo(() => {
-    return adjustProductListForMargin(rawProducts, profitMargin);
-  }, [rawProducts, profitMargin]);
+    const list = adjustProductListForMargin(rawProducts, profitMargin);
+    if (!user) {
+      return list.filter(p => !GUEST_HIDDEN_PRODUCT_IDS.includes(p.id));
+    }
+    return list;
+  }, [rawProducts, profitMargin, user]);
 
   const applyBrowserBranding = useCallback((settings: PublicSettingsPayload | null) => {
     if (typeof document === 'undefined' || !settings?.website) return;

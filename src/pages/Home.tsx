@@ -16,18 +16,27 @@ interface HomeProps {
 }
 
 export default function Home({ onNavigateToRequest, onNavigateToCatalog }: HomeProps) {
-  const { products, publicSettings } = useAuth();
+  const { products, publicSettings, user } = useAuth();
   const featuredIds = publicSettings?.website?.featuredProductIds;
 
+  const guestFeaturedIds = useMemo(
+    () => ['kesar', 'anjeer-jammu', 'akhrot-best', 'kishmish-green', 'berry-cranberry', 'dates-ajwa'],
+    []
+  );
+
   const orderedProducts = useMemo(() => {
-    if (!featuredIds || featuredIds.length === 0) return products;
+    const activeFeaturedIds = !user
+      ? guestFeaturedIds
+      : (featuredIds && featuredIds.length > 0 ? featuredIds : []);
+
+    if (activeFeaturedIds.length === 0) return products;
     return [
-      ...featuredIds
+      ...activeFeaturedIds
         .map(id => products.find(p => p.id === id))
         .filter((p): p is NonNullable<typeof p> => Boolean(p)),
-      ...products.filter(p => !featuredIds.includes(p.id)),
+      ...products.filter(p => !activeFeaturedIds.includes(p.id)),
     ];
-  }, [products, featuredIds]);
+  }, [products, featuredIds, user, guestFeaturedIds]);
 
   const activePromos = useMemo(() => {
     return (publicSettings?.website?.promotionalSections || []).filter(

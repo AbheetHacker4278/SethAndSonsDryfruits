@@ -105,7 +105,7 @@ export default function ProductShowcase({
               </p>
             </div>
             <button
-              onClick={() => onRequestPurchase('kaju')}
+              onClick={() => onRequestPurchase(displayProducts[0]?.id || 'kesar')}
               className="shrink-0 px-6 py-3 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#dfc471]/40 transition-colors cursor-pointer"
             >
               Custom Order Inquiries

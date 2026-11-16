@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Play, Pause, Volume2, VolumeX, Sparkles, ArrowRight, CheckCircle2, Eye } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
-import { PRODUCTS, CatalogProduct } from '../data/products';
+import { PRODUCTS, CatalogProduct, GUEST_HIDDEN_PRODUCT_IDS } from '../data/products';
+import { useAuth } from '../context/AuthContext';
 
 interface HarvestVideoShowcaseProps {
   onRequestPurchase: (productId: string) => void;
@@ -12,8 +13,16 @@ export default function HarvestVideoShowcase({
   onRequestPurchase,
   onViewCatalog
 }: HarvestVideoShowcaseProps) {
-  // Only products with active video show in this carousel
-  const videoProducts = PRODUCTS.filter(p => !!p.videoUrl && !!p.videoDetails);
+  const { products, user } = useAuth();
+  const catalog = products && products.length > 0 ? products : PRODUCTS;
+  // Only products with active video show in this carousel (hiding guest-restricted items for unauthenticated users)
+  const videoProducts = useMemo(() => {
+    return catalog.filter(p => {
+      if (!user && GUEST_HIDDEN_PRODUCT_IDS.includes(p.id)) return false;
+      return !!p.videoUrl && !!p.videoDetails;
+    });
+  }, [catalog, user]);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -23,7 +32,8 @@ export default function HarvestVideoShowcase({
 
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const currentProduct: CatalogProduct | undefined = videoProducts[selectedIndex] || videoProducts[0];
+  const safeIndex = selectedIndex < videoProducts.length ? selectedIndex : 0;
+  const currentProduct: CatalogProduct | undefined = videoProducts[safeIndex] || videoProducts[0];
   const videoDetails = currentProduct?.videoDetails;
 
   // IntersectionObserver to prevent downloading ~5MB video until user scrolls near

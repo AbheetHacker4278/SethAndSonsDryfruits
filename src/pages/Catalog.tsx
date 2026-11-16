@@ -9,6 +9,7 @@ import {
   SURAT_SHIPPING_FEE,
   OTHER_CITY_SHIPPING_FEE,
   NON_SURAT_FREE_SHIPPING_THRESHOLD,
+  GUEST_HIDDEN_PRODUCT_IDS,
   type ProductWeightVariant,
 } from '../data/products';
 import {
@@ -218,6 +219,9 @@ export default function Catalog({
   useEffect(() => {
     if (!user) {
       setWishlistIds(new Set());
+      if (detailProduct && GUEST_HIDDEN_PRODUCT_IDS.includes(detailProduct.id)) {
+        setDetailProduct(null);
+      }
       return;
     }
 

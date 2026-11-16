@@ -141,6 +141,23 @@ export const SURAT_MARGIN_PERCENT = 25;
 export const OTHER_CITY_MARGIN_PERCENT = 40;
 export const GUEST_MARGIN_PERCENT = 25;
 
+/**
+ * Product IDs that must be hidden from guest / unauthenticated users on Storefront & Catalog.
+ * Only authenticated / registered users can see these items.
+ * (Kesar is preserved and shown to all users).
+ */
+export const GUEST_HIDDEN_PRODUCT_IDS: readonly string[] = [
+  'kaju',
+  'badam',
+  'kishmish',
+  'akhrot',
+  'pista',
+];
+
+export function isProductVisibleForGuest(productId: string): boolean {
+  return !GUEST_HIDDEN_PRODUCT_IDS.includes(productId);
+}
+
 export const SURAT_SHIPPING_FEE = 0;
 export const OTHER_CITY_SHIPPING_FEE = 158;
 export const NON_SURAT_FREE_SHIPPING_THRESHOLD = 5000;

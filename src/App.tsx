@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
 import Home from './pages/Home';
+import { GUEST_HIDDEN_PRODUCT_IDS } from './data/products';
 
 // Route-level code splitting: secondary storefront pages
 const Catalog = lazy(() => import('./pages/Catalog'));
@@ -58,14 +59,7 @@ function RouteLoadingFallback({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-const DEFAULT_CART: Record<string, number> = {
-  kaju: 1,
-  badam: 0,
-  kishmish: 0,
-  akhrot: 0,
-  pista: 0,
-  kesar: 0,
-};
+const DEFAULT_CART: Record<string, number> = {};
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -181,7 +175,7 @@ function AdminRoute({
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { products } = useAuth();
+  const { products, user } = useAuth();
 
   const [cartItems, setCartItems] = useState<Record<string, number>>(() => {
     try {
@@ -191,6 +185,25 @@ function AppRoutes() {
       return DEFAULT_CART;
     }
   });
+
+  // Purge any guest-restricted products from active cart when not logged in
+  useEffect(() => {
+    if (!user) {
+      setCartItems(prev => {
+        let changed = false;
+        const next = { ...prev };
+        for (const id of GUEST_HIDDEN_PRODUCT_IDS) {
+          for (const key of Object.keys(next)) {
+            if (key === id || key.startsWith(`${id}:`)) {
+              delete next[key];
+              changed = true;
+            }
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     try {
