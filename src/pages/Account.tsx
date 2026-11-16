@@ -459,8 +459,8 @@ export default function Account({ onReorder }: AccountProps) {
                 key={item.id}
                 onClick={() => switchTab(item.id)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${active
-                    ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40 shadow-sm'
-                    : 'bg-[#150d09] text-[#d5c4b4] border border-[#38281d]'
+                  ? 'bg-[#064e3b] text-[#dfc471] border border-[#dfc471]/40 shadow-sm'
+                  : 'bg-[#150d09] text-[#d5c4b4] border border-[#38281d]'
                   }`}
               >
                 <Icon className="w-3.5 h-3.5" />

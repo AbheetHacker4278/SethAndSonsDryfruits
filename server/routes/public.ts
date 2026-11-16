@@ -44,8 +44,11 @@ function parseProductRow(row: Record<string, any>) {
     }
     return fallback;
   };
-  const gallery = safeArr(row.gallery, [row.image]);
-  const images = safeArr(row.images, gallery);
+  const rawGallery = safeArr(row.gallery, [row.image]);
+  // Single image policy on user side: keep only the 1st image and remove secondary images
+  const primaryImg = (rawGallery[0] || row.image || '').trim();
+  const gallery = primaryImg ? [primaryImg] : [];
+  const images = gallery;
 
   return {
     id: row.id,

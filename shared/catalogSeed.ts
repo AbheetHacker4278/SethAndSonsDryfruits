@@ -261,9 +261,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     gallery: [
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
-      '/assets/aistudio/0c5b509ff023313602180c5dd8a5582e_aad82011.jpg',
-      '/assets/aistudio/87b2fabb1a3b7a90b1cbda1ffd5b7b64_1e575e9f.jpg'
+      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
     ],
     fallbackImage: '/assets/aistudio/0c5b509ff023313602180c5dd8a5582e_aad82011.jpg',
     videoUrl: '/assets/aistudio/Woman_snapping_cashew_nut_in_5a14ce7f_1080p_42b55562.mp4',
@@ -318,10 +316,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     gallery: [
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
-      '/assets/aistudio/34434d3d3a97bcca377e213f287b7e39_953b7ccf.jpg',
-      '/assets/aistudio/bbad228edecb39d89fad29895a9ff2fa_05d4de78.jpg',
-      '/assets/aistudio/bd6535fe461ca69a667833aa44863365_303f8cf4.jpg'
+      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
     ],
     fallbackImage: '/assets/aistudio/bbad228edecb39d89fad29895a9ff2fa_05d4de78.jpg',
     videoUrl: '/assets/aistudio/Hands_breaking_open_almond_shell_3ad2cbb9_1080p__1__6660677c.mp4',
@@ -376,8 +371,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     gallery: [
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     videoUrl: '/assets/aistudio/Woman_picking_green_raisins_1be94ac2_1080p_046a22e0.mp4',
@@ -432,9 +426,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     gallery: [
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
-      '/assets/aistudio/667dd27b774d8f7b6a6757a89cf83530_cc6420ec.jpg',
-      '/assets/aistudio/17d90ef69aa71ecdfc866b5ba1939d99_2bc7858f.jpg'
+      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
     ],
     fallbackImage: '/assets/aistudio/667dd27b774d8f7b6a6757a89cf83530_cc6420ec.jpg',
     videoUrl: '/assets/aistudio/Woman_extracting_walnut_oil_8b2a505d_1080p_24231ea9.mp4',
@@ -489,9 +481,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     gallery: [
-      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
-      '/assets/aistudio/a7cf107bf9037d4e4b3ba1dd39eb7744_63394296.jpg',
-      '/assets/aistudio/243ed5b76ca7198521c38d98f418c8bf_f5443d27.jpg'
+      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
     ],
     fallbackImage: '/assets/aistudio/a7cf107bf9037d4e4b3ba1dd39eb7744_63394296.jpg',
     videoUrl: '/assets/aistudio/Woman_cracking_pistachio_shell_3f56c033_1080p_9ec43ffe.mp4',
@@ -546,9 +536,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     gallery: [
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
-      '/assets/aistudio/93d2445d6a38107f8c920e727cd8baad_a01f1317.jpg',
-      '/assets/aistudio/e0c5e8456a6b625467270cfd3d21bef1_a9d4af00.jpg'
+      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
     ],
     fallbackImage: '/assets/aistudio/93d2445d6a38107f8c920e727cd8baad_a01f1317.jpg',
     videoUrl: '/assets/aistudio/Woman_picking_saffron_threads_42f4b7c7_1080p_6edfd21a.mp4',
@@ -603,8 +591,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/ceaglqsqz82nwu8o1hvc.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/ceaglqsqz82nwu8o1hvc.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/ceaglqsqz82nwu8o1hvc.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Premium whole in-shell walnuts harvested from high-altitude Kashmiri groves. Crisp shell with golden, high-oil walnut kernels.',
@@ -650,8 +637,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/sbeova45ycjwcgtoxt41.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/sbeova45ycjwcgtoxt41.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/sbeova45ycjwcgtoxt41.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Naturally sun-dried brown walnut kernels with robust earthy flavor and exceptional omega-3 oil concentration.',
@@ -697,8 +683,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/w1rtbofinmnim7oatbdl.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/w1rtbofinmnim7oatbdl.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/w1rtbofinmnim7oatbdl.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Medium-sized traditional Kashmiri in-shell walnuts with easy-to-crack shells and nutty, wholesome kernels.',
@@ -735,8 +720,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/vsxqsphstn5lc4pcccsq.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/vsxqsphstn5lc4pcccsq.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/vsxqsphstn5lc4pcccsq.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Compact, naturally cured Kashmiri in-shell walnuts. Dense meat and high natural oil yield at excellent daily value.',
@@ -773,8 +757,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/cqtsra3fqwnyhjvrfhjz.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/cqtsra3fqwnyhjvrfhjz.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/cqtsra3fqwnyhjvrfhjz.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Exquisite ivory snow-white walnut halves with delicate sweetness, crisp buttery snap, and zero bitterness.',
@@ -811,8 +794,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/f7fz2hxd4lvlhzjzunyx.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/f7fz2hxd4lvlhzjzunyx.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658252/products/f7fz2hxd4lvlhzjzunyx.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Certified organic, untreated wild in-shell walnuts harvested from untouched high-altitude terraces across Jammu & Kashmir.',
@@ -849,8 +831,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/wsv1ddodyaisreabb417.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/wsv1ddodyaisreabb417.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/wsv1ddodyaisreabb417.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'The pinnacle of walnut grading. Handpicked 7-Star unbroken jumbo halves with peerless buttery sweetness and pristine ivory hue.',
@@ -887,8 +868,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ynb7dlebyvmjg0tlbwco.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ynb7dlebyvmjg0tlbwco.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ynb7dlebyvmjg0tlbwco.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Uniform quarter pieces of premium light walnut kernels. Perfect for luxury confectionery, morning oats, and dessert garnish.',
@@ -925,8 +905,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658253/products/wqunzaqbqquzb0x8dadj.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658253/products/wqunzaqbqquzb0x8dadj.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658253/products/wqunzaqbqquzb0x8dadj.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Extra large King-size in-shell walnuts. Generous internal cavity with thick, golden, oil-rich kernel halves.',
@@ -963,8 +942,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ohqmeath34em1efjh8uz.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ohqmeath34em1efjh8uz.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/ohqmeath34em1efjh8uz.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Cleanly sifted broken walnut pieces rich in cold-pressed natural oils. Ideal for daily snacking, baking, and granola mixes.',
@@ -1001,8 +979,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/z2ve52aegialzj3k4ua0.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/z2ve52aegialzj3k4ua0.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/z2ve52aegialzj3k4ua0.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'High-potency 3-Star amber walnut kernels. Deep nutty aroma with full-bodied omega-3 nutrient profile.',
@@ -1039,8 +1016,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/inliqpx6mi6dq3ytzvgk.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/inliqpx6mi6dq3ytzvgk.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658254/products/inliqpx6mi6dq3ytzvgk.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Handpicked 4-Star light amber kernels with clean sweet crunch and smooth finish, cured to perfection.',
@@ -1077,8 +1053,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ujkvmmqe5okmfpcdp93e.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ujkvmmqe5okmfpcdp93e.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ujkvmmqe5okmfpcdp93e.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Exceptional 5-Star snow-white unbroken walnut halves. Highly prized for luxurious presentation, delicate crunch, and zero tannic bite.',
@@ -1115,8 +1090,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ivul036xsexdv1tqosox.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ivul036xsexdv1tqosox.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ivul036xsexdv1tqosox.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Smooth ivory whole cashews graded for natural sweetness, firm snap, and clean buttery aroma without chemical bleaching.',
@@ -1153,8 +1127,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/gy7pvoa3bwildwwvfd1k.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/gy7pvoa3bwildwwvfd1k.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/gy7pvoa3bwildwwvfd1k.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Extra-large W-180 caliber Super Jumbo whole cashews. Plump, milky-white kernels with an unmistakable rich crunch ideal for royal gifting.',
@@ -1191,8 +1164,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ouepiotmqncrfy7bywtv.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ouepiotmqncrfy7bywtv.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/ouepiotmqncrfy7bywtv.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Superior grade W-210 whole cashews with delicate ivory tone, uniform curvature, and rich natural cashew butter richness.',
@@ -1229,8 +1201,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/xavmcld6q6lzlfpwkz6o.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/xavmcld6q6lzlfpwkz6o.jpg',
-      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658255/products/xavmcld6q6lzlfpwkz6o.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     description: 'Naturally split in-shell pistachios roasted slowly with fine mineral salt for an effortless snap and vibrant emerald kernel.',
@@ -1267,8 +1238,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658256/products/sobwgbiwlpm6u0awdunw.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658256/products/sobwgbiwlpm6u0awdunw.jpg',
-      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658256/products/sobwgbiwlpm6u0awdunw.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     description: 'Pure shelled emerald-green pistachio kernels with zero added salt. Prized for royal mithai, kheer, baklava, and raw antioxidant nutrition.',
@@ -1305,8 +1275,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/pbhu31gezoxwj8ezfgwz.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/pbhu31gezoxwj8ezfgwz.jpg',
-      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/pbhu31gezoxwj8ezfgwz.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     description: 'Selected jumbo open-mouth pistachios featuring large plump kernels, crisp papery shells, and refined earthen roasting.',
@@ -1343,8 +1312,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/vjvl9i6b1lmi5np64771.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/vjvl9i6b1lmi5np64771.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/vjvl9i6b1lmi5np64771.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Naturally sweet, plump Afghani seedless raisins shade-dried for supple skins, juicy honey nectar centers, and rich iron content.',
@@ -1381,8 +1349,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/fwmppjzo3dz1doveskpn.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/fwmppjzo3dz1doveskpn.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/fwmppjzo3dz1doveskpn.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Deep purple-black seedless raisins bursting with resveratrol polyphenols, iron, and soothing soaked morning tonic vitality.',
@@ -1419,8 +1386,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/jcibl0ep8olzgoiqxgaw.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/jcibl0ep8olzgoiqxgaw.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/jcibl0ep8olzgoiqxgaw.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Slender, translucent jade-green seedless raisins shade-dried cleanly to preserve tangy grape nectar and tender chew.',
@@ -1457,8 +1423,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/v1ybkunhpi2qp18klpzr.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/v1ybkunhpi2qp18klpzr.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/v1ybkunhpi2qp18klpzr.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Plump, velvety dark brown Munakka (Draksha) dried grapes with natural seeds intact — prized in Ayurveda for throat comfort, digestion, and blood vitality.',
@@ -1496,8 +1461,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/kny6blhzymw7wosnbkdi.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/kny6blhzymw7wosnbkdi.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658258/products/kny6blhzymw7wosnbkdi.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Naturally sun-dried whole figs cured to golden perfection. Soft, seed-crunchy centers packed with dietary fiber, calcium, and potassium.',
@@ -1534,8 +1498,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/ctcwozyeu4tblhehltxu.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/ctcwozyeu4tblhehltxu.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/ctcwozyeu4tblhehltxu.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Sweet Afghani dried figs selected for uniform pale-gold skin, supple moisture, and rich honeyed seed crunch.',
@@ -1572,8 +1535,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/xhrkjbsrfuo6eq9winpx.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/xhrkjbsrfuo6eq9winpx.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/xhrkjbsrfuo6eq9winpx.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Large, succulent golden dried figs prized for thin tender skins, generous nectar pulp, and clean natural sweetness.',
@@ -1610,8 +1572,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/pxqojggbgmeubwo0c7ll.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/pxqojggbgmeubwo0c7ll.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/pxqojggbgmeubwo0c7ll.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Extra-large Juicy Jumbo figs bursting with amber nectar. Our flagship festive fig grade — ultra-soft, moist, and deeply nourishing.',
@@ -1649,8 +1610,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/q0l4cz7v2dclmbpac8rd.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/q0l4cz7v2dclmbpac8rd.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/q0l4cz7v2dclmbpac8rd.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Traditional sun-dried Aloo Bukhara (dry plums) prized across Jammu & Kashmiri cuisine for digestive comfort, tangy chutney, and birch-toned sweetness.',
@@ -1687,8 +1647,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/u6e1nrigloynjpngm5it.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/u6e1nrigloynjpngm5it.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658259/products/u6e1nrigloynjpngm5it.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Cleanly winnowed pure Sabja (sweet basil) seeds that bloom rapidly in water to cool digestion, hydrate the body, and deliver plant Omega-3s.',
@@ -1725,8 +1684,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/t7omo6pj4sntkxqxz7gt.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/t7omo6pj4sntkxqxz7gt.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658260/products/t7omo6pj4sntkxqxz7gt.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Deep dark dried blackberries bursting with intense berry flavor, anthocyanins, and Vitamin C for snacking, teas, and granola.',
@@ -1763,8 +1721,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/o5srupmj8xjbimzeuvrh.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/o5srupmj8xjbimzeuvrh.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/o5srupmj8xjbimzeuvrh.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Whole, plump dried blueberries prized globally as a brain and eye superfood. Delicious in oatmeal, smoothies, muffins, or straight from the jar.',
@@ -1801,8 +1758,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658262/products/yfkojixrl2wa39olm093.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658262/products/yfkojixrl2wa39olm093.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658262/products/yfkojixrl2wa39olm093.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Pure raw chia seeds packed with plant Omega-3 ALA, complete protein, calcium, and soluble fiber for overnight puddings and smoothies.',
@@ -1839,8 +1795,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/nbh9ip81kwuwfaqmr32n.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/nbh9ip81kwuwfaqmr32n.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/nbh9ip81kwuwfaqmr32n.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Vibrant ruby-red whole dried cranberries with crisp sweet-tart tang. Ideal for urinary wellness, trail mixes, salads, and artisan bakes.',
@@ -1877,8 +1832,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/hauzk0jvrzrze7b7oyso.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/hauzk0jvrzrze7b7oyso.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/hauzk0jvrzrze7b7oyso.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Traditional sweet Himalayan Khubani (apricot) seed kernels, prized in mountain valleys for joint oil richness, Vitamin E, and natural warmth.',
@@ -1915,8 +1869,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/zv2wyzes1icfcuq0e6d0.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/zv2wyzes1icfcuq0e6d0.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/zv2wyzes1icfcuq0e6d0.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Deep crimson pitted dried cherries with luscious sweet-tart orchard flavor. Rich in natural melatonin for muscle recovery and calm sleep.',
@@ -1953,8 +1906,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/kdkvbpqjvny8kcdh97id.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/kdkvbpqjvny8kcdh97id.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658261/products/kdkvbpqjvny8kcdh97id.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Vibrant jade-green sliced dried kiwi with zesty tropical-tart flavor, crisp kiwi seeds, and abundant Vitamin C.',
@@ -1991,8 +1943,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/uwpc6vdlntci5k20ceaf.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/uwpc6vdlntci5k20ceaf.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/uwpc6vdlntci5k20ceaf.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Glossy golden-brown Alsi (flax) seeds cleaned of chaff. Rich in plant Omega-3 ALA fatty acids, lignans, and gut-friendly mucilage.',
@@ -2029,8 +1980,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/obrzfpyuhvkebyzu1hol.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/obrzfpyuhvkebyzu1hol.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/obrzfpyuhvkebyzu1hol.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Cleanly hulled milky-white Kharbooja Magaz (muskmelon) kernels. Cooling in Ayurvedic tradition and indispensable for royal gravies, thandai, and panjiri.',
@@ -2067,8 +2017,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/x6khrftvy4htmdsr9pmi.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/x6khrftvy4htmdsr9pmi.jpg',
-      '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/x6khrftvy4htmdsr9pmi.jpg'
     ],
     fallbackImage: '/assets/aistudio/3c576d7519d8f23898ea5fb9043bb2d7_9d2bc35a.jpg',
     description: 'Whole, hull-less jade-green AAA grade pumpkin seeds bursting with bioavailable zinc, magnesium, and 30g protein per 100g.',
@@ -2105,8 +2054,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/aqw1iq9ckjtcw4l2sc8c.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/aqw1iq9ckjtcw4l2sc8c.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/aqw1iq9ckjtcw4l2sc8c.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Jewel-toned dried roseberries offering floral berry brightness, crisp chew, and natural Vitamin C richness for snacking and desserts.',
@@ -2143,8 +2091,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/hg6p5go8zqmoz4ak3zja.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/hg6p5go8zqmoz4ak3zja.jpg',
-      '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/hg6p5go8zqmoz4ak3zja.jpg'
     ],
     fallbackImage: '/assets/aistudio/295190b67948ef58902b7efe5b0311a0_8daf8c64.jpg',
     description: 'Velvety, pit-free whole seedless apricots packed with beta-carotene, potassium, and iron. Soft, chewy, and naturally sweet-tart.',
@@ -2181,8 +2128,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/mz3laf3jldkdglvy2emq.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/mz3laf3jldkdglvy2emq.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658263/products/mz3laf3jldkdglvy2emq.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Whole aromatic dried strawberries bursting with nostalgic summer sweetness. Perfect over pancakes, yogurt bowls, dark chocolate bark, or snacking.',
@@ -2219,8 +2165,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ggkbqq3ucoukns6vkdvw.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ggkbqq3ucoukns6vkdvw.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ggkbqq3ucoukns6vkdvw.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Cleanly hulled raw sunflower seed kernels rich in Vitamin E, selenium, and wholesome crunch for salads, artisan breads, and daily snacking.',
@@ -2258,8 +2203,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/pihp9nqra8jv6bg2qorz.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/pihp9nqra8jv6bg2qorz.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/pihp9nqra8jv6bg2qorz.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Monofloral, crystal-clear pale gold Kashmiri Acacia honey harvested from high mountain blossoms. Naturally slow-crystallizing with light floral sweetness.',
@@ -2296,8 +2240,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/btjbmua0dqqcz57kcndz.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/btjbmua0dqqcz57kcndz.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/btjbmua0dqqcz57kcndz.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Revered ebony-dark Ajwa dates with velvety fine skin, prune-caramel richness, and gentle natural sweetness prized for heart health and fasting nourishment.',
@@ -2334,8 +2277,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ve7fbtm2jn1zj2qaopwa.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ve7fbtm2jn1zj2qaopwa.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/ve7fbtm2jn1zj2qaopwa.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Wholesome, naturally sweet everyday Arabian dates with tender mahogany flesh and rich caramel aroma. Great for shakes, desserts, and energy.',
@@ -2372,8 +2314,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/vtqbhyrxsniba2ue6qf5.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/vtqbhyrxsniba2ue6qf5.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/vtqbhyrxsniba2ue6qf5.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Firm, chewy, glossy dark brown Fard dates famous for their clean non-sticky bite, mild balanced sweetness, and dense chewy flesh.',
@@ -2410,8 +2351,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/f7zpoda0fyunwgcuubus.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/f7zpoda0fyunwgcuubus.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658265/products/f7zpoda0fyunwgcuubus.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Sun-matured Damask rose petals gently blended into raw mountain honey with zero refined white sugar. Cooling Ayurvedic digestive elixir.',
@@ -2448,8 +2388,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/qgqfupzkrhovvbbe1uvv.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/qgqfupzkrhovvbbe1uvv.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/qgqfupzkrhovvbbe1uvv.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Long, plump black-brown Safawi Kalmi dates celebrated for soft melt-in-mouth flesh, deep molasses caramel notes, and rich mineral density.',
@@ -2486,8 +2425,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nwn1i7sriarmyfxqblj9.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nwn1i7sriarmyfxqblj9.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nwn1i7sriarmyfxqblj9.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Raw Himalayan wildflower honey steeped patiently with pure Grade-1 Kashmiri Mongra saffron stigmas. Luminous golden hue and royal aroma.',
@@ -2524,8 +2462,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/uoafr0ryydf3qmhubje9.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/uoafr0ryydf3qmhubje9.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/uoafr0ryydf3qmhubje9.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic raw multiflora honey collected from unspoiled Kashmir and Chenab hillside wildflowers. Thick amber body with rich botanical complexity.',
@@ -2562,8 +2499,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/myujiifo3f95r2hzxslf.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/myujiifo3f95r2hzxslf.jpg',
-      '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/myujiifo3f95r2hzxslf.jpg'
     ],
     fallbackImage: '/assets/aistudio/832ffaad3250b94928b1886a927f3898_fbaaeeda.jpg',
     description: 'Traditional dark sun-dried Black Kharik (Chhuara) revered in Ayurveda for boiling in winter milk, panjiri, and bone-strengthening tonics.',
@@ -2601,8 +2537,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nftwmezlkmzxwbgug0et.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nftwmezlkmzxwbgug0et.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/nftwmezlkmzxwbgug0et.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Pure wood-pressed sweet almond oil (Badam Rogan) extracted without heat or solvents. Ideal for nightly milk tonic, glowing skin, and hair nourishment.',
@@ -2639,8 +2574,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/ohaxrgf2jve5mbzsjac7.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/ohaxrgf2jve5mbzsjac7.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658267/products/ohaxrgf2jve5mbzsjac7.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Lightweight golden Khubani (apricot kernel) oil pressed cold from Himalayan mountain apricots. Deeply soothing for joints, baby massage, and dry skin.',
@@ -2677,8 +2611,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/xipxy7u8dyrrc294kv3z.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/xipxy7u8dyrrc294kv3z.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/xipxy7u8dyrrc294kv3z.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Potent first-press Kalonji (Nigella sativa) black seed oil rich in active Thymoquinone. Supports respiratory immunity, scalp strength, and metabolic wellness.',
@@ -2715,8 +2648,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/ogl55yyf8mwucw2ecwau.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/ogl55yyf8mwucw2ecwau.jpg',
-      '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/ogl55yyf8mwucw2ecwau.jpg'
     ],
     fallbackImage: '/assets/aistudio/d4c33b6c127da3b7594b2dc2bf6ad056_21202fa1.jpg',
     description: 'Golden virgin oil pressed cold from Kashmiri walnut kernels. Abundant in heart-protective Omega-3 ALA fatty acids for salads, finishing drizzles, and hair care.',
@@ -2754,8 +2686,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/kx4l3bkncpbwgiupdbqs.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/kx4l3bkncpbwgiupdbqs.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/kx4l3bkncpbwgiupdbqs.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Naturally sweet Kagzi almonds protected inside paper-thin shells you can crack easily with bare fingers, sealing in fresh almond oils.',
@@ -2792,8 +2723,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/m726ok5w5sz5hmolkxtc.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/m726ok5w5sz5hmolkxtc.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658268/products/m726ok5w5sz5hmolkxtc.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Uniform, plump Nonpareil California almond kernels prized for sweet milkiness, snappy crunch, and everyday morning soaking.',
@@ -2830,8 +2760,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/y5swhqjk5mvd6effpvy8.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/y5swhqjk5mvd6effpvy8.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/y5swhqjk5mvd6effpvy8.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Flatter, oil-dense Badam Giri kernels favored across North India for ultra-creamy badam rogan, halwa, and morning soaking.',
@@ -2868,8 +2797,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/wc9litpwwsrxlrqxuzfe.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/wc9litpwwsrxlrqxuzfe.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658269/products/wc9litpwwsrxlrqxuzfe.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Distinctive boat-shaped Hanuman Mamra almonds packed with up to double the cold-pressed oil content of ordinary market almonds.',
@@ -2906,8 +2834,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/tbvjwgspcmpwvpjrtl3y.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/tbvjwgspcmpwvpjrtl3y.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/tbvjwgspcmpwvpjrtl3y.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Smaller, oil-glistening Kashmiri mountain almond kernels bursting with intense natural sweetness and aromatic almond essence.',
@@ -2944,8 +2871,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/qewgt5fgsa2nbdzi1jas.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/qewgt5fgsa2nbdzi1jas.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/qewgt5fgsa2nbdzi1jas.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Exceptionally creamy Malai-grade Kashmiri almond kernels that soak silky soft and yield lush white almond milk and kesar badam drinks.',
@@ -2982,8 +2908,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/j3nugiskefhqm4rbb0wj.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/j3nugiskefhqm4rbb0wj.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/j3nugiskefhqm4rbb0wj.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Authentic mountain Mamra almonds cherished for raw unrefined oil yield, rich nutty crunch, and potent daily winter nourishment.',
@@ -3020,8 +2945,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/rtrhy2dp1kawjg1dim3v.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/rtrhy2dp1kawjg1dim3v.jpg',
-      '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/rtrhy2dp1kawjg1dim3v.jpg'
     ],
     fallbackImage: '/assets/aistudio/2a3c89dd1edf49b4c54431c043fd7a29_4031e226.jpg',
     description: 'Our top-tier Shahi Kesari almond kernels — extraordinarily rich in natural oil (~50%), crisp, golden-amber, and prized for royal wellness & gifting.',
@@ -3060,8 +2984,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/pwugasify4yl0cuacswg.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/pwugasify4yl0cuacswg.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/pwugasify4yl0cuacswg.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Fine, pungent aroma-locked Hing powder milled cleanly for effortless tadka dispersion. Adds unmistakable savory umami and aids digestion.',
@@ -3098,8 +3021,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/fn0i5um4tnkrphsylait.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/fn0i5um4tnkrphsylait.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658271/products/fn0i5um4tnkrphsylait.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic stone-ground Kashmiri Deghi Mirch giving curries and tandoori marinades a luminous royal crimson glow with gentle aromatic warmth.',
@@ -3136,8 +3058,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/agzg5jolt644jrozsd0b.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/agzg5jolt644jrozsd0b.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/agzg5jolt644jrozsd0b.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Whole sun-dried wrinkled Kashmiri chillies — rich crimson skin, fruity sweet aroma, and gentle heat for tempering, Rogan Josh, and homemade paste.',
@@ -3175,8 +3096,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/a1qpmrarbl70zpiapyje.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/a1qpmrarbl70zpiapyje.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/a1qpmrarbl70zpiapyje.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic sun-cured Kashmiri Masala Tikki (Ver) — a fragrant spice cake pounded with Kashmiri shallots (pran), garlic, red chillies, fennel, and warm mustard oil.',
@@ -3213,8 +3133,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/vz3plaqr7jqvqsdd5j7k.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/vz3plaqr7jqvqsdd5j7k.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/vz3plaqr7jqvqsdd5j7k.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Sweet, intensely aromatic whole natural Dalchini bark sticks essential for Kashmiri Kahwa, pulao, chai, and healthy blood-sugar balance.',
@@ -3251,8 +3170,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/mvzwx4xwzqex7jmekqkl.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/mvzwx4xwzqex7jmekqkl.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/mvzwx4xwzqex7jmekqkl.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Dense, heavy TGSEB-grade whole black peppercorns bursting with pungent piperine bite, citrus-pine oils, and digestive warmth.',
@@ -3289,8 +3207,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/dsxt7b7cbwuqzbvf5qz8.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/dsxt7b7cbwuqzbvf5qz8.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/dsxt7b7cbwuqzbvf5qz8.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Handpicked whole unopened clove buds brimming with natural eugenol oil — never spent or oil-extracted.',
@@ -3328,8 +3245,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/tzya5y3oa6g8n8p91pxb.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/tzya5y3oa6g8n8p91pxb.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658274/products/tzya5y3oa6g8n8p91pxb.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic high-purity Hing crafted through time-honored Jammu spice blending for unforgettable tadka fragrance and gentle digestion.',
@@ -3366,8 +3282,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nlzcmscsnhxj5bwkrmti.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nlzcmscsnhxj5bwkrmti.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nlzcmscsnhxj5bwkrmti.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Slender, intensely fragrant wild Kashmiri Shahi Jeera (Bunium persicum) prized for royal Wazwan, biryanis, and delicate nutty-smoky complexity.',
@@ -3404,8 +3319,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/uwesvfg1cltqj1fs478q.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/uwesvfg1cltqj1fs478q.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/uwesvfg1cltqj1fs478q.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Rare sun-cured Kashmiri Dhingri (oyster mushroom) treasured in heritage vegetarian Wazwan curries for its deep umami richness and meaty alpine bite.',
@@ -3442,8 +3356,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/pt8sszdhyslpabzf36we.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/pt8sszdhyslpabzf36we.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/pt8sszdhyslpabzf36we.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Uniform, sweet-roasted or raw whole hazelnut kernels bursting with buttery praline aroma—ideal for gourmet snacking, dark chocolate pairing, and artisan patisserie.',
@@ -3480,8 +3393,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/ugxln7pnmjy0fxxjjanj.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/ugxln7pnmjy0fxxjjanj.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/ugxln7pnmjy0fxxjjanj.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Chef-balanced everyday blend of California almonds, whole cashews, pistachios, golden raisins, and sweet berries designed for clean sustained energy.',
@@ -3518,8 +3430,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/qon2a5q7ue4uk1vblmjr.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/qon2a5q7ue4uk1vblmjr.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/qon2a5q7ue4uk1vblmjr.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Potent single-clove Himalayan snow mountain garlic revered in Ayurveda for cholesterol balance, joint comfort, and seasonal immunity.',
@@ -3557,8 +3468,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nhxdg049jmtnrzk17dxi.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nhxdg049jmtnrzk17dxi.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658276/products/nhxdg049jmtnrzk17dxi.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic 1-minute Kashmiri Kahwa infusion enriched with real Pampore saffron strands, green cardamom, cinnamon bark, cloves, and slivered almonds.',
@@ -3596,8 +3506,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/kscsulu4qs7fditqezep.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/kscsulu4qs7fditqezep.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/kscsulu4qs7fditqezep.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Brisk, full-bodied tea leaves layered with crushed green cardamom, sun-dried ginger, Ceylon cinnamon, cloves, and black peppercorn.',
@@ -3635,8 +3544,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/hdytcj0ljzkxrvi8w2ds.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/hdytcj0ljzkxrvi8w2ds.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/hdytcj0ljzkxrvi8w2ds.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Diabetic-friendly loose-leaf green tea blended with whole Kashmiri spices, rose petals, saffron wisps, and green cardamom—zero sugar, zero jaggery, pure botanical aroma.',
@@ -3673,8 +3581,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/r39zntvdepipswcidwjo.png',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/r39zntvdepipswcidwjo.png',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/r39zntvdepipswcidwjo.png'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Vibrant antioxidant medley combining roasted pumpkin, sunflower, flax, and chia seeds with tart cranberries, blueberries, and black raisins.',
@@ -3711,8 +3618,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/sjhexlqoq7184orn3smu.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/sjhexlqoq7184orn3smu.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/sjhexlqoq7184orn3smu.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Thin-shelled gourmet pecans sealed naturally inside their protective amber shell to preserve fresh caramel-butter richness all year.',
@@ -3749,8 +3655,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/pgkmh4ju50zcfxydcrwl.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/pgkmh4ju50zcfxydcrwl.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/pgkmh4ju50zcfxydcrwl.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Golden-amber whole shelled pecan halves prized for zero astringency, velvet crunch, and decadent brown-butter sweetness.',
@@ -3788,8 +3693,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/dajul8nyqm94op3xzpej.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/dajul8nyqm94op3xzpej.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658278/products/dajul8nyqm94op3xzpej.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Steamed long whole tea leaves producing a luminous jade liquor with crisp vegetal sweetness, zero dusty fannings, and smooth low bitterness.',
@@ -3826,8 +3730,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pqkm3tubqebgaopgq8ym.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pqkm3tubqebgaopgq8ym.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pqkm3tubqebgaopgq8ym.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Vibrant emerald-green bold pods packed with oil-rich black seeds—treasured as the Queen of Spices for Kashmiri Kahwa, kheer, biryani, and digestive mouth freshening.',
@@ -3865,8 +3768,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/jfqeyl1snmzalhez9ehd.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/jfqeyl1snmzalhez9ehd.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/jfqeyl1snmzalhez9ehd.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Authentic black-gold Himalayan rock exudate purified traditionally in Triphala decoction—dissolves cleanly in warm water or milk with zero heavy-metal fillers.',
@@ -3904,8 +3806,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/swqewswxs8datmrtw9fp.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/swqewswxs8datmrtw9fp.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/swqewswxs8datmrtw9fp.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Smooth daily adaptogenic herbal infusion uniting high-altitude Himalayan botanicals with purified Shilajit extract for sustained morning focus and warmth.',
@@ -3942,8 +3843,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'dried-fruits',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/xhefa3qhbljcl1ron5yo.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/xhefa3qhbljcl1ron5yo.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/xhefa3qhbljcl1ron5yo.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Famous small glossy crimson Bhaderwah rajma grown along snow-fed Neeru river valleys—cooks rapidly into velvety thick gravy with unmistakable nutty mountain flavor.',
@@ -3981,8 +3881,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/clgyfoq7uhx81suvi8tn.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/clgyfoq7uhx81suvi8tn.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/clgyfoq7uhx81suvi8tn.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Velvety, alcohol-free royal Kesar Attar crafted in Mysore sandalwood-oil base infused with Pampore saffron aromatics for long-lasting warm spiritual trail.',
@@ -4020,8 +3919,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pomznghilhwyfmzxd2ca.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pomznghilhwyfmzxd2ca.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658280/products/pomznghilhwyfmzxd2ca.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Whipped botanical day-and-night radiance cream enriched with real Kashmiri saffron extract, sweet almond oil, and natural shea butter for even-toned luminous skin.',
@@ -4059,8 +3957,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/zoeax2rkt6yxqgvtujpx.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/zoeax2rkt6yxqgvtujpx.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/zoeax2rkt6yxqgvtujpx.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Hand-picked crimson Crocus sativus flower stigmas from Pampore karewas—delivers vivid golden infusion in warm milk, sweets, pooja offerings, and maternity wellness.',
@@ -4098,8 +3995,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/gvqgkqs2lmlikvsrgap3.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/gvqgkqs2lmlikvsrgap3.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/gvqgkqs2lmlikvsrgap3.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Hand-poured botanical bathing bar infused with real saffron strands, soothing almond milk, and natural vegetable oils for creamy lather without harsh SLS detergents.',
@@ -4137,8 +4033,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/ixyryyyl32riyhwwsimx.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/ixyryyyl32riyhwwsimx.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/ixyryyyl32riyhwwsimx.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Delicate sun-dried crimson saffron threads treasured for daily Kahwa, kheer, biryanis, and sacred temple tilak preparations.',
@@ -4176,8 +4071,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'saffron',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/fvh5jfx6isotfaoycraj.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/fvh5jfx6isotfaoycraj.jpg',
-      '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658282/products/fvh5jfx6isotfaoycraj.jpg'
     ],
     fallbackImage: '/assets/aistudio/089d9d032b3d8ce5adc25c5bd337bbe4_4cc41a23.jpg',
     description: 'Gentle cream-based exfoliant pairing micro-milled Kashmiri walnut shell polish with saffron extract, almond oil, and rose hydrosol to sweep away dull surface cells.',
@@ -4214,8 +4108,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/fq7wgxbcsig6vbqrrn9y.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/fq7wgxbcsig6vbqrrn9y.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/fq7wgxbcsig6vbqrrn9y.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Royal ivory-cream shelled Himalayan Chilgoza kernels celebrated for delicate resinous-buttery melt and extraordinary winter warmth—hand-cleaned for instant snacking.',
@@ -4252,8 +4145,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/rsv3asgrctirp8ibxmbd.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/rsv3asgrctirp8ibxmbd.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658283/products/rsv3asgrctirp8ibxmbd.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Traditional fireside winter delicacy—elongated mahogany pine seeds in-shell protecting plump, sweet ivory pine kernels inside.',
@@ -4291,8 +4183,7 @@ export const PRODUCTS_SEED: CatalogProduct[] = [
     category: 'nuts',
     image: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658285/products/vvwrukimykdr2gjv2osr.jpg',
     gallery: [
-      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658285/products/vvwrukimykdr2gjv2osr.jpg',
-      '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg'
+      'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794658285/products/vvwrukimykdr2gjv2osr.jpg'
     ],
     fallbackImage: '/assets/aistudio/00c7c9248fdf2e9e3c775c5368483218_ceac05b8.jpg',
     description: 'Non-slip dual-serrated ergonomic walnut and pecan shell cracker engineered to apply controlled conical pressure—cracking hard shells cleanly without crushing whole butterfly halves inside.',

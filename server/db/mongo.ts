@@ -1516,60 +1516,60 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
       minAlert: 5,
     };
     const isFeatured = ['kaju', 'badam', 'kesar'].includes(p.id);
-    const gallery = p.gallery || [p.image];
+    const gallery = [p.image];
 
     const resolvedWeightLabel =
       p.weightLabel || (p.unit === 'gram' ? '1g' : p.unit === 'ml' ? '100ml' : p.unit === 'piece' ? '1 Piece' : '1kg');
     const initialSeedStock = includeDemoSeed ? meta.stock : 0;
 
-      await models.Product.updateOne(
-        { id: p.id },
-        {
-          $setOnInsert: {
-            id: p.id,
-            name: p.name,
-            hindiName: p.hindiName || null,
-            subtitle: p.subtitle,
-            sku: meta.sku,
-            barcode: null,
-            purchasePrice: meta.purchasePrice,
-            price: p.price,
-            discountPrice: null,
-            gstRate: 0,
-            stock: initialSeedStock,
-            minStockAlert: meta.minAlert,
-            unit: p.unit,
-            weightLabel: resolvedWeightLabel,
-            step: p.step,
-            minQty: p.minQty,
-            category: p.category,
-            categoryId: meta.catId,
-            image: p.image,
-            images: gallery,
-            gallery,
-            fallbackImage: p.fallbackImage || null,
-            videoUrl: p.videoUrl || null,
-            videoDetails: p.videoDetails || null,
-            description: p.description,
-            origin: p.origin,
-            grade: p.grade,
-            expiryDate: futureExpiry,
-            storageInstructions: 'Store in airtight container in a cool, dry place below 22°C.',
-            featured: isFeatured,
-            features: p.features || [],
-            variants: p.variants || [],
-            tasteProfile: p.tasteProfile,
-            jammuStory: p.jammuStory,
-            inStock: includeDemoSeed ? Boolean(p.inStock) : false,
-            harvestSeason: p.harvestSeason,
-            nutrition: p.nutrition,
-            status: p.status || 'published',
-            createdAt: now,
-            updatedAt: now,
-          },
+    await models.Product.updateOne(
+      { id: p.id },
+      {
+        $setOnInsert: {
+          id: p.id,
+          name: p.name,
+          hindiName: p.hindiName || null,
+          subtitle: p.subtitle,
+          sku: meta.sku,
+          barcode: null,
+          purchasePrice: meta.purchasePrice,
+          price: p.price,
+          discountPrice: null,
+          gstRate: 0,
+          stock: initialSeedStock,
+          minStockAlert: meta.minAlert,
+          unit: p.unit,
+          weightLabel: resolvedWeightLabel,
+          step: p.step,
+          minQty: p.minQty,
+          category: p.category,
+          categoryId: meta.catId,
+          image: p.image,
+          images: gallery,
+          gallery,
+          fallbackImage: p.fallbackImage || null,
+          videoUrl: p.videoUrl || null,
+          videoDetails: p.videoDetails || null,
+          description: p.description,
+          origin: p.origin,
+          grade: p.grade,
+          expiryDate: futureExpiry,
+          storageInstructions: 'Store in airtight container in a cool, dry place below 22°C.',
+          featured: isFeatured,
+          features: p.features || [],
+          variants: p.variants || [],
+          tasteProfile: p.tasteProfile,
+          jammuStory: p.jammuStory,
+          inStock: includeDemoSeed ? Boolean(p.inStock) : false,
+          harvestSeason: p.harvestSeason,
+          nutrition: p.nutrition,
+          status: p.status || 'published',
+          createdAt: now,
+          updatedAt: now,
         },
-        { upsert: true }
-      );
+      },
+      { upsert: true }
+    );
 
     // Sync product image and gallery to seed
     await models.Product.updateOne(

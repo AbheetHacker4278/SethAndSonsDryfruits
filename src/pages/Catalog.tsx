@@ -1533,9 +1533,9 @@ export default function Catalog({
                       <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#1c120c] border border-[#38281d]">
                         <img
                           src={
-                            (detailProduct.gallery &&
-                              detailProduct.gallery[detailActiveImgIndex]) ||
-                            detailProduct.image
+                            detailProduct.image ||
+                            (detailProduct.gallery && detailProduct.gallery[0]) ||
+                            DEFAULT_FALLBACK_IMG
                           }
                           alt={detailProduct.name}
                           referrerPolicy="no-referrer"
@@ -1548,37 +1548,6 @@ export default function Catalog({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      {detailProduct.gallery && detailProduct.gallery.length > 1 && (
-                        <div className="flex items-center gap-2">
-                          {detailProduct.gallery.map((imgUrl, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              aria-label={`View image ${idx + 1} of ${detailProduct.name}`}
-                              onClick={() => setDetailActiveImgIndex(idx)}
-                              className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                                detailActiveImgIndex === idx
-                                  ? 'border-[#dfc471]'
-                                  : 'border-[#38281d] opacity-70 hover:opacity-100'
-                              }`}
-                            >
-                              <img
-                                src={imgUrl}
-                                alt=""
-                                referrerPolicy="no-referrer"
-                                onError={e => {
-                                  const img = e.currentTarget;
-                                  if (img.dataset.fallbackApplied) return;
-                                  img.dataset.fallbackApplied = '1';
-                                  img.src =
-                                    detailProduct.fallbackImage || DEFAULT_FALLBACK_IMG;
-                                }}
-                                className="w-full h-full object-cover"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div className="relative aspect-square rounded-2xl overflow-hidden bg-black border border-[#dfc471]/40">
