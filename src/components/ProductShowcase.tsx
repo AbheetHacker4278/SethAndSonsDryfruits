@@ -29,7 +29,7 @@ export default function ProductShowcase({
         <ScrollReveal>
           <div className="max-w-3xl mb-16 sm:mb-20">
             <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-3">
-              <span>Seth And Sons DryFruits • Jammu Provenance</span>
+              <span>Seth And Sons DryFruits • Sourced From Jammu Provenance</span>
               <span aria-hidden="true">·</span>
               <span>Hand-Graded Batches</span>
             </div>
@@ -39,7 +39,7 @@ export default function ProductShowcase({
             </h2>
 
             <p className="mt-5 text-base sm:text-lg text-[#ede4dc]/90 font-sans leading-relaxed">
-              Every harvest is sourced directly through our family channels in Jammu & Kashmir. Slow-cured in traditional earthen cellars, unadulterated, and packed fresh for true nutritional vitality.
+              Every harvest is sourced directly through our channels in Jammu & Kashmir. Slow-cured in traditional earthen cellars, unadulterated, and packed fresh for true nutritional vitality.
             </p>
           </div>
         </ScrollReveal>
@@ -98,7 +98,7 @@ export default function ProductShowcase({
           <div className="p-6 sm:p-8 rounded-2xl bg-[#150d09]/60 border border-[#38281d] flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <h4 className="font-serif text-xl text-[#f9f6f2]">
-                Looking for Bespoke Gifting or Corporate Hampers from Jammu?
+                Looking for Bespoke Gifting or Corporate Hampers ?
               </h4>
               <p className="mt-1 text-sm text-[#ede4dc]/85">
                 Custom velvet boxes, gold foiling, and customized assorted batches curated by Seth And Sons DryFruits.
