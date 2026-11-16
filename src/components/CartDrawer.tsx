@@ -352,7 +352,7 @@ export default function CartDrawer({
             pincode: effectivePincode,
             country: user.shippingAddress?.country || 'India',
           },
-          instructions: customer.instructions.trim(),
+          instructions: (customer.instructions || '').trim(),
         },
       });
 

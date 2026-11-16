@@ -158,6 +158,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
   router.post('/', orderRateLimit, requireVerifiedEmail, async (req, res) => {
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
+      console.warn('[ORDERS ROUTE] Order schema validation failed:', parsed.error.issues.map(i => i.message).join('; '));
       res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid order details' });
       return;
     }
@@ -332,6 +333,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
 
       // Mandatory shipping address validation before ordering
       if (!targetCity || !targetState || !/^\d{6}$/.test(targetPincode) || (!targetAddressLine && (!targetHouseFlat || !targetStreetArea))) {
+        console.warn('[ORDERS ROUTE] Shipping address incomplete:', { targetCity, targetState, targetPincode, targetAddressLine, targetHouseFlat, targetStreetArea });
         res.status(400).json({
           error: 'A complete shipping address (House/Flat, Street/Locality, City, State, 6-digit PIN) is mandatory before placing an order. Please update your shipping address in your profile.',
           code: 'SHIPPING_ADDRESS_REQUIRED',
@@ -451,12 +453,14 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         // PRE-FLIGHT INVENTORY VALIDATION (SEC-02)
         const currentProdStock = Number(prod.stock || 0);
         if (currentProdStock < stockDeduction) {
+          console.warn('[ORDERS ROUTE] Insufficient stock:', prod.name, { currentProdStock, stockDeduction });
           res.status(400).json({
             error: `Insufficient stock for "${prod.name}". Only ${currentProdStock} ${prod.unit} available (requested: ${stockDeduction} ${prod.unit}).`,
           });
           return;
         }
         if (matchedVariant && Number(matchedVariant.stock || 0) < item.quantity) {
+          console.warn('[ORDERS ROUTE] Insufficient variant stock:', prod.name, matchedVariant.weightLabel, { stock: matchedVariant.stock, requested: item.quantity });
           res.status(400).json({
             error: `Pack "${matchedVariant.weightLabel}" for "${prod.name}" has only ${matchedVariant.stock} units remaining.`,
           });

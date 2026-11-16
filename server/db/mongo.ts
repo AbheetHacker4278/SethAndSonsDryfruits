@@ -1520,7 +1520,7 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
 
     const resolvedWeightLabel =
       p.weightLabel || (p.unit === 'gram' ? '1g' : p.unit === 'ml' ? '100ml' : p.unit === 'piece' ? '1 Piece' : '1kg');
-    const initialSeedStock = includeDemoSeed ? meta.stock : 0;
+    const initialSeedStock = meta.stock;
 
     await models.Product.updateOne(
       { id: p.id },
@@ -1560,7 +1560,7 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
           variants: p.variants || [],
           tasteProfile: p.tasteProfile,
           jammuStory: p.jammuStory,
-          inStock: includeDemoSeed ? Boolean(p.inStock) : false,
+          inStock: Boolean(p.inStock ?? true),
           harvestSeason: p.harvestSeason,
           nutrition: p.nutrition,
           status: p.status || 'published',
@@ -1652,9 +1652,8 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
             sku: `${meta.sku}-${w.label.toUpperCase()}`,
             purchasePrice: Math.round(meta.purchasePrice * w.mult),
             sellingPrice: Math.round(p.price * w.mult),
-            stock: !includeDemoSeed
-              ? 0
-              : p.unit === 'ml' || (p.unit === 'gram' && basePackUnits > 1) || p.unit === 'piece'
+            stock:
+              p.unit === 'ml' || (p.unit === 'gram' && basePackUnits > 1) || p.unit === 'piece'
                 ? Math.max(1, Math.floor(initialSeedStock / w.units))
                 : Math.max(5, Math.round(initialSeedStock / 2)),
             active: true,
