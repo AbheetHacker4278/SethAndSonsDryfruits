@@ -351,6 +351,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         productName: string;
         productImage: string;
         category: string;
+        categoryId?: string;
         unit: string;
         purchasePrice: number;
         baseCostPrice: number;
@@ -476,6 +477,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
           productName: prod.name,
           productImage: prod.image,
           category: prod.category,
+          categoryId: (prod as any).categoryId || prod.category,
           unit: prod.unit,
           purchasePrice: effectiveCost,
           baseCostPrice: itemBaseCost,
@@ -647,11 +649,14 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     const defaultGst = typeof biz.defaultGstRate === 'number' ? biz.defaultGstRate : 0;
 
       const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-      // Shipping charge: ₹0 for Surat. Flat ₹158 for all other destinations unless cart value > ₹5,000 (Free Shipping)
-      const isFreeNonSurat = netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD;
-      const shippingCharge = isSurat
-        ? SURAT_SHIPPING_FEE
-        : (isFreeNonSurat ? 0 : OTHER_CITY_SHIPPING_FEE);
+      // Shipping charge: ₹0 for Surat. Non-Surat: weight-based calculation ceil(weight/500)*30, strictly excluding Oil products (Free over ₹5,000)
+      const shippingCharge = calculateOrderShippingCharge(
+        resolvedItems,
+        netAfterDiscount,
+        {
+          shippingCity: targetCity,
+        }
+      );
       const taxAmount = Math.round(netAfterDiscount * (defaultGst / 100));
       const totalAmount = netAfterDiscount + shippingCharge + taxAmount;
 

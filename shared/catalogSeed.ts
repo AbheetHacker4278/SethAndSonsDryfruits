@@ -159,7 +159,8 @@ export function isProductVisibleForGuest(productId: string): boolean {
 }
 
 export const SURAT_SHIPPING_FEE = 0;
-export const OTHER_CITY_SHIPPING_FEE = 158;
+export const BASE_SHIPPING_RATE_PER_500G = 30;
+export const OTHER_CITY_SHIPPING_FEE = 30;
 export const NON_SURAT_FREE_SHIPPING_THRESHOLD = 5000;
 
 /**
@@ -183,18 +184,136 @@ export function getCustomerProfitMargin(city?: string | null, isRegistered: bool
 }
 
 /**
+ * Return true if the product or order item belongs to the Oil category (exempt from weight-based shipping calculation).
+ */
+export function isOilProduct(item: {
+  productId?: string | null;
+  id?: string | null;
+  categoryId?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  productName?: string | null;
+  name?: string | null;
+}): boolean {
+  const pid = String(item.productId || item.id || '').trim().toLowerCase();
+  const cat = String(item.categoryId || item.category || '').trim().toLowerCase();
+  const unit = String(item.unit || '').trim().toLowerCase();
+  const name = String(item.productName || item.name || '').trim().toLowerCase();
+
+  // Explicit oil category
+  if (cat === 'cat_oils' || cat === 'oil' || cat === 'oils') {
+    return true;
+  }
+  // Product ID starting with oil-
+  if (pid.startsWith('oil-') || pid === 'oil') {
+    return true;
+  }
+  // Liquid volume unit with oil or rogan name
+  if (
+    (unit === 'ml' || unit === 'milliliter' || unit === 'liter' || unit === 'l') &&
+    (name.includes('oil') || name.includes('rogan') || pid.includes('oil') || cat.includes('oil'))
+  ) {
+    return true;
+  }
+  // Standalone oil / rogan naming
+  if (
+    (name.includes(' oil') || name.startsWith('oil ') || name.endsWith(' oil') || name.includes('rogan')) &&
+    !name.includes('boil') &&
+    !name.includes('soil')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Calculate total billable weight in grams for an order/cart,
+ * strictly excluding products in the Oil category.
+ */
+export function calculateOrderWeightGrams(
+  items: Array<{
+    productId?: string | null;
+    id?: string | null;
+    categoryId?: string | null;
+    category?: string | null;
+    unit?: string | null;
+    productName?: string | null;
+    name?: string | null;
+    weightLabel?: string | null;
+    quantity?: number | null;
+    weightGrams?: number | null;
+  }>
+): number {
+  if (!items || items.length === 0) return 0;
+  let totalGrams = 0;
+
+  for (const item of items) {
+    // Exclude Oil category products
+    if (isOilProduct(item)) {
+      continue;
+    }
+
+    const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+
+    // Direct grams if explicitly provided
+    if (typeof item.weightGrams === 'number' && item.weightGrams > 0) {
+      totalGrams += Math.round(item.weightGrams * qty);
+      continue;
+    }
+
+    const weightLabel = item.weightLabel ? String(item.weightLabel).trim() : null;
+    if (weightLabel) {
+      const parsed = parseWeightGrams(weightLabel);
+      if (parsed !== null && parsed > 0) {
+        totalGrams += Math.round(parsed * qty);
+        continue;
+      }
+    }
+
+    // Fallback: check unit
+    const unit = String(item.unit || '').trim().toLowerCase();
+    if (unit === 'kg' || unit === 'kilogram' || unit === 'kilograms') {
+      totalGrams += Math.round(qty * 1000);
+    } else if (unit === 'gram' || unit === 'g' || unit === 'gm' || unit === 'grams') {
+      totalGrams += Math.round(qty);
+    } else {
+      // Default pack assumption (500g)
+      totalGrams += Math.round(500 * qty);
+    }
+  }
+
+  return totalGrams;
+}
+
+/**
+ * Calculate non-Surat weight-based shipping charge:
+ * Formula: ceil(Cart Weight in kg / 0.5) * 30
+ * Equivalently: ceil(Cart Weight in grams / 500) * 30
+ */
+export function calculateWeightShippingCharge(weightGrams: number): number {
+  if (weightGrams <= 0) return 0;
+  return Math.ceil(weightGrams / 500) * 30;
+}
+
+/**
  * Determine location-based shipping fee:
  * - Surat, Gujarat: ₹0 (Free Shipping)
- * - All other destinations: Flat ₹158 fixed fee (Free shipping on orders above ₹5,000)
+ * - All other destinations: Weight-based calculation ceil(weight in grams / 500) * 30 (Free over ₹5,000)
  */
-export function getLocationShippingFee(city?: string | null, cartValue: number = 0): number {
+export function getLocationShippingFee(
+  city?: string | null,
+  cartValue: number = 0,
+  weightGrams?: number | null
+): number {
   if (isSuratCity(city)) {
     return SURAT_SHIPPING_FEE;
   }
   if (cartValue > NON_SURAT_FREE_SHIPPING_THRESHOLD) {
     return 0;
   }
-  return OTHER_CITY_SHIPPING_FEE;
+  const effectiveGrams = typeof weightGrams === 'number' && weightGrams >= 0 ? weightGrams : 500;
+  return calculateWeightShippingCharge(effectiveGrams);
 }
 
 /**
@@ -235,14 +354,22 @@ export function calculateDynamicSellingPrice(baseCost: number, marginPercent: nu
 /**
  * Calculate order/cart shipping charge:
  * - Customers from Surat, Gujarat: ₹0 (Free Shipping)
- * - Customers from all other destinations: Flat ₹158 fixed shipping fee
+ * - Customers from all other destinations: Weight-based calculation ceil(Cart Weight in grams / 500) * 30,
+ *   strictly excluding products from the Oil category.
+ * - Free shipping on orders above ₹5,000 for non-Surat destinations.
  */
 export function calculateOrderShippingCharge(
   items: Array<{
     productId?: string | null;
     id?: string | null;
+    categoryId?: string | null;
+    category?: string | null;
+    unit?: string | null;
     productName?: string | null;
     name?: string | null;
+    weightLabel?: string | null;
+    quantity?: number | null;
+    weightGrams?: number | null;
   }>,
   netAfterDiscount: number,
   options?: {
@@ -250,19 +377,35 @@ export function calculateOrderShippingCharge(
     defaultShippingCharge?: number;
     orderType?: string;
     shippingCity?: string | null;
+    weightGrams?: number | null;
   }
 ): number {
   if (!items || items.length === 0 || netAfterDiscount <= 0) return 0;
   if (options?.orderType === 'custom') return 0;
 
-  if (options?.shippingCity !== undefined && options?.shippingCity !== null) {
-    return getLocationShippingFee(options.shippingCity, netAfterDiscount);
+  if (isSuratCity(options?.shippingCity)) {
+    return SURAT_SHIPPING_FEE;
   }
 
-  if (netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD) {
+  const freeThreshold =
+    typeof options?.freeThreshold === 'number' && Number.isFinite(options.freeThreshold)
+      ? options.freeThreshold
+      : NON_SURAT_FREE_SHIPPING_THRESHOLD;
+
+  if (netAfterDiscount > freeThreshold) {
     return 0;
   }
-  return OTHER_CITY_SHIPPING_FEE;
+
+  const eligibleWeightGrams =
+    typeof options?.weightGrams === 'number' && options.weightGrams >= 0
+      ? options.weightGrams
+      : calculateOrderWeightGrams(items);
+
+  if (eligibleWeightGrams <= 0) {
+    return 0;
+  }
+
+  return calculateWeightShippingCharge(eligibleWeightGrams);
 }
 
 export const PRODUCTS_SEED: CatalogProduct[] = [

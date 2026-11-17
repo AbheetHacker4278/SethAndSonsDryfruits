@@ -310,7 +310,7 @@ export default function AdminOrders() {
   };
 
   const draftSubtotal = orderItems.reduce((acc, it) => acc + it.subtotal, 0);
-  const autoShipping = calculateOrderShippingCharge(orderItems, draftSubtotal);
+  const autoShipping = calculateOrderShippingCharge(orderItems, draftSubtotal, { shippingCity: city });
   const draftShipping = shippingOverride !== '' ? Math.max(0, Number(shippingOverride) || 0) : autoShipping;
   const draftDiscount = Math.max(0, Number(discountAmount) || 0);
   const draftTotal = Math.max(0, draftSubtotal - draftDiscount + draftShipping);
@@ -453,7 +453,7 @@ export default function AdminOrders() {
   };
 
   const editDraftSubtotal = editOrderItems.reduce((acc, it) => acc + it.subtotal, 0);
-  const editAutoShipping = calculateOrderShippingCharge(editOrderItems, editDraftSubtotal);
+  const editAutoShipping = calculateOrderShippingCharge(editOrderItems, editDraftSubtotal, { shippingCity: editCity });
   const editDraftShipping = editShippingOverride !== '' ? Math.max(0, Number(editShippingOverride) || 0) : editAutoShipping;
   const editDraftDiscount = Math.max(0, Number(editDiscountAmount) || 0);
   const editDraftTotal = Math.max(0, editDraftSubtotal - editDraftDiscount + editDraftShipping);

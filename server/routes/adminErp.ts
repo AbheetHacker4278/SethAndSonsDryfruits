@@ -2098,7 +2098,7 @@ export function createAdminErpRouter(
     const shippingCharge =
       typeof body.shippingCharge === 'number' && Number.isFinite(body.shippingCharge)
         ? Math.max(0, body.shippingCharge)
-        : calculateOrderShippingCharge(resolvedItems, subtotal);
+        : calculateOrderShippingCharge(resolvedItems, subtotal, { shippingCity: city });
     const discountAmount = Math.max(0, Math.min(subtotal, Number(body.discountAmount || 0)));
     const totalAmount = Math.max(0, subtotal - discountAmount + shippingCharge);
 
@@ -2444,7 +2444,7 @@ export function createAdminErpRouter(
     const shippingCharge =
       typeof body.shippingCharge === 'number' && Number.isFinite(body.shippingCharge)
         ? Math.max(0, body.shippingCharge)
-        : calculateOrderShippingCharge(resolvedItems, subtotal);
+        : calculateOrderShippingCharge(resolvedItems, subtotal, { shippingCity: city });
     const discountAmount = Math.max(0, Math.min(subtotal, Number(body.discountAmount || 0)));
     const totalAmount = Math.max(0, subtotal - discountAmount + shippingCharge);
 

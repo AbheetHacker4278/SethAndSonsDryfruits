@@ -4,8 +4,12 @@ import {
   CatalogProduct,
   isSuratCity,
   SURAT_SHIPPING_FEE,
+  BASE_SHIPPING_RATE_PER_500G,
   OTHER_CITY_SHIPPING_FEE,
   NON_SURAT_FREE_SHIPPING_THRESHOLD,
+  isOilProduct,
+  calculateOrderWeightGrams,
+  calculateOrderShippingCharge,
   type ProductWeightVariant,
 } from '../data/products';
 import {
@@ -247,10 +251,30 @@ export default function CartDrawer({
     savedAddresses.length > 0
   );
   const isFreeNonSurat = netAfterDiscount > NON_SURAT_FREE_SHIPPING_THRESHOLD;
+
+  const eligibleItemsForWeight = useMemo(() => {
+    return activeOrderItems.map(it => ({
+      productId: it.product.id,
+      id: it.product.id,
+      categoryId: (it.product as any).categoryId || it.product.category,
+      category: it.product.category,
+      unit: it.product.unit,
+      productName: it.product.name,
+      name: it.product.name,
+      weightLabel: it.weightLabel,
+      quantity: it.quantity,
+    }));
+  }, [activeOrderItems]);
+
+  const billableWeightGrams = useMemo(() => {
+    return calculateOrderWeightGrams(eligibleItemsForWeight);
+  }, [eligibleItemsForWeight]);
+
   const shippingCharge = activeOrderItems.length > 0
-    ? (isSurat
-        ? SURAT_SHIPPING_FEE
-        : (isFreeNonSurat ? 0 : OTHER_CITY_SHIPPING_FEE))
+    ? calculateOrderShippingCharge(eligibleItemsForWeight, netAfterDiscount, {
+        shippingCity: effectiveShippingCity,
+        weightGrams: billableWeightGrams,
+      })
     : 0;
 
   const taxAmount = Math.round(netAfterDiscount * (gstRatePct / 100));
@@ -559,18 +583,24 @@ export default function CartDrawer({
                         ? 'Shipping Charges (Surat — Free Delivery)'
                         : isFreeNonSurat
                           ? `Shipping Charges (${effectiveShippingCity} — Free over ₹5,000)`
-                          : `Shipping Charges (${effectiveShippingCity} Courier)`)
+                          : billableWeightGrams === 0
+                            ? `Shipping Charges (${effectiveShippingCity} — Oil Items Free Delivery)`
+                            : `Shipping Charges (${effectiveShippingCity} Courier — ${(billableWeightGrams / 1000).toFixed(billableWeightGrams % 1000 === 0 ? 0 : 2)}kg)`)
                     : (user?.shippingAddress?.city
                         ? (isSuratCity(user.shippingAddress.city)
                             ? 'Shipping Charges (Surat — Free Delivery)'
                             : isFreeNonSurat
                               ? `Shipping Charges (${user.shippingAddress.city} — Free over ₹5,000)`
-                              : 'Shipping Charges (Standard Courier)')
+                              : billableWeightGrams === 0
+                                ? `Shipping Charges (${user.shippingAddress.city} — Oil Items Free Delivery)`
+                                : `Shipping Charges (${user.shippingAddress.city} Courier — ${(billableWeightGrams / 1000).toFixed(billableWeightGrams % 1000 === 0 ? 0 : 2)}kg)`)
                         : (isSurat
                             ? 'Shipping Charges (Surat — Free Delivery)'
                             : isFreeNonSurat
                               ? 'Shipping Charges (Free over ₹5,000)'
-                              : 'Shipping Charges (Standard Courier)'))}
+                              : billableWeightGrams === 0
+                                ? 'Shipping Charges (Oil Items Free Delivery)'
+                                : `Shipping Charges (Standard Courier — ${(billableWeightGrams / 1000).toFixed(billableWeightGrams % 1000 === 0 ? 0 : 2)}kg)`))}
                 </span>
                 <span className={shippingCharge === 0 ? 'text-emerald-400 font-semibold' : 'text-[#f9f6f2] font-medium'}>
                   {shippingCharge === 0 ? '₹0 (Free Shipping)' : formatINR(shippingCharge)}

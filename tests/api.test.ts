@@ -1367,19 +1367,30 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(oilStockAfter).toBe(800);
   });
 
-  it('enforces location-based shipping charges (Surat ₹0 vs other cities ₹158) and location-based profit margins (Surat 25% vs other cities 40%)', async () => {
+  it('enforces location-based shipping charges (Surat ₹0 vs non-Surat weight-based ₹30 per 500g, excluding Oil) and location-based profit margins (Surat 25% vs other cities 40%)', async () => {
     const { calculateOrderShippingCharge, isSuratCity } = await import('../shared/catalogSeed.ts');
     expect(isSuratCity('Surat')).toBe(true);
     expect(isSuratCity('Surat, Gujarat')).toBe(true);
     expect(isSuratCity('Mumbai')).toBe(false);
 
-    // Location-based shipping: ₹0 for Surat, ₹158 for any other city (unless cart value > ₹5000 which is Free ₹0)
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Surat' })).toBe(0);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Mumbai' })).toBe(158);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 5000, { shippingCity: 'Mumbai' })).toBe(158);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 5001, { shippingCity: 'Mumbai' })).toBe(0);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 6000, { shippingCity: 'Mumbai' })).toBe(0);
-    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju' }], 1372, { shippingCity: 'Jammu' })).toBe(158);
+    // Location-based shipping: ₹0 for Surat, weight-based ceil(weight/500)*30 for non-Surat (free over ₹5,000)
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', unit: 'kg' }], 1372, { shippingCity: 'Surat' })).toBe(0);
+    // 1kg Kaju -> ceil(1000/500)*30 = 60
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', unit: 'kg' }], 1372, { shippingCity: 'Mumbai' })).toBe(60);
+    // 500g Kaju -> ceil(500/500)*30 = 30
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', weightLabel: '500g' }], 1372, { shippingCity: 'Mumbai' })).toBe(30);
+    // 1.5kg Kaju -> ceil(1500/500)*30 = 90
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', weightLabel: '1.5kg' }], 1372, { shippingCity: 'Mumbai' })).toBe(90);
+    // Non-Surat above ₹5000 -> Free shipping (₹0)
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', unit: 'kg' }], 5001, { shippingCity: 'Mumbai' })).toBe(0);
+    expect(calculateOrderShippingCharge([{ productId: 'kaju', productName: 'Kaju', unit: 'kg' }], 6000, { shippingCity: 'Mumbai' })).toBe(0);
+    // Oil products excluded from weight calculation (0 shipping if only oil)
+    expect(calculateOrderShippingCharge([{ productId: 'oil-almond-100ml', productName: 'Almond Oil', unit: 'ml', categoryId: 'cat_oils' }], 349, { shippingCity: 'Mumbai' })).toBe(0);
+    // Mixed cart: 500g dry fruit + 100ml oil -> only 500g dry fruit counted = ₹30
+    expect(calculateOrderShippingCharge([
+      { productId: 'kaju', productName: 'Kaju', weightLabel: '500g' },
+      { productId: 'oil-almond-100ml', productName: 'Almond Oil', unit: 'ml', categoryId: 'cat_oils' }
+    ], 1000, { shippingCity: 'Mumbai' })).toBe(30);
 
     const { agent, csrf } = await getCsrfAgent(instance.app);
 
@@ -1447,7 +1458,8 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         },
       });
     expect(outstationOrderRes.status).toBe(201);
-    expect(outstationOrderRes.body.order.shippingCharge).toBe(158);
+    // 1kg Kaju -> weight 1000g -> ceil(1000/500)*30 = 60
+    expect(outstationOrderRes.body.order.shippingCharge).toBe(60);
     expect(outstationOrderRes.body.order.appliedProfitMargin).toBe(40);
     // Kaju base cost = 980. At 40% margin = 980 * 1.40 = 1372
     expect(outstationOrderRes.body.order.subtotal).toBe(1372);
@@ -1470,6 +1482,24 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(outstationFreeShipOrderRes.status).toBe(201);
     expect(outstationFreeShipOrderRes.body.order.shippingCharge).toBe(0);
     expect(outstationFreeShipOrderRes.body.order.subtotal).toBe(1372 * 4); // 5488 > 5000
+
+    // 2c. Non-Surat order with Oil products -> Excluded from weight calculation (₹0 shipping)
+    const outstationOilOrderRes = await agent
+      .post('/api/orders')
+      .set('X-CSRF-Token', csrf)
+      .send({
+        items: [{ productId: 'oil-almond-100ml', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'Delhi Patron',
+          mobileNumber: '9876543277',
+          deliveryAddress: '15 Connaught Place',
+          city: 'New Delhi',
+          state: 'Delhi',
+          pincode: '110001',
+        },
+      });
+    expect(outstationOilOrderRes.status).toBe(201);
+    expect(outstationOilOrderRes.body.order.shippingCharge).toBe(0);
 
     // 3. Mandatory shipping address check: Incomplete address rejected with 400
     const incompleteRes = await agent
