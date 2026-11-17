@@ -94,7 +94,7 @@ export default function Home({ onNavigateToRequest, onNavigateToCatalog }: HomeP
         onViewCatalog={() => onNavigateToCatalog()}
       />
 
-      {/* 5. Brand Story: Three generations of Seth family grading */}
+      {/* 5. Legal Ownership Declaration */}
       <BrandStory />
 
       {/* 6. Why Choose Us: 6 Core Pillars */}

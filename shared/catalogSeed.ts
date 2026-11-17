@@ -4234,7 +4234,7 @@ export const BRAND_CONFIG = {
   heritageStory: 'Three generations of royal grading rooted in Jammu & Kashmir.',
   whatsappBusinessNumber: '+91 6356038361',
   displayPhone: '+91 6356038361',
-  supportEmail: 'aseth9588@gmail.com',
+  supportEmail: 'admin.sethandsonsdryfruits@gmail.com',
   dispatchLocation: 'Surat , Gujarat - 395007',
   logoPath: '/assets/seth_and_sons_logo.jpg',
   emailLogoUrl: 'https://res.cloudinary.com/n0b8m1qk/image/upload/v1794500281/asulesh-seth/branding/seth_and_sons_logo_emblem_3f4e8923.jpg',

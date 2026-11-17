@@ -109,7 +109,7 @@ export function loadConfig(): AppConfig {
     adminUrl = rawAdminUrl || 'http://localhost:8000';
   }
   adminUrl = adminUrl.replace(/\/+$/, '');
-  const emailFrom = get('EMAIL_FROM', 'abheetseth203@gmail.com');
+  const emailFrom = get('EMAIL_FROM', 'admin.sethandsonsdryfruits@gmail.com');
 
   return {
     nodeEnv,

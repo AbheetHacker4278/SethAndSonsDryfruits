@@ -67,7 +67,7 @@ If you haven't already deployed the backend Web Service:
    - `COOKIE_SECRET`: Any random 32+ character string
    - `APP_URL`: Your Frontend URL (e.g. `https://seth-and-sons-dryfruits-web.onrender.com` or custom domain)
    - `ADMIN_URL`: `https://seth-and-sons-dryfruits-web.onrender.com`
-   - `EMAIL_FROM`: `abheetseth203@gmail.com`
+   - `EMAIL_FROM`: `admin.sethandsonsdryfruits@gmail.com`
    - `EMAIL_PROVIDER`: `brevo` or `smtp`
    - `BREVO_API_KEY` / `SMTP_*`: Your email credentials
 5. Whitelist `0.0.0.0/0` in **MongoDB Atlas** → **Network Access**.

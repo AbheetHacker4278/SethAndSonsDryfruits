@@ -37,7 +37,7 @@ services:
       - key: ADMIN_URL
         value: https://sethandsonsdryfruits.onrender.com
       - key: EMAIL_FROM
-        value: abheetseth203@gmail.com
+        value: admin.sethandsonsdryfruits@gmail.com
       - key: EMAIL_FROM_NAME
         value: Seth And Sons DryFruits
       - key: EMAIL_PROVIDER

@@ -65,6 +65,20 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate('/');
+                    setTimeout(() => {
+                      document.getElementById('story')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 120);
+                  }}
+                  className="hover:text-[#dfc471] transition-colors cursor-pointer text-left"
+                >
+                  Ownership &amp; Legal Declaration
+                </button>
+              </li>
+              <li>
                 <Link to="/customer-service" className="hover:text-[#dfc471] transition-colors">
                   Customer Service
                 </Link>

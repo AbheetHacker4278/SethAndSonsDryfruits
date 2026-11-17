@@ -1,96 +1,121 @@
-import { ShieldCheck, Sparkles, Award, HeartHandshake } from 'lucide-react';
+import { ShieldCheck, Scale, FileText, CheckCircle2, Lock } from 'lucide-react';
 
 export default function BrandStory() {
+  const owners = [
+    { id: 1, name: 'Asulesh Prasad Seth', role: 'Owner & Managing Partner' },
+    { id: 2, name: 'Anjana Prasad Seth', role: 'Owner & Managing Partner' },
+    { id: 3, name: 'Arihant Seth', role: 'Owner & Managing Partner' },
+    { id: 4, name: 'Abheet Seth', role: 'Owner & Managing Partner' },
+  ];
+
   return (
-    <section id="story" className="relative py-28 sm:py-36 bg-[#150d09] text-[#ede4dc] overflow-hidden border-y border-[#38281d]/70">
+    <section id="story" className="relative py-24 sm:py-32 bg-[#150d09] text-[#ede4dc] overflow-hidden border-y border-[#38281d]/70">
       {/* Background ambient lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(223,196,113,0.06)_0%,transparent_60%)] pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-          {/* Left Column: Brand Story Manifesto */}
-          <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471] mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>The Royal Heritage</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+          {/* Main Legal Declaration Column */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="inline-flex items-center gap-2 text-xs font-sans font-medium tracking-[0.25em] uppercase text-[#dfc471]">
+              <Scale className="w-3.5 h-3.5 text-[#dfc471]" />
+              <span>Official Business &amp; Governance Notice</span>
             </div>
 
-            <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-normal text-[#f9f6f2] tracking-tight leading-[1.1] text-balance">
-              Quality You Can Taste.{' '}
-              <span className="italic text-[#dfc471] block font-light mt-1">
-                Goodness You Can Trust.
-              </span>
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#f9f6f2] tracking-tight leading-[1.15]">
+              LEGAL OWNERSHIP DECLARATION
             </h2>
 
-            <p className="mt-8 text-base sm:text-lg text-[#ede4dc] leading-relaxed font-sans font-light">
-              We believe true luxury begins in the soil. Unlike commercial mass retailers who rely on industrial sulfur bleaching and prolonged cold-storage decay, Seth And Sons DryFruits celebrates the seasonal rhythm of genuine harvests.
-            </p>
+            <div className="p-6 sm:p-8 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-6 shadow-xl">
+              <p className="text-base sm:text-lg text-[#ede4dc] leading-relaxed font-sans">
+                This website and the business operated under the name <strong className="font-semibold text-[#f9f6f2]">Seth And Sons DryFruits</strong> are exclusively owned and managed by the following individuals:
+              </p>
 
-            <p className="mt-4 text-base text-[#ede4dc]/90 leading-relaxed font-sans">
-              From the pristine high-altitude saffron fields of Pampore to sun-kissed cashew orchards of Konkan, our connoisseurs personally inspect every single lot before it is hand-packed into nitrogen-flushed, airtight moisture-lock glass and tin keepsakes.
-            </p>
+              {/* Numbered Owner List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {owners.map(owner => (
+                  <div
+                    key={owner.id}
+                    className="p-4 rounded-xl bg-[#150d09] border border-[#dfc471]/25 flex items-center gap-3.5 hover:border-[#dfc471]/50 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#dfc471]/15 text-[#dfc471] font-serif font-bold text-sm flex items-center justify-center shrink-0 border border-[#dfc471]/30">
+                      {owner.id}
+                    </div>
+                    <div>
+                      <div className="font-serif text-base sm:text-lg text-[#f9f6f2] font-semibold tracking-wide">
+                        {owner.name}
+                      </div>
+                      <div className="text-[11px] text-[#dfc471]/80 font-sans uppercase tracking-wider">
+                        {owner.role}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-            {/* Core Pillars */}
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="p-5 rounded-xl bg-[#1c120c] border border-[#38281d]/80">
-                <div className="w-10 h-10 rounded-lg bg-[#251a13] flex items-center justify-center text-[#dfc471] mb-3">
-                  <Award className="w-5 h-5" />
-                </div>
-                <h4 className="font-serif text-lg text-[#f9f6f2]">Origin-Specific Sourcing</h4>
-                <p className="mt-1 text-xs text-[#ede4dc]/85 leading-relaxed font-sans">
-                  Zero blending. Single-source geographical verification for each variety.
+              {/* Exclusion & Authorization Clause */}
+              <div className="pt-2 text-sm sm:text-base text-[#d5c4b4] leading-relaxed font-sans space-y-4">
+                <p>
+                  No other individual, whether belonging to the Seth family or otherwise, is an owner, partner, stakeholder, or authorized participant in this business unless formally authorized in writing by the above-mentioned owners.
+                </p>
+                <p>
+                  All business rights, operations, branding, website content, and associated assets are reserved exclusively to the above-mentioned owners.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#1c120c] border border-[#38281d]/80">
-                <div className="w-10 h-10 rounded-lg bg-[#251a13] flex items-center justify-center text-[#dfc471] mb-3">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h4 className="font-serif text-lg text-[#f9f6f2]">Rigorous Grade Selection</h4>
-                <p className="mt-1 text-xs text-[#ede4dc]/85 leading-relaxed font-sans">
-                  Kernel size, moisture equilibrium, and natural oil content audited by hand.
-                </p>
+              {/* Copyright Seal */}
+              <div className="pt-4 border-t border-[#38281d] flex items-center justify-between flex-wrap gap-2 text-xs sm:text-sm font-semibold text-[#dfc471]">
+                <span>&copy; 2026 Seth And Sons DryFruits. All Rights Reserved.</span>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-[#d5c4b4]/70 font-normal">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Legally Binding Declaration
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Visual Editorial Card & Seal of Purity */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative rounded-2xl overflow-hidden border border-[#dfc471]/30 bg-[#1c120c] shadow-2xl p-8 sm:p-10 flex flex-col justify-between">
-              {/* Subtle gold decorative lines */}
+          {/* Right Column: Formal Certificate & Authentication Emblem Card */}
+          <div className="lg:col-span-4 relative lg:mt-12">
+            <div className="relative rounded-2xl overflow-hidden border border-[#dfc471]/35 bg-[#1c120c] shadow-2xl p-6 sm:p-8 space-y-6">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#dfc471]/15 to-transparent pointer-events-none" />
 
-              <div>
-                <div className="flex items-center justify-between mb-8">
-                  <span className="text-[11px] font-sans tracking-[0.2em] uppercase text-[#dfc471]">
-                    Purity Pledge
+              <div className="flex items-center justify-between border-b border-[#38281d] pb-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-[#dfc471]" />
+                  <span className="text-xs font-sans tracking-[0.2em] uppercase text-[#dfc471] font-semibold">
+                    Proprietary Notice
                   </span>
-                  <HeartHandshake className="w-5 h-5 text-[#dfc471]" />
                 </div>
+                <Lock className="w-4 h-4 text-[#dfc471]/70" />
+              </div>
 
-                <blockquote className="font-serif text-2xl sm:text-3xl text-[#f9f6f2] italic font-light leading-snug">
-                  "Dry fruits are not mere commodities; they are concentrated vitality created by sun, water, and centuries of artisan care."
-                </blockquote>
-
-                <div className="mt-6 pt-6 border-t border-[#38281d] text-sm text-[#d5c4b4]">
-                  <p className="font-medium text-[#ede4dc]">The Seth And Sons DryFruits Tasting Council</p>
-                  <p className="text-xs text-[#d5c4b4]/60">Hand-selected harvest guarantee</p>
+              <div className="space-y-4 text-xs text-[#d5c4b4]/90 leading-relaxed font-sans">
+                <div className="font-serif text-lg text-[#f9f6f2] font-normal leading-snug">
+                  Official Entity &amp; Trade Registration
+                </div>
+                <p>
+                  Operating under the historic Seth enterprise lineage with exclusive direct governance by the four declared partners.
+                </p>
+                <div className="p-3.5 rounded-xl bg-[#150d09] border border-[#38281d] space-y-2 text-[11px]">
+                  <div className="flex justify-between items-center text-[#d5c4b4]/70">
+                    <span>Business Domain:</span>
+                    <span className="text-[#f9f6f2] font-mono">Seth And Sons DryFruits</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[#d5c4b4]/70">
+                    <span>Governance:</span>
+                    <span className="text-[#dfc471] font-medium">Exclusively 4 Declared Owners</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[#d5c4b4]/70">
+                    <span>Effective Year:</span>
+                    <span className="text-[#f9f6f2]">2026</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Trust Metrics Strip */}
-              <div className="mt-8 pt-6 border-t border-[#38281d] grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="font-sans font-bold text-2xl text-[#dfc471] tabular-nums">100%</div>
-                  <div className="text-[10px] tracking-wider uppercase text-[#d5c4b4]/70 mt-0.5">Raw Purity</div>
-                </div>
-                <div>
-                  <div className="font-sans font-bold text-2xl text-[#dfc471] tabular-nums">0%</div>
-                  <div className="text-[10px] tracking-wider uppercase text-[#d5c4b4]/70 mt-0.5">Additives</div>
-                </div>
-                <div>
-                  <div className="font-sans font-bold text-2xl text-[#dfc471] tabular-nums">24h</div>
-                  <div className="text-[10px] tracking-wider uppercase text-[#d5c4b4]/70 mt-0.5">Fresh Pack</div>
+              <div className="pt-4 border-t border-[#38281d] text-center">
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-sans font-medium text-[#d5c4b4]/70">
+                  <FileText className="w-3.5 h-3.5 text-[#dfc471]" />
+                  <span>Public Record &bull; Legal Compliance</span>
                 </div>
               </div>
             </div>

@@ -48,17 +48,17 @@ export const DEFAULT_EMAIL_TEMPLATES: DefaultEmailTemplate[] = [
     variables: ['{{customer_name}}', '{{customer_email}}', '{{brand_name}}', '{{support_email}}', '{{cta_url}}'],
     htmlContent: `<h2 style="font-family:Georgia,serif;color:#064e3b;margin:0 0 14px 0;font-size:24px;">Welcome, {{customer_name}}</h2>
 <p style="margin:0 0 14px 0;">Your email address (<strong>{{customer_email}}</strong>) is now verified and your patron account with <strong>{{brand_name}}</strong> is active.</p>
-<p style="margin:0 0 14px 0;">For three generations, our family has graded handpicked Himalayan almonds, Kishtwar walnuts, jumbo cashews, and pure Grade-1 Kashmiri Mongra saffron straight from Jammu &amp; Kashmir.</p>
+<p style="margin:0 0 14px 0;">Handpicked Himalayan almonds, Kishtwar walnuts, jumbo cashews, and pure Grade-1 Kashmiri Mongra saffron straight from Jammu &amp; Kashmir.</p>
 <div style="background-color:#fbf8f1;border-left:4px solid #c9a23f;padding:14px 16px;margin:18px 0;">
   <strong style="color:#064e3b;">Your Patron Privileges:</strong>
   <ul style="margin:8px 0 0 0;padding-left:18px;">
     <li>Direct verified checkout &amp; order tracking</li>
     <li>Saved delivery addresses &amp; seasonal harvest updates</li>
-    <li>Dedicated Jammu concierge support</li>
+    <li>Dedicated concierge support</li>
   </ul>
 </div>
 {{cta_button}}`,
-    textContent: `Welcome, {{customer_name}}!\n\nYour email ({{customer_email}}) is verified and your account with {{brand_name}} is active.\n\nExplore our Jammu harvests: {{cta_url}}\nSupport: {{support_email}}`,
+    textContent: `Welcome, {{customer_name}}!\n\nYour email ({{customer_email}}) is verified and your account with {{brand_name}} is active.\n\nExplore Our Products: {{cta_url}}\nSupport: {{support_email}}`,
   },
   {
     templateKey: 'email_verification',
@@ -399,7 +399,7 @@ export const DEFAULT_EMAIL_TEMPLATES: DefaultEmailTemplate[] = [
     category: 'transactional',
     subject: 'Support Request Received [#{{ticket_number}}] – {{brand_name}}',
     variables: ['{{customer_name}}', '{{customer_email}}', '{{ticket_number}}', '{{ticket_category}}', '{{ticket_subject}}', '{{attachment_count}}', '{{brand_name}}', '{{support_email}}'],
-    htmlContent: `<div style="font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#b99225;font-weight:bold;margin-bottom:8px;">Jammu Patron Concierge</div>
+    htmlContent: `<div style="font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#b99225;font-weight:bold;margin-bottom:8px;">Patron Concierge</div>
 <h2 style="font-family:Georgia,serif;color:#064e3b;margin:0 0 12px 0;font-size:24px;">We Have Received Your Request</h2>
 <p style="margin:0 0 14px 0;">Dear {{customer_name}},</p>
 <p style="margin:0 0 14px 0;">Thank you for contacting <strong>{{brand_name}} Customer Service</strong>. Our concierge team is reviewing your inquiry and any uploaded documents.</p>

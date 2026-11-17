@@ -78,27 +78,24 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
     >
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#dfc471]/35 to-transparent pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-2 lg:gap-4 xl:gap-6">
         <Link
           to="/"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-label="Seth And Sons Dryfruits Homepage"
-          className="flex items-center gap-2 sm:gap-3 group min-w-0 shrink"
+          className="flex items-center gap-2 group shrink-0"
         >
           <div className="shrink-0">
-            <AnimatedLogo size="md" showSubtitle={false} />
+            {/* <AnimatedLogo size="md" showSubtitle={false} /> */}
           </div>
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="font-serif font-bold text-xs sm:text-base md:text-lg lg:text-lg xl:text-xl tracking-[0.01em] sm:tracking-[0.03em] leading-tight text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] group-hover:brightness-110 transition-all duration-300 truncate max-w-[130px] xs:max-w-[170px] sm:max-w-none">
-              Seth And Sons Dryfruits.
-            </span>
-            <span className="hidden sm:block text-[9px] xl:text-[10px] tracking-[0.22em] uppercase text-[#dfc471]/90 font-sans font-semibold mt-0.5 leading-none">
-              Pure Mountain Harvest
+          <div className="flex flex-col justify-center shrink-0">
+            <span className="font-serif font-bold text-[14.5px] xs:text-base sm:text-lg lg:text-lg xl:text-xl tracking-[0.01em] sm:tracking-[0.02em] leading-tight text-transparent bg-clip-text bg-gradient-to-r from-[#fffcf5] via-[#faeaad] to-[#dfc471] drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] group-hover:brightness-110 transition-all duration-300 whitespace-nowrap">
+              Seth And Sons Dryfruits
             </span>
           </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs xl:text-sm font-medium tracking-wide">
+        <nav className="hidden lg:flex items-center gap-3 xl:gap-5 2xl:gap-7 text-xs xl:text-sm font-medium tracking-wide">
           <Link
             to="/"
             className={`whitespace-nowrap transition-colors hover:text-[#dfc471] ${location.pathname === '/' ? 'text-[#dfc471] font-semibold' : 'text-[#ede4dc]'
@@ -125,7 +122,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
             onClick={handleStoryClick}
             className="cursor-pointer whitespace-nowrap text-[#d5c4b4]/90 hover:text-[#dfc471] transition-colors"
           >
-            Our Story
+            Ownership &amp; Legal Declaration
           </button>
           <Link
             to="/orders"
@@ -144,7 +141,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 xl:gap-3 shrink-0">
           {user ? (
             <div className="relative shrink-0" ref={profileMenuRef}>
               <button
@@ -256,13 +253,6 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
             )}
           </button>
 
-          <Link
-            to="/catalog"
-            className="relative hidden xl:inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-lg shadow-[#b99225]/20 active:scale-95 whitespace-nowrap"
-          >
-            <span>Order Now</span>
-          </Link>
-
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -314,7 +304,7 @@ export default function Navbar({ selectedCount, onOpenCart }: NavbarProps) {
             Custom Demand &amp; Gifting
           </Link>
           <button type="button" onClick={handleStoryClick} className="block w-full text-left py-2 border-b border-[#251a13] text-[#d5c4b4]">
-            Our Story
+            Ownership &amp; Legal Declaration
           </button>
           <Link to="/orders" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 border-b border-[#251a13] text-[#d5c4b4]">
             Orders &amp; Tracking
