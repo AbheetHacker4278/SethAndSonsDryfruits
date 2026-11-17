@@ -1,5 +1,5 @@
 import mongoose, { Connection, Model, Schema } from 'mongoose';
-import { BRAND_CONFIG, parsePackPieces, parseWeightGrams, PRODUCTS_SEED } from '../../shared/catalogSeed.ts';
+import { BRAND_CONFIG, getVariantStockUnits, parsePackPieces, parseWeightGrams, PRODUCTS_SEED } from '../../shared/catalogSeed.ts';
 import { AppConfig } from '../config.ts';
 import { DEFAULT_EMAIL_TEMPLATES } from '../emails/defaultTemplates.ts';
 import { hashPassword, normalizeEmail } from '../utils/crypto.ts';
@@ -1722,6 +1722,28 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         { $set: { weightLabel: '1kg', updatedAt: now } }
       );
       await syncInventoryRecord(db, prod.id);
+    }
+  }
+
+  // Ensure products with 0 or sub-unit stock are restored to catalog seed stock
+  for (const [prodId, meta] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+    const existing = await models.Product.findOne({ id: prodId }).lean();
+    if (existing) {
+      const curStock = Number(existing.stock || 0);
+      const isMlSubUnit = existing.unit === 'ml' && curStock < 100;
+      if (curStock <= 0 || isMlSubUnit) {
+        await models.Product.updateOne(
+          { id: prodId },
+          {
+            $set: {
+              stock: meta.stock,
+              inStock: true,
+              updatedAt: now,
+            },
+          }
+        );
+        await syncInventoryRecord(db, prodId);
+      }
     }
   }
 

@@ -97,10 +97,10 @@ const createOrderSchema = z.object({
   paymentMethod: z.string().trim().min(2).max(80).optional().default('Concierge Invoice / COD'),
   deliveryAddress: z
     .object({
-      fullName: z.string().trim().min(2).optional(),
-      mobileNumber: z.string().trim().min(10).optional(),
-      whatsappNumber: z.string().trim().optional(),
-      email: z.string().trim().optional(),
+      fullName: z.string().trim().min(2).optional().or(z.literal('')),
+      mobileNumber: z.string().trim().min(10).optional().or(z.literal('')),
+      whatsappNumber: z.string().trim().optional().or(z.literal('')),
+      email: z.string().trim().optional().or(z.literal('')),
       houseFlat: z.string().trim().optional(),
       streetArea: z.string().trim().optional(),
       deliveryAddress: z.string().trim().optional().default(''),
@@ -314,6 +314,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
     }
 
     try {
+      const now = new Date().toISOString();
       // Enforce user's verified saved default address from DB, or use explicit deliveryAddress
       const savedAddress = (await db.models.CustomerAddress.findOne({ customerId: customer.id, isDefault: true }).lean())
         || (await db.models.CustomerAddress.findOne({ customerId: customer.id }).sort({ createdAt: -1 }).lean());
@@ -452,7 +453,17 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         const stockDeduction = Number((stockUnitsPerPack * item.quantity).toFixed(3));
 
         // PRE-FLIGHT INVENTORY VALIDATION (SEC-02)
-        const currentProdStock = Number(prod.stock || 0);
+        let currentProdStock = Number(prod.stock || 0);
+        if (matchedVariant && Number(matchedVariant.stock || 0) >= item.quantity && currentProdStock < stockDeduction) {
+          // Parent stock is desynchronized from active variant stock - heal parent stock
+          const neededStock = stockDeduction - currentProdStock;
+          await db.models.Product.updateOne(
+            { id: prod.id },
+            { $inc: { stock: neededStock }, $set: { inStock: true, updatedAt: now } }
+          );
+          currentProdStock = stockDeduction;
+        }
+
         if (currentProdStock < stockDeduction) {
           console.warn('[ORDERS ROUTE] Insufficient stock:', prod.name, { currentProdStock, stockDeduction });
           res.status(400).json({
@@ -662,7 +673,6 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
 
       const orderId = `ord_${crypto.randomUUID()}`;
       const orderNumber = generateOrderNumber();
-      const now = new Date().toISOString();
       const paymentStatus = paymentMethod.toLowerCase().includes('cod') ? 'cod' : 'pending';
 
       const addressPayload = {
@@ -731,7 +741,7 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
       let failedItemName = '';
 
       for (const ri of resolvedItems) {
-        const updatedProd = await db.models.Product.findOneAndUpdate(
+        let updatedProd = await db.models.Product.findOneAndUpdate(
           {
             id: ri.productId,
             stock: { $gte: ri.stockQuantity },
@@ -742,6 +752,28 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
           },
           { returnDocument: 'after' }
         );
+
+        if (!updatedProd && ri.variantId) {
+          // If variant is present and has stock, heal parent product stock and re-attempt
+          const varDoc = await db.models.ProductVariant.findOne({ id: ri.variantId, stock: { $gte: ri.quantity } }).lean();
+          if (varDoc) {
+            await db.models.Product.updateOne(
+              { id: ri.productId },
+              { $inc: { stock: ri.stockQuantity }, $set: { inStock: true, updatedAt: now } }
+            );
+            updatedProd = await db.models.Product.findOneAndUpdate(
+              {
+                id: ri.productId,
+                stock: { $gte: ri.stockQuantity },
+              },
+              {
+                $inc: { stock: -ri.stockQuantity },
+                $set: { updatedAt: now },
+              },
+              { returnDocument: 'after' }
+            );
+          }
+        }
 
         if (!updatedProd) {
           stockAllocationFailed = true;

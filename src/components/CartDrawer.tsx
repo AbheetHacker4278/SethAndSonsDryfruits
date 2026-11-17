@@ -351,6 +351,7 @@ export default function CartDrawer({
       return;
     }
 
+    setCheckoutError('');
     setSubmittingOrder(true);
     try {
       const res = await apiRequest<{ order: PersistedOrder }>('/api/orders', {
@@ -366,8 +367,8 @@ export default function CartDrawer({
           couponCode: appliedCoupon?.code || null,
           paymentMethod,
           deliveryAddress: {
-            fullName: (customer.fullName || user.shippingAddress?.fullName || user.name).trim(),
-            mobileNumber: (customer.mobileNumber || user.shippingAddress?.phone || user.phone).trim(),
+            fullName: (customer.fullName || user.shippingAddress?.fullName || user.name || '').trim() || undefined,
+            mobileNumber: (customer.mobileNumber || user.shippingAddress?.phone || user.phone || '').trim() || undefined,
             houseFlat: effectiveHouseFlat,
             streetArea: effectiveStreetArea,
             deliveryAddress: effectiveDeliveryAddress,
@@ -764,6 +765,15 @@ export default function CartDrawer({
                   placeholder="Optional packing notes (e.g. Vacuum tin seal)"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#1c120c] border border-[#38281d] text-xs text-[#f9f6f2]"
                 />
+
+                {checkoutError && (
+                  <div
+                    role="alert"
+                    className="p-3 text-xs text-red-300 bg-red-950/60 border border-red-500/40 rounded-xl"
+                  >
+                    {checkoutError}
+                  </div>
+                )}
 
                 <button
                   type="submit"
