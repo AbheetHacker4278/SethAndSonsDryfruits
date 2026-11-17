@@ -467,7 +467,7 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
             onClick={onRequestOrder}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 sm:px-9 py-3 sm:py-4 rounded-full text-xs sm:text-sm font-bold tracking-wider uppercase bg-gradient-to-r from-[#dfc471] via-[#faeaad] to-[#c79d2b] text-[#1c120c] hover:brightness-110 shadow-2xl shadow-[#dfc471]/35 hover:shadow-[#dfc471]/60 transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
           >
-            <span>Request Your Order</span>
+            <span><i>Catalog</i></span>
             <ArrowRight className="w-4 h-4 text-[#1c120c]" />
           </button>
 
