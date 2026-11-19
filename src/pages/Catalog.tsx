@@ -156,7 +156,7 @@ export default function Catalog({
 }: CatalogProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, products, categories: adminCategories, publicSettings } = useAuth();
+  const { user, products, categories: adminCategories, publicSettings, isSurat } = useAuth();
 
   // Sidebar & Toolbar Filter States
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
@@ -1175,10 +1175,29 @@ export default function Catalog({
                   const packs = packOptionsByProduct[product.id] || getProductPackOptions(product);
                   const selectedPack = getSelectedPackForProduct(product);
                   const packPrice = getEffectivePackPrice(selectedPack);
-                  const hasPackDiscount =
-                    Boolean(selectedPack.discountPrice) &&
-                    Number(selectedPack.discountPrice) > 0 &&
-                    Number(selectedPack.discountPrice) < selectedPack.sellingPrice;
+                  const isSuratCustomer = Boolean(!user || isSurat || isSuratCity(user?.shippingAddress?.city));
+                  const defaultDiscountPercent = isSuratCustomer ? 25 : 40;
+
+                  let cardUnitMrp: number;
+                  let cardDiscountPercent: number;
+
+                  if (
+                    selectedPack.discountPrice &&
+                    selectedPack.discountPrice > 0 &&
+                    selectedPack.discountPrice < selectedPack.sellingPrice
+                  ) {
+                    cardUnitMrp = selectedPack.sellingPrice;
+                    cardDiscountPercent = Math.round(
+                      ((cardUnitMrp - selectedPack.discountPrice) / cardUnitMrp) * 100
+                    );
+                  } else {
+                    cardUnitMrp = Math.round(
+                      packPrice / (1 - defaultDiscountPercent / 100)
+                    );
+                    cardDiscountPercent = defaultDiscountPercent;
+                  }
+
+                  const cardHasValidDiscount = cardUnitMrp > packPrice && cardDiscountPercent > 0;
 
                   const draftKey = getPackDraftKey(product.id, selectedPack.id);
                   const draftQty = getDraftQty(product.id, selectedPack.id);
@@ -1308,14 +1327,19 @@ export default function Catalog({
                                 <div className="text-[10px] uppercase tracking-wider text-[#d5c4b4]/75">
                                   {selectedPack.weightLabel} Pack Price
                                 </div>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="font-sans font-bold text-xl text-[#f9f6f2] tabular-nums">
+                                <div className="flex items-baseline flex-wrap gap-2">
+                                  <span className="font-sans font-bold text-xl text-[#dfc471] tabular-nums">
                                     {formatINR(packPrice)}
                                   </span>
-                                  {hasPackDiscount && (
-                                    <span className="text-xs line-through text-[#d5c4b4]/60 tabular-nums">
-                                      {formatINR(selectedPack.sellingPrice)}
-                                    </span>
+                                  {cardHasValidDiscount && (
+                                    <>
+                                      <span className="text-xs line-through text-[#d5c4b4]/60 tabular-nums font-normal">
+                                        {formatINR(cardUnitMrp)}
+                                      </span>
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#dfc471]/15 text-[#dfc471] border border-[#dfc471]/30">
+                                        {cardDiscountPercent}% OFF
+                                      </span>
+                                    </>
                                   )}
                                   <span className="text-xs font-normal text-[#d5c4b4]/80">
                                     / {selectedPack.weightLabel}
@@ -1401,9 +1425,16 @@ export default function Catalog({
                                   <Plus className="w-3 h-3" />
                                 </button>
                               </div>
-                              <span className="text-xs font-bold text-[#dfc471] tabular-nums ml-auto">
-                                = {formatINR(Math.round(packPrice * draftQty))}
-                              </span>
+                              <div className="flex items-baseline gap-1.5 ml-auto">
+                                {cardHasValidDiscount && (
+                                  <span className="text-[11px] line-through text-[#d5c4b4]/60 tabular-nums font-normal">
+                                    {formatINR(Math.round(cardUnitMrp * draftQty))}
+                                  </span>
+                                )}
+                                <span className="text-xs font-bold text-[#dfc471] tabular-nums">
+                                  = {formatINR(Math.round(packPrice * draftQty))}
+                                </span>
+                              </div>
                             </div>
 
                             <button
@@ -1639,54 +1670,94 @@ export default function Catalog({
                   </div>
 
                   {/* Active Pack Price + Qty Stepper */}
-                  <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] text-[#d5c4b4]/75 block">
-                        Selected: {detailSelectedPack.weightLabel} Pack
-                      </span>
-                      <span className="font-bold text-2xl text-[#dfc471] tabular-nums">
-                        {formatINR(
-                          getEffectivePackPrice(detailSelectedPack) *
-                            getDraftQty(detailProduct.id, detailSelectedPack.id)
-                        )}
-                      </span>
-                    </div>
+                  {(() => {
+                    const draftQty = getDraftQty(detailProduct.id, detailSelectedPack.id);
+                    const effectiveUnitSellingPrice = getEffectivePackPrice(detailSelectedPack);
+                    const isSuratCustomer = Boolean(!user || isSurat || isSuratCity(user?.shippingAddress?.city));
+                    const defaultDiscountPercent = isSuratCustomer ? 25 : 40;
 
-                    <div className="inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-xl p-1">
-                      <button
-                        type="button"
-                        aria-label="Decrease pack quantity"
-                        onClick={() =>
-                          handleDraftPackCountChange(
-                            detailProduct.id,
-                            detailSelectedPack.id,
-                            -1
-                          )
-                        }
-                        className="w-8 h-8 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums">
-                        {getDraftQty(detailProduct.id, detailSelectedPack.id)} pack
-                        {getDraftQty(detailProduct.id, detailSelectedPack.id) > 1 ? 's' : ''}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Increase pack quantity"
-                        onClick={() =>
-                          handleDraftPackCountChange(
-                            detailProduct.id,
-                            detailSelectedPack.id,
-                            1
-                          )
-                        }
-                        className="w-8 h-8 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                    let unitMrp: number;
+                    let discountPercent: number;
+
+                    if (
+                      detailSelectedPack.discountPrice &&
+                      detailSelectedPack.discountPrice > 0 &&
+                      detailSelectedPack.discountPrice < detailSelectedPack.sellingPrice
+                    ) {
+                      unitMrp = detailSelectedPack.sellingPrice;
+                      discountPercent = Math.round(
+                        ((unitMrp - detailSelectedPack.discountPrice) / unitMrp) * 100
+                      );
+                    } else {
+                      unitMrp = Math.round(
+                        effectiveUnitSellingPrice / (1 - defaultDiscountPercent / 100)
+                      );
+                      discountPercent = defaultDiscountPercent;
+                    }
+
+                    const currentTotal = effectiveUnitSellingPrice * draftQty;
+                    const mrpTotal = unitMrp * draftQty;
+                    const hasValidDiscount = mrpTotal > currentTotal && discountPercent > 0;
+
+                    return (
+                      <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] text-[#d5c4b4]/75 block mb-1">
+                            Selected: {detailSelectedPack.weightLabel} Pack
+                          </span>
+                          <div className="flex items-baseline flex-wrap gap-2.5">
+                            <span className="font-bold text-2xl sm:text-3xl text-[#dfc471] tabular-nums">
+                              {formatINR(currentTotal)}
+                            </span>
+                            {hasValidDiscount && (
+                              <>
+                                <span className="text-sm sm:text-base text-[#d5c4b4]/60 line-through tabular-nums font-normal">
+                                  {formatINR(mrpTotal)}
+                                </span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-[#dfc471]/15 text-[#dfc471] border border-[#dfc471]/30">
+                                  {discountPercent}% OFF
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-xl p-1">
+                          <button
+                            type="button"
+                            aria-label="Decrease pack quantity"
+                            onClick={() =>
+                              handleDraftPackCountChange(
+                                detailProduct.id,
+                                detailSelectedPack.id,
+                                -1
+                              )
+                            }
+                            className="w-8 h-8 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums">
+                            {draftQty} pack{draftQty > 1 ? 's' : ''}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label="Increase pack quantity"
+                            onClick={() =>
+                              handleDraftPackCountChange(
+                                detailProduct.id,
+                                detailSelectedPack.id,
+                                1
+                              )
+                            }
+                            className="w-8 h-8 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <button
                     type="button"

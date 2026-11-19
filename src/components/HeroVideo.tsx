@@ -458,9 +458,9 @@ export default function HeroVideo({ onExplore, onRequestOrder }: HeroVideoProps)
           </span>
         </h1>
 
-        <p className="mt-4 sm:mt-8 text-xs sm:text-lg md:text-xl text-[#faebd0]/95 max-w-2xl font-sans font-light leading-relaxed text-balance drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)]">
-          Discover the richness of premium dry fruits and rare Kashmiri saffron, curated across three generations in Jammu for pure authenticity, fragrance, and taste.
-        </p>
+        <span className="inline-block mt-3 px-2 py-1 text-[#1a1a1a] bg-gradient-to-r from-[#d4af37] via-[#f5d989] to-[#d4af37] rounded-full text-xs sm:text-sm font-semibold tracking-wide shadow-[0_2px_10px_rgba(212,175,55,0.4)]">
+          Special 25% Off on All Products for Surat Customers
+        </span>
 
         <div className="mt-6 sm:mt-11 flex flex-col sm:flex-row items-center gap-2.5 sm:gap-5 w-full sm:w-auto">
           <button
