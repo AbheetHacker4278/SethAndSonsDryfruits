@@ -26,6 +26,10 @@ import {
   User,
   MapPin,
   ShoppingBag,
+  Send,
+  Monitor,
+  Smartphone,
+  AlertTriangle,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import { AdminPdfViewerModal } from '../../components/admin/AdminPdfViewerModal';
@@ -172,6 +176,24 @@ export default function AdminOrders() {
   const [editDiscountAmount, setEditDiscountAmount] = useState('0');
   const [editShippingOverride, setEditShippingOverride] = useState('');
   const [editInternalNotes, setEditInternalNotes] = useState('');
+
+  // Payment Request Reminders State
+  const [remindersModalOpen, setRemindersModalOpen] = useState(false);
+  const [selectedReminderOrderNumbers, setSelectedReminderOrderNumbers] = useState<string[]>([]);
+  const [sendingReminders, setSendingReminders] = useState(false);
+  const [reminderPreviewModal, setReminderPreviewModal] = useState<{
+    open: boolean;
+    orderNumber: string;
+    html: string;
+    subject: string;
+    customerName: string;
+    customerEmail: string;
+    totalStr: string;
+    itemsCount: number;
+    date: string;
+  } | null>(null);
+  const [reminderPreviewLoading, setReminderPreviewLoading] = useState(false);
+  const [reminderPreviewDevice, setReminderPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
   useEffect(() => {
     fetchPublishedProducts().then(setCatalogProducts).catch(() => {});
@@ -835,6 +857,86 @@ export default function AdminOrders() {
     }
   };
 
+  const unpaidOrders = orders.filter(
+    o => o.paymentStatus !== 'paid' && o.paymentStatus !== 'refunded' && !['cancelled', 'returned'].includes(o.status)
+  );
+
+  const handlePreviewOrderReminder = async (orderNumber: string) => {
+    setReminderPreviewLoading(true);
+    try {
+      const res = await apiRequest<{
+        html: string;
+        subject: string;
+        customerName: string;
+        customerEmail: string;
+        totalStr: string;
+        orderNumber: string;
+        itemsCount: number;
+        date: string;
+      }>('/api/admin/orders/preview-payment-reminder', {
+        method: 'POST',
+        body: { orderNumber },
+      });
+      setReminderPreviewModal({ open: true, ...res });
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to generate payment reminder preview.',
+      });
+    } finally {
+      setReminderPreviewLoading(false);
+    }
+  };
+
+  const handleSendSingleOrderReminder = async (orderNumber: string) => {
+    setSendingReminders(true);
+    try {
+      const res = await apiRequest<{ message: string; recipient: string }>(
+        `/api/admin/orders/${encodeURIComponent(orderNumber)}/send-payment-reminder`,
+        { method: 'POST' }
+      );
+      setToast({ type: 'ok', text: res.message || 'Payment request email sent successfully.' });
+      if (reminderPreviewModal) {
+        setReminderPreviewModal(null);
+      }
+      await loadOrders(statusFilter);
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to send payment request reminder.',
+      });
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
+  const handleSendBatchOrderReminders = async () => {
+    if (selectedReminderOrderNumbers.length === 0) {
+      setToast({ type: 'err', text: 'Please select at least one unpaid order to send reminders.' });
+      return;
+    }
+    setSendingReminders(true);
+    try {
+      const res = await apiRequest<{ message: string; dispatchedCount: number }>(
+        '/api/admin/orders/send-payment-reminders',
+        {
+          method: 'POST',
+          body: { orderNumbers: selectedReminderOrderNumbers },
+        }
+      );
+      setToast({ type: 'ok', text: res.message || `Dispatched to ${res.dispatchedCount} customer(s).` });
+      setRemindersModalOpen(false);
+      await loadOrders(statusFilter);
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to dispatch payment reminders.',
+      });
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   const statuses = [
     { id: 'all', label: 'All' },
     { id: 'placed', label: 'Pending' },
@@ -879,7 +981,20 @@ export default function AdminOrders() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {unpaidOrders.length > 0 && (
+              <button
+                onClick={() => {
+                  setSelectedReminderOrderNumbers(unpaidOrders.map(o => o.orderNumber));
+                  setRemindersModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#8F6C2B] hover:bg-[#735520] text-white cursor-pointer shadow-sm transition-all"
+                title="Send Payment Request Emails with Items Breakdown to Unpaid Customers"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-[#E9E4D9]" />
+                <span>Send Payment Requests ({unpaidOrders.length})</span>
+              </button>
+            )}
             <Link
               to="/admin/order-locations"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-[#E9E4D9] text-[#183D32] hover:bg-[#F8F6F0] cursor-pointer shadow-xs transition-all"
@@ -1295,6 +1410,43 @@ export default function AdminOrders() {
                       </div>
                     )}
                   </div>
+
+                  {selectedOrder.paymentStatus !== 'paid' && selectedOrder.paymentStatus !== 'refunded' && !['cancelled', 'returned'].includes(selectedOrder.status) && (
+                    <div className="pt-2 border-t border-[#E9E4D9]/80 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#8F6C2B] flex items-center gap-1">
+                          <CreditCard className="w-3.5 h-3.5 text-[#8F6C2B]" />
+                          <span>Payment Request Reminder</span>
+                        </span>
+                        {selectedOrder.lastPaymentReminderSentAt && (
+                          <span className="text-[10px] text-[#888B83]">
+                            Last sent: {new Date(selectedOrder.lastPaymentReminderSentAt).toLocaleDateString('en-IN')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSendSingleOrderReminder(selectedOrder.orderNumber)}
+                          disabled={sendingReminders}
+                          className="flex-1 py-1.5 px-3 rounded-lg bg-[#8F6C2B] hover:bg-[#735520] text-white text-[11px] font-semibold cursor-pointer transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50"
+                        >
+                          <Send className="w-3 h-3 text-[#E9E4D9]" />
+                          <span>{sendingReminders ? 'Sending...' : 'Send Payment Request Email'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePreviewOrderReminder(selectedOrder.orderNumber)}
+                          disabled={reminderPreviewLoading}
+                          className="py-1.5 px-2.5 rounded-lg bg-white border border-[#C8A96B] hover:bg-[#FAF8F5] text-[#183D32] text-[11px] font-medium cursor-pointer transition flex items-center gap-1 disabled:opacity-50"
+                          title="Preview Branded Email with Item Breakdown"
+                        >
+                          <Eye className="w-3 h-3 text-[#C8A96B]" />
+                          <span>Preview</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Address & Items */}
@@ -2570,6 +2722,237 @@ export default function AdminOrders() {
           src={pdfPreview?.url || null}
           onClose={() => setPdfPreview(null)}
         />
+
+        {/* BATCH PAYMENT REMINDERS MODAL */}
+        <AdminModal
+          open={remindersModalOpen}
+          onClose={() => setRemindersModalOpen(false)}
+          title="Send Payment Request Reminders"
+          subtitle={`Send luxury itemized invoices to customers with unpaid / pending orders (${unpaidOrders.length} eligible)`}
+          maxWidth="max-w-3xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Itemized Outstanding Payment Notice</strong>
+                <span>
+                  Each selected patron will receive a bespoke Seth And Sons luxury email with their exact purchase items, pack weights, quantities, total amount due, and direct UPI payment instructions.
+                </span>
+              </div>
+            </div>
+
+            {/* Select All Controls */}
+            <div className="flex items-center justify-between px-1">
+              <div className="text-[11px] text-[#5C6058]">
+                Selected: <strong>{selectedReminderOrderNumbers.length}</strong> of {unpaidOrders.length} orders
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReminderOrderNumbers(unpaidOrders.map(o => o.orderNumber))}
+                  className="text-[11px] font-semibold text-[#183D32] hover:underline cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-[#888B83]">·</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReminderOrderNumbers([])}
+                  className="text-[11px] font-semibold text-[#888B83] hover:underline cursor-pointer"
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+
+            {/* Orders List Table */}
+            <div className="max-h-[380px] overflow-y-auto rounded-xl border border-[#E9E4D9] bg-white divide-y divide-[#E9E4D9]">
+              {unpaidOrders.map(ord => {
+                const isSelected = selectedReminderOrderNumbers.includes(ord.orderNumber);
+                const itemsSummary = (ord.items || [])
+                  .map(it => `${it.quantity}x ${it.productName}`)
+                  .join(', ');
+                return (
+                  <div
+                    key={ord.id}
+                    onClick={() => {
+                      setSelectedReminderOrderNumbers(prev =>
+                        prev.includes(ord.orderNumber)
+                          ? prev.filter(n => n !== ord.orderNumber)
+                          : [...prev, ord.orderNumber]
+                      );
+                    }}
+                    className={`p-3 flex items-start justify-between gap-3 cursor-pointer transition ${
+                      isSelected ? 'bg-[#FAF8F5]' : 'hover:bg-[#F8F6F0]'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}} // handled by parent div
+                        className="mt-0.5 rounded border-[#C8A96B] text-[#183D32] focus:ring-[#C8A96B] cursor-pointer"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#183D32]">#{ord.orderNumber}</span>
+                          <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-[#FFF4E5] text-[#B25E09] border border-[#FFE2B8]">
+                            {ord.paymentStatus.toUpperCase()} ({ord.paymentMethod})
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-medium text-[#252923] mt-0.5">
+                          {ord.customerObj?.name || 'Guest'} &lt;{ord.customerObj?.email || ord.deliveryAddressObj?.email || 'No email'}&gt;
+                        </div>
+                        <div className="text-[10px] text-[#888B83] truncate max-w-[400px] mt-0.5" title={itemsSummary}>
+                          Items: {itemsSummary || 'Standard harvest selections'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-sm text-[#183D32] tabular-nums">
+                        {formatINR(ord.totalAmount)}
+                      </div>
+                      <div className="text-[10px] text-[#888B83]">
+                        {new Date(ord.createdAt).toLocaleDateString('en-IN')}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          void handlePreviewOrderReminder(ord.orderNumber);
+                        }}
+                        className="mt-1 text-[10px] text-[#8F6C2B] font-semibold hover:underline inline-flex items-center gap-0.5"
+                      >
+                        <Eye className="w-2.5 h-2.5" /> Preview Email
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-between items-center pt-2 border-t border-[#E9E4D9]">
+              <button
+                type="button"
+                onClick={() => setRemindersModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-[#E9E4D9] text-[#5C6058] hover:bg-[#F8F6F0] cursor-pointer font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendBatchOrderReminders}
+                disabled={sendingReminders || selectedReminderOrderNumbers.length === 0}
+                className="px-5 py-2 rounded-xl bg-[#8F6C2B] hover:bg-[#735520] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition"
+              >
+                <Send className="w-3.5 h-3.5 text-[#E9E4D9]" />
+                <span>
+                  {sendingReminders
+                    ? 'Dispatching Reminders...'
+                    : `Dispatch Reminders to ${selectedReminderOrderNumbers.length} Patrons`}
+                </span>
+              </button>
+            </div>
+          </div>
+        </AdminModal>
+
+        {/* SINGLE / SAMPLE PAYMENT REMINDER EMAIL PREVIEW MODAL */}
+        <AdminModal
+          open={Boolean(reminderPreviewModal)}
+          onClose={() => setReminderPreviewModal(null)}
+          title={`Payment Reminder Preview — #${reminderPreviewModal?.orderNumber || ''}`}
+          subtitle={`Recipient: ${reminderPreviewModal?.customerName || ''} (${reminderPreviewModal?.customerEmail || ''}) • Due: ${reminderPreviewModal?.totalStr || ''}`}
+          maxWidth="max-w-4xl"
+        >
+          {reminderPreviewModal && (
+            <div className="space-y-4 text-xs">
+              {/* Meta Header */}
+              <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E9E4D9] flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#888B83] font-semibold w-16">Subject:</span>
+                    <span className="font-bold text-[#183D32] text-sm">{reminderPreviewModal.subject}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="text-[#888B83] font-semibold w-16">Recipient:</span>
+                    <span className="font-medium text-[#245746] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {reminderPreviewModal.customerName} &lt;{reminderPreviewModal.customerEmail}&gt;
+                    </span>
+                    <span className="font-bold text-[#8F6C2B] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Amount Due: {reminderPreviewModal.totalStr}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Device Switcher */}
+                <div className="flex items-center gap-1 p-1 bg-white rounded-lg border border-[#E9E4D9]">
+                  <button
+                    type="button"
+                    onClick={() => setReminderPreviewDevice('desktop')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                      reminderPreviewDevice === 'desktop'
+                        ? 'bg-[#183D32] text-white'
+                        : 'text-[#5C6058] hover:text-[#183D32]'
+                    }`}
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>Desktop</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReminderPreviewDevice('mobile')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                      reminderPreviewDevice === 'mobile'
+                        ? 'bg-[#183D32] text-white'
+                        : 'text-[#5C6058] hover:text-[#183D32]'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Mobile</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Rendered Email Frame */}
+              <div className="p-4 bg-[#F2EDE4] rounded-2xl border border-[#D9C48C] flex justify-center overflow-x-auto">
+                <iframe
+                  title="Rendered Payment Reminder Preview"
+                  srcDoc={reminderPreviewModal.html}
+                  className="rounded-xl border border-[#D9C48C] shadow-md bg-white transition-all"
+                  style={{
+                    width: reminderPreviewDevice === 'mobile' ? '390px' : '650px',
+                    height: '560px',
+                  }}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-between items-center pt-2 border-t border-[#E9E4D9]">
+                <button
+                  type="button"
+                  onClick={() => setReminderPreviewModal(null)}
+                  className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer font-semibold text-[#5C6058]"
+                >
+                  Close Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSendSingleOrderReminder(reminderPreviewModal.orderNumber)}
+                  disabled={sendingReminders}
+                  className="px-6 py-2 rounded-xl bg-[#8F6C2B] hover:bg-[#735520] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition"
+                >
+                  <Send className="w-3.5 h-3.5 text-[#E9E4D9]" />
+                  <span>
+                    {sendingReminders ? 'Dispatching...' : `Dispatch Reminder Now (${reminderPreviewModal.totalStr})`}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </AdminModal>
       </div>
     </AdminLayout>
   );

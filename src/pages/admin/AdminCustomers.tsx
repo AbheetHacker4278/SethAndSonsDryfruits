@@ -24,6 +24,8 @@ import {
   Paperclip,
   X,
   FileText,
+  Monitor,
+  Smartphone,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import {
@@ -97,14 +99,28 @@ export default function AdminCustomers() {
 
   // Send Mass Broadcast Email
   const [massEmailOpen, setMassEmailOpen] = useState(false);
+  const [massEmailSelectedCustomerId, setMassEmailSelectedCustomerId] = useState<string>('');
   const [massEmailForm, setMassEmailForm] = useState({
-    segment: 'all' as 'all' | 'frequent' | 'vip' | 'unverified' | 'inactive',
+    segment: 'all' as 'all' | 'frequent' | 'vip' | 'unverified' | 'inactive' | 'selected',
     subject: '',
     message: '',
     previewText: '',
     ctaText: '',
     ctaUrl: '',
   });
+
+  // Email Preview Modal State
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    html: string;
+    subject: string;
+    recipientName: string;
+    recipientEmail: string;
+    attachmentsCount: number;
+    isBroadcast: boolean;
+  } | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
   interface EmailAttachmentItem {
     filename: string;
@@ -408,8 +424,86 @@ export default function AdminCustomers() {
     });
   };
 
-  const handleSendIndividualEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePreviewIndividualEmail = async () => {
+    if (!emailTarget) return;
+    if (!emailForm.subject.trim() || !emailForm.message.trim()) {
+      setToast({ type: 'err', text: 'Please enter a subject and message body before previewing.' });
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const res = await apiRequest<{ html: string; subject: string; recipientName: string; recipientEmail: string; attachmentsCount: number }>(
+        '/api/admin/customers/preview-email',
+        {
+          method: 'POST',
+          body: {
+            recipientName: emailTarget.name,
+            recipientEmail: emailTarget.email,
+            subject: emailForm.subject,
+            message: emailForm.message,
+            previewText: emailForm.previewText,
+            ctaText: emailForm.ctaText,
+            ctaUrl: emailForm.ctaUrl,
+            attachments: directAttachments,
+          },
+        }
+      );
+      setPreviewData({ ...res, isBroadcast: false });
+      setPreviewModalOpen(true);
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Failed to generate preview.' });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handlePreviewMassEmail = async () => {
+    if (!massEmailForm.subject.trim() || !massEmailForm.message.trim()) {
+      setToast({ type: 'err', text: 'Please enter a subject and message body before previewing.' });
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      let sampleName = 'Valued Patron';
+      let sampleEmail = 'patron@sethandsons.com';
+      if (massEmailForm.segment === 'selected' && massEmailSelectedCustomerId) {
+        const found = customers.find(c => c.id === massEmailSelectedCustomerId);
+        if (found) {
+          sampleName = found.name;
+          sampleEmail = found.email;
+        }
+      } else if (customers.length > 0) {
+        sampleName = customers[0].name;
+        sampleEmail = customers[0].email;
+      }
+
+      const res = await apiRequest<{ html: string; subject: string; recipientName: string; recipientEmail: string; attachmentsCount: number }>(
+        '/api/admin/customers/preview-email',
+        {
+          method: 'POST',
+          body: {
+            recipientName: sampleName,
+            recipientEmail: sampleEmail,
+            subject: massEmailForm.subject,
+            message: massEmailForm.message,
+            previewText: massEmailForm.previewText,
+            ctaText: massEmailForm.ctaText,
+            ctaUrl: massEmailForm.ctaUrl,
+            attachments: massAttachments,
+          },
+        }
+      );
+      setPreviewData({ ...res, isBroadcast: true });
+      setPreviewModalOpen(true);
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Failed to generate preview.' });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleSendIndividualEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!emailTarget) return;
     setActionLoading(true);
     try {
@@ -422,6 +516,7 @@ export default function AdminCustomers() {
       });
       setEmailTarget(null);
       setDirectAttachments([]);
+      setPreviewModalOpen(false);
       setToast({ type: 'ok', text: res.message || 'Email sent successfully.' });
     } catch (err) {
       setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Failed to send email.' });
@@ -430,19 +525,25 @@ export default function AdminCustomers() {
     }
   };
 
-  const handleSendMassEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMassEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (massEmailForm.segment === 'selected' && !massEmailSelectedCustomerId) {
+      setToast({ type: 'err', text: 'Please select a specific customer.' });
+      return;
+    }
     setActionLoading(true);
     try {
       const res = await apiRequest<{ message: string; dispatchedCount: number }>('/api/admin/customers/mass-email', {
         method: 'POST',
         body: {
           ...massEmailForm,
+          customerIds: massEmailForm.segment === 'selected' ? [massEmailSelectedCustomerId] : undefined,
           attachments: massAttachments,
         },
       });
       setMassEmailOpen(false);
       setMassAttachments([]);
+      setPreviewModalOpen(false);
       setToast({ type: 'ok', text: res.message || `Dispatched to ${res.dispatchedCount} patrons.` });
     } catch (err) {
       setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Broadcast failed.' });
@@ -494,11 +595,16 @@ export default function AdminCustomers() {
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => setMassEmailOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#245746] text-white hover:bg-[#183D32] transition cursor-pointer"
+            onClick={() => {
+              setMassEmailSelectedCustomerId('');
+              setMassEmailOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#245746] text-white hover:bg-[#183D32] transition cursor-pointer shadow-xs"
+            title="Send Announcement to Customer Segments"
           >
             <Mail className="w-3.5 h-3.5 text-[#C8A96B]" />
             <span>Broadcast Email</span>
+            <span className="text-[10px] bg-white/20 text-[#E9E4D9] px-1.5 py-0.2 rounded-md font-medium">Segments</span>
           </button>
           <a
             href="/api/admin/customers/export.csv"
@@ -924,23 +1030,22 @@ export default function AdminCustomers() {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             {customerType === 'registered' && (
-                              <>
-                                <button
-                                  onClick={() => openCouponModal(c)}
-                                  className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#8F6C2B] cursor-pointer"
-                                  title="Generate Custom Coupon"
-                                >
-                                  <Tag className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => openEmailModal(c)}
-                                  className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#183D32] cursor-pointer"
-                                  title="Send Direct Email"
-                                >
-                                  <Mail className="w-3.5 h-3.5" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => openCouponModal(c)}
+                                className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#8F6C2B] cursor-pointer"
+                                title="Generate Custom Coupon"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                              </button>
                             )}
+                            <button
+                              onClick={() => openEmailModal(c)}
+                              className="px-2 py-1 rounded-lg bg-white hover:bg-[#FAF8F5] border border-[#E9E4D9] text-[#183D32] font-semibold text-[11px] flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                              title={`Send Individual Direct Email to ${c.name} (Strictly 1 Recipient)`}
+                            >
+                              <Mail className="w-3 h-3 text-[#C8A96B]" />
+                              <span>Email</span>
+                            </button>
                             <button
                               onClick={() => openEdit(c)}
                               className="p-1.5 rounded-lg hover:bg-[#E9E4D9]/60 text-[#5C6058] cursor-pointer"
@@ -1408,12 +1513,30 @@ export default function AdminCustomers() {
             setEmailTarget(null);
             setDirectAttachments([]);
           }}
-          title={`Compose Email for ${emailTarget?.name || ''}`}
-          subtitle={`Sending to: ${emailTarget?.email || ''}`}
+          title={`Compose Direct Email for ${emailTarget?.name || ''}`}
+          subtitle={`Sending strictly to: ${emailTarget?.email || ''}`}
           maxWidth="max-w-xl"
         >
           {emailTarget && (
             <form onSubmit={handleSendIndividualEmail} className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-[#064e3b]/10 border border-[#064e3b]/20 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-[#064e3b] tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#064e3b]" />
+                    <span>Strictly Individual Direct Email (1 Recipient Only)</span>
+                  </div>
+                  <div className="text-xs font-semibold text-[#183D32] mt-0.5">
+                    {emailTarget.name} &lt;{emailTarget.email}&gt;
+                  </div>
+                  <div className="text-[11px] text-[#5C6058]">
+                    This email is delivered strictly to this customer. It will never be broadcast to any other patrons.
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#064e3b] text-white shrink-0">
+                  1 Recipient
+                </span>
+              </div>
+
               <div>
                 <label className="block text-[#5C6058] font-semibold mb-1">Subject</label>
                 <input
@@ -1572,25 +1695,38 @@ export default function AdminCustomers() {
                 This email will be delivered in the official Seth And Sons luxury Deep Emerald &amp; Champagne Gold format with authentic branding.
               </p>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-between items-center pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setEmailTarget(null);
-                    setDirectAttachments([]);
-                  }}
-                  className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
+                  onClick={handlePreviewIndividualEmail}
+                  disabled={previewLoading || !emailForm.subject.trim() || !emailForm.message.trim()}
+                  className="px-4 py-2 rounded-xl border border-[#C8A96B] bg-[#FAF8F5] text-[#183D32] font-semibold hover:bg-[#F3EFEA] transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  title="Preview rendered email in luxury layout"
                 >
-                  Cancel
+                  <Eye className="w-3.5 h-3.5 text-[#C8A96B]" />
+                  <span>{previewLoading ? 'Generating Preview...' : 'Preview Email'}</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || uploadingDirectAttachment}
-                  className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
-                  <span>{actionLoading ? 'Dispatching...' : 'Dispatch Email'}</span>
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailTarget(null);
+                      setDirectAttachments([]);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading || uploadingDirectAttachment}
+                    className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
+                    <span>{actionLoading ? 'Dispatching...' : 'Dispatch Email'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           )}
@@ -1603,11 +1739,37 @@ export default function AdminCustomers() {
             setMassEmailOpen(false);
             setMassAttachments([]);
           }}
-          title="Compose Mass Broadcast Email"
-          subtitle="Send official branded announcements to customer segments"
+          title={massEmailForm.segment === 'selected' ? 'Compose Patron Direct Email' : 'Compose Mass Broadcast Email'}
+          subtitle={
+            massEmailForm.segment === 'selected'
+              ? 'Send official branded communication to a specific patron'
+              : 'Send official branded announcements to customer segments'
+          }
           maxWidth="max-w-xl"
         >
           <form onSubmit={handleSendMassEmail} className="space-y-3 text-xs">
+            {massEmailForm.segment === 'selected' ? (
+              <div className="p-3 rounded-xl bg-[#064e3b]/10 border border-[#064e3b]/20 text-xs">
+                <div className="font-bold text-[#064e3b] flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Single Patron Mode Selected</span>
+                </div>
+                <div className="text-[#5C6058] mt-0.5">
+                  This email will be dispatched ONLY to the chosen customer below. No other customers will receive it.
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+                <div className="font-bold text-amber-800 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Mass Broadcast Mode</span>
+                </div>
+                <div className="text-amber-900 mt-0.5">
+                  Sending announcement to <strong>{massEmailForm.segment === 'all' ? (stats?.totalCustomers || customers.length) : 'multiple'} patrons</strong> in this segment.
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-[#5C6058] font-semibold mb-1">Target Segment</label>
               <select
@@ -1615,13 +1777,33 @@ export default function AdminCustomers() {
                 onChange={e => setMassEmailForm({ ...massEmailForm, segment: e.target.value as any })}
                 className="w-full px-3 py-2 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] font-semibold text-[#183D32] focus:outline-none focus:border-[#C8A96B]"
               >
-                <option value="all">All Registered Patrons</option>
-                <option value="frequent">Frequent Buyers (2+ Orders)</option>
-                <option value="vip">VIP Patrons (₹10,000+ spend or 3+ orders)</option>
-                <option value="unverified">Unverified Accounts Only</option>
+                <option value="all">All Registered Patrons ({stats?.totalCustomers || customers.length})</option>
+                <option value="frequent">Frequent Buyers (2+ Orders) ({stats?.frequentBuyersCount || 0})</option>
+                <option value="vip">VIP Patrons (₹10,000+ spend or 3+ orders) ({stats?.vipCount || 0})</option>
+                <option value="unverified">Unverified Accounts Only ({stats?.unverifiedCount || 0})</option>
                 <option value="inactive">Inactive Patrons (60+ days)</option>
+                <option value="selected">Specific Single Patron (Individual Customer)</option>
               </select>
             </div>
+
+            {massEmailForm.segment === 'selected' && (
+              <div>
+                <label className="block text-[#5C6058] font-semibold mb-1">Choose Recipient Patron</label>
+                <select
+                  required
+                  value={massEmailSelectedCustomerId}
+                  onChange={e => setMassEmailSelectedCustomerId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#F8F6F0] border border-[#C8A96B] font-semibold text-[#183D32] focus:outline-none focus:border-[#C8A96B]"
+                >
+                  <option value="">-- Select Patron --</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-[#5C6058] font-semibold mb-1">Subject</label>
@@ -1777,27 +1959,157 @@ export default function AdminCustomers() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-between items-center pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  setMassEmailOpen(false);
-                  setMassAttachments([]);
-                }}
-                className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
+                onClick={handlePreviewMassEmail}
+                disabled={previewLoading || !massEmailForm.subject.trim() || !massEmailForm.message.trim()}
+                className="px-4 py-2 rounded-xl border border-[#C8A96B] bg-[#FAF8F5] text-[#183D32] font-semibold hover:bg-[#F3EFEA] transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                title="Preview rendered email in luxury layout"
               >
-                Cancel
+                <Eye className="w-3.5 h-3.5 text-[#C8A96B]" />
+                <span>{previewLoading ? 'Generating Preview...' : 'Preview Email'}</span>
               </button>
-              <button
-                type="submit"
-                disabled={actionLoading || uploadingAttachment}
-                className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              >
-                <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
-                <span>{actionLoading ? 'Broadcasting...' : 'Broadcast to Segment'}</span>
-              </button>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMassEmailOpen(false);
+                    setMassAttachments([]);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading || uploadingAttachment || (massEmailForm.segment === 'selected' && !massEmailSelectedCustomerId)}
+                  className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
+                  <span>
+                    {actionLoading
+                      ? 'Dispatching...'
+                      : massEmailForm.segment === 'selected'
+                      ? 'Dispatch to Patron'
+                      : 'Broadcast to Segment'}
+                  </span>
+                </button>
+              </div>
             </div>
           </form>
+        </AdminModal>
+
+        {/* 6B. BRANDED LUXURY EMAIL PREVIEW MODAL */}
+        <AdminModal
+          open={previewModalOpen}
+          onClose={() => setPreviewModalOpen(false)}
+          title="Branded Luxury Email Preview"
+          subtitle={
+            previewData?.isBroadcast
+              ? `Broadcast Announcement Preview • ${massEmailForm.segment === 'selected' ? 'Delivered to 1 patron' : `Delivered to selected segment`}`
+              : `Direct Email Preview • Recipient: ${previewData?.recipientName || ''} <${previewData?.recipientEmail || ''}>`
+          }
+          maxWidth="max-w-4xl"
+        >
+          {previewData && (
+            <div className="space-y-4 text-xs">
+              {/* Header Meta Bar */}
+              <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E9E4D9] flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#888B83] font-semibold w-16">Subject:</span>
+                    <span className="font-bold text-[#183D32] text-sm">{previewData.subject}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="text-[#888B83] font-semibold w-16">Recipient:</span>
+                    <span className="font-medium text-[#245746] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {previewData.recipientName} &lt;{previewData.recipientEmail}&gt;
+                    </span>
+                    {previewData.attachmentsCount > 0 && (
+                      <span className="text-[#8F6C2B] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
+                        {previewData.attachmentsCount} Attachment(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Device Switcher */}
+                <div className="flex items-center gap-1 p-1 bg-white rounded-lg border border-[#E9E4D9]">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                      previewDevice === 'desktop'
+                        ? 'bg-[#183D32] text-white'
+                        : 'text-[#5C6058] hover:text-[#183D32]'
+                    }`}
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>Desktop</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                      previewDevice === 'mobile'
+                        ? 'bg-[#183D32] text-white'
+                        : 'text-[#5C6058] hover:text-[#183D32]'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Mobile</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Email Frame Container */}
+              <div className="p-4 bg-[#F2EDE4] rounded-2xl border border-[#D9C48C] flex justify-center overflow-x-auto">
+                <iframe
+                  title="Rendered Email Preview"
+                  srcDoc={previewData.html}
+                  className="rounded-xl border border-[#D9C48C] shadow-md bg-white transition-all"
+                  style={{
+                    width: previewDevice === 'mobile' ? '390px' : '650px',
+                    height: '560px',
+                  }}
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-between items-center pt-2 border-t border-[#E9E4D9]">
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer font-semibold text-[#5C6058]"
+                >
+                  Back to Composer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (previewData.isBroadcast) {
+                      void handleSendMassEmail();
+                    } else {
+                      void handleSendIndividualEmail();
+                    }
+                  }}
+                  disabled={actionLoading}
+                  className="px-6 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
+                  <span>
+                    {actionLoading
+                      ? 'Dispatching...'
+                      : previewData.isBroadcast
+                      ? 'Confirm & Broadcast'
+                      : 'Confirm & Send Email'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
         </AdminModal>
 
         {/* 7. PURGE EXPIRED UNVERIFIED CONFIRMATION MODAL */}

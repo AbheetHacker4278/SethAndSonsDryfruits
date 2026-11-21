@@ -2677,6 +2677,374 @@ export function createAdminErpRouter(
   });
 
   // =============================================
+  // 4B. UNPAID PAYMENT REQUEST REMINDERS
+  // =============================================
+  async function buildPaymentReminderEmail(order: any, baseUrl: string) {
+    const orderNumber = String(order.orderNumber);
+    const items = await db.models.OrderItem.find({ orderId: order.id }).lean();
+    const cSnap = (order.customerSnapshot as any) || {};
+    const dAddr = (order.deliveryAddress as any) || {};
+
+    let customerEmail = normalizeEmail(cSnap.email || dAddr.email || '');
+    let customerName = (cSnap.name || dAddr.fullName || 'Valued Patron').trim();
+
+    if (!customerEmail && order.customerId) {
+      const cust = await db.models.Customer.findOne({ id: order.customerId }).lean();
+      if (cust && cust.email) {
+        customerEmail = cust.email;
+        if (cust.name) customerName = cust.name;
+      }
+    }
+
+    const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const totalStr = `₹${Math.round(order.totalAmount).toLocaleString('en-IN')}`;
+    const subtotalStr = `₹${Math.round(order.subtotal || order.totalAmount).toLocaleString('en-IN')}`;
+    const shippingStr = order.shippingCharge > 0 ? `₹${Math.round(order.shippingCharge).toLocaleString('en-IN')}` : 'FREE';
+    const discountStr = order.discountAmount > 0 ? `₹${Math.round(order.discountAmount).toLocaleString('en-IN')}` : '';
+
+    const brandLogoUrl = await getBrandLogoUrl();
+
+    const itemsRowsHtml = items.map(it => {
+      const unitPriceStr = `₹${Math.round(it.unitPrice).toLocaleString('en-IN')}`;
+      const subtotalItemStr = `₹${Math.round(it.subtotal).toLocaleString('en-IN')}`;
+      const weightLabel = it.weightLabel || `${it.quantity} ${it.unit || 'unit'}`;
+      return `
+        <tr style="border-bottom:1px solid #E9E4D9;background-color:#ffffff;">
+          <td style="padding:12px;color:#183D32;vertical-align:middle;">
+            <div style="font-weight:600;color:#183D32;font-size:13px;">${escapeHtml(it.productName)}</div>
+            ${it.category ? `<div style="font-size:11px;color:#888B83;margin-top:2px;">Category: ${escapeHtml(it.category)}</div>` : ''}
+          </td>
+          <td style="padding:12px;text-align:center;color:#4A5951;font-size:12px;vertical-align:middle;">
+            <span style="font-weight:600;color:#183D32;">${escapeHtml(weightLabel)}</span>
+            <div style="font-size:11px;color:#888B83;margin-top:2px;">(${it.quantity} × ${unitPriceStr})</div>
+          </td>
+          <td style="padding:12px;text-align:right;color:#183D32;font-weight:bold;font-size:13px;vertical-align:middle;">
+            ${subtotalItemStr}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const bodyHtml = `
+      <div style="margin-bottom:20px;">
+        <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+          Namaste ${escapeHtml(customerName)},
+        </p>
+        <p style="margin:0 0 16px 0;font-size:14px;line-height:24px;color:#27332D;">
+          We hope you are savoring your selections from <strong>Seth And Sons DryFruits</strong>.
+        </p>
+        <p style="margin:0 0 20px 0;font-size:14px;line-height:24px;color:#27332D;">
+          This is a courteous reminder regarding your recent harvest reservation <strong>#${escapeHtml(orderNumber)}</strong> placed on <strong>${formattedDate}</strong>, for which payment remains outstanding.
+        </p>
+      </div>
+
+      <!-- Order & Payment Status Badge Card -->
+      <div style="margin:20px 0;padding:16px 20px;background-color:#FDFBF7;border:1px solid #C8A96B;border-radius:12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+          <tr>
+            <td style="vertical-align:middle;">
+              <div style="font-size:11px;text-transform:uppercase;color:#8F6C2B;font-weight:bold;letter-spacing:1px;">
+                Order Reference
+              </div>
+              <div style="font-size:16px;font-weight:bold;color:#183D32;margin-top:2px;">
+                #${escapeHtml(orderNumber)}
+              </div>
+            </td>
+            <td style="vertical-align:middle;text-align:right;">
+              <div style="font-size:11px;text-transform:uppercase;color:#888B83;font-weight:bold;letter-spacing:1px;">
+                Payment Method &amp; Status
+              </div>
+              <div style="display:inline-block;margin-top:4px;padding:4px 10px;background-color:#FFF4E5;border:1px solid #FFE2B8;border-radius:20px;color:#B25E09;font-weight:bold;font-size:12px;">
+                ${escapeHtml(order.paymentMethod || 'Concierge Invoice / COD')} (UNPAID)
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Itemized Breakdown Table -->
+      <div style="margin:24px 0;">
+        <div style="font-size:12px;font-weight:700;color:#183D32;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          Reserved Harvest Items (${items.length})
+        </div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #E9E4D9;border-radius:8px;overflow:hidden;">
+          <thead>
+            <tr style="background-color:#064e3b;color:#dfc471;text-align:left;">
+              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;">Item Description</th>
+              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:center;">Qty / Pack</th>
+              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:right;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsRowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="background-color:#FAF8F5;border-top:1px solid #E9E4D9;">
+              <td colspan="2" style="padding:8px 12px;text-align:right;color:#5C6058;font-size:12px;">Subtotal:</td>
+              <td style="padding:8px 12px;text-align:right;color:#183D32;font-size:12px;font-weight:600;">${subtotalStr}</td>
+            </tr>
+            ${order.shippingCharge > 0 ? `
+            <tr style="background-color:#FAF8F5;">
+              <td colspan="2" style="padding:4px 12px;text-align:right;color:#5C6058;font-size:12px;">Shipping &amp; Handling:</td>
+              <td style="padding:4px 12px;text-align:right;color:#183D32;font-size:12px;">+${shippingStr}</td>
+            </tr>` : ''}
+            ${order.discountAmount > 0 ? `
+            <tr style="background-color:#FAF8F5;">
+              <td colspan="2" style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">Exclusive Privilege Discount:</td>
+              <td style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">-${discountStr}</td>
+            </tr>` : ''}
+            <tr style="background-color:#F5EEDC;border-top:2px solid #C8A96B;">
+              <td colspan="2" style="padding:12px;text-align:right;color:#183D32;font-weight:bold;font-size:13px;letter-spacing:0.5px;text-transform:uppercase;">TOTAL AMOUNT DUE:</td>
+              <td style="padding:12px;text-align:right;color:#064e3b;font-weight:bold;font-size:16px;">${totalStr}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Direct Payment Modes -->
+      <div style="margin:24px 0;padding:20px;background-color:#FAF8F5;border:1px solid #D9C48C;border-radius:12px;">
+        <div style="font-size:12px;font-weight:bold;color:#064e3b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          Direct Payment Instructions
+        </div>
+        <div style="font-size:13px;line-height:20px;color:#27332D;margin-bottom:12px;">
+          To settle your invoice balance of <strong>${totalStr}</strong>, please complete payment via UPI:
+        </div>
+        <div style="padding:12px 16px;background-color:#ffffff;border:1px solid #E9E4D9;border-radius:8px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#888B83;text-transform:uppercase;letter-spacing:0.5px;">Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)</div>
+          <div style="font-family:monospace;font-size:16px;font-weight:bold;color:#064e3b;margin:4px 0;">sethandsons@okhdfcbank</div>
+          <div style="font-size:11px;color:#5C6058;">Beneficiary: Seth And Sons DryFruits</div>
+        </div>
+        <div style="font-size:12px;color:#5C6058;line-height:18px;">
+          Once completed, please reply directly to this email or share your payment screenshot / UTR with our Jammu Concierge at <strong>+91 91039 37573</strong> for instant ledger clearance.
+        </div>
+      </div>
+
+      <!-- CTA Invoice Button -->
+      <div style="margin:28px 0;text-align:center;">
+        ${ctaButtonHtml('View Official Tax Invoice', `${baseUrl.replace(/\/+$/, '')}/api/admin/orders/${encodeURIComponent(orderNumber)}/invoice.pdf`)}
+      </div>
+    `;
+
+    const subject = `Payment Request: Order #${orderNumber} (${totalStr}) - Seth And Sons DryFruits`;
+    const preheader = `Kindly complete the outstanding balance of ${totalStr} for your harvest reservation #${orderNumber}.`;
+
+    const html = wrapInBrandEmailLayout({
+      brandLogoUrl,
+      brandName: BRAND_CONFIG.name,
+      supportEmail: BRAND_CONFIG.supportEmail,
+      preheader,
+      bodyHtml,
+    });
+
+    const textItems = items.map(it => `- ${it.productName} (${it.weightLabel || it.quantity}): ₹${it.subtotal}`).join('\n');
+    const text = `Namaste ${customerName},\n\nThis is a payment reminder for your order #${orderNumber} placed on ${formattedDate}.\n\nItems Reserved:\n${textItems}\n\nTotal Amount Due: ${totalStr}\nPayment Method: ${order.paymentMethod || 'Concierge Invoice / COD'}\n\nPlease transfer ${totalStr} to UPI ID: sethandsons@okhdfcbank\n\nThank you for choosing Seth And Sons DryFruits.\nSupport: ${BRAND_CONFIG.supportEmail}`;
+
+    return {
+      customerName,
+      customerEmail,
+      subject,
+      html,
+      text,
+      orderNumber,
+      totalAmount: order.totalAmount,
+      totalStr,
+      itemsCount: items.length,
+      date: formattedDate,
+    };
+  }
+
+  router.post('/orders/preview-payment-reminder', requirePermission('orders'), async (req, res) => {
+    const orderNumber = String(req.body?.orderNumber || '').trim();
+    if (!orderNumber) {
+      res.status(400).json({ error: 'orderNumber is required.' });
+      return;
+    }
+
+    const order = await db.models.Order.findOne({
+      $or: [{ orderNumber }, { id: orderNumber }]
+    }).lean();
+
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const preview = await buildPaymentReminderEmail(order, origin);
+
+    res.json({
+      html: preview.html,
+      subject: preview.subject,
+      customerName: preview.customerName,
+      customerEmail: preview.customerEmail,
+      totalAmount: preview.totalAmount,
+      totalStr: preview.totalStr,
+      orderNumber: preview.orderNumber,
+      itemsCount: preview.itemsCount,
+      date: preview.date,
+    });
+  });
+
+  router.post('/orders/send-payment-reminders', requirePermission('orders'), async (req, res) => {
+    const rawOrderNumbers = req.body?.orderNumbers;
+    let query: Record<string, any> = {
+      paymentStatus: { $in: ['pending', 'unpaid', 'cod'] },
+      status: { $nin: ['cancelled', 'returned'] },
+    };
+
+    if (Array.isArray(rawOrderNumbers) && rawOrderNumbers.length > 0) {
+      query.orderNumber = { $in: rawOrderNumbers.map(String) };
+    }
+
+    const eligibleOrders = await db.models.Order.find(query).lean();
+    if (eligibleOrders.length === 0) {
+      res.json({
+        dispatchedCount: 0,
+        totalEligible: 0,
+        message: 'No eligible unpaid orders found.',
+        results: [],
+      });
+      return;
+    }
+
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const results: Array<{ orderNumber: string; customerEmail: string; status: 'sent' | 'skipped' | 'failed'; error?: string }> = [];
+    let dispatched = 0;
+
+    for (const ord of eligibleOrders) {
+      // Safety check: ensure not paid
+      if (ord.paymentStatus === 'paid' || ord.paymentStatus === 'refunded') {
+        results.push({ orderNumber: ord.orderNumber, customerEmail: '', status: 'skipped', error: 'Order already paid/refunded' });
+        continue;
+      }
+
+      try {
+        const mailData = await buildPaymentReminderEmail(ord, origin);
+        if (!mailData.customerEmail) {
+          results.push({ orderNumber: ord.orderNumber, customerEmail: '', status: 'skipped', error: 'No recipient email on record' });
+          continue;
+        }
+
+        const job = await queue.enqueue({
+          recipient: mailData.customerEmail,
+          customerId: ord.customerId,
+          emailType: 'admin_direct_message',
+          relatedOrderId: ord.id,
+          subject: mailData.subject,
+          html: mailData.html,
+          text: mailData.text,
+        });
+
+        if (job.jobId) {
+          await queue.processJobNow(job.jobId);
+        }
+
+        await db.models.Order.updateOne(
+          { id: ord.id },
+          { $set: { lastPaymentReminderSentAt: new Date().toISOString() } }
+        );
+
+        await logAudit(db, {
+          actorId: req.user?.id || 'admin',
+          actorEmail: req.user?.email || 'admin@sethandsons.com',
+          action: 'payment_reminder_sent',
+          entityType: 'order',
+          entityId: ord.orderNumber,
+          details: { recipient: mailData.customerEmail, amount: ord.totalAmount },
+          ipAddress: req.ip || '',
+        });
+
+        dispatched++;
+        results.push({ orderNumber: ord.orderNumber, customerEmail: mailData.customerEmail, status: 'sent' });
+      } catch (err) {
+        results.push({
+          orderNumber: ord.orderNumber,
+          customerEmail: '',
+          status: 'failed',
+          error: err instanceof Error ? err.message : 'Send failed',
+        });
+      }
+    }
+
+    res.json({
+      dispatchedCount: dispatched,
+      totalEligible: eligibleOrders.length,
+      message: `Payment request reminder dispatched to ${dispatched} customer(s).`,
+      results,
+    });
+  });
+
+  router.post('/orders/:orderNumber/send-payment-reminder', requirePermission('orders'), async (req, res) => {
+    const orderNumber = req.params.orderNumber;
+    const order = await db.models.Order.findOne({
+      $or: [{ orderNumber }, { id: orderNumber }]
+    }).lean();
+
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' });
+      return;
+    }
+
+    if (order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') {
+      res.status(400).json({ error: 'This order is already marked as paid or refunded.' });
+      return;
+    }
+
+    if (order.status === 'cancelled' || order.status === 'returned') {
+      res.status(400).json({ error: `Cannot send payment request for a ${order.status} order.` });
+      return;
+    }
+
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const mailData = await buildPaymentReminderEmail(order, origin);
+
+    if (!mailData.customerEmail) {
+      res.status(400).json({ error: 'No customer email address on file for this order.' });
+      return;
+    }
+
+    const job = await queue.enqueue({
+      recipient: mailData.customerEmail,
+      customerId: order.customerId,
+      emailType: 'admin_direct_message',
+      relatedOrderId: order.id,
+      subject: mailData.subject,
+      html: mailData.html,
+      text: mailData.text,
+    });
+
+    if (job.jobId) {
+      await queue.processJobNow(job.jobId);
+    }
+
+    await db.models.Order.updateOne(
+      { id: order.id },
+      { $set: { lastPaymentReminderSentAt: new Date().toISOString() } }
+    );
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'payment_reminder_sent',
+      entityType: 'order',
+      entityId: order.orderNumber,
+      details: { recipient: mailData.customerEmail, amount: order.totalAmount },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      ok: true,
+      message: `Payment request reminder sent directly to ${mailData.customerName} (${mailData.customerEmail}).`,
+      recipient: mailData.customerEmail,
+    });
+  });
+
+  // =============================================
   // 5. CUSTOMER MANAGEMENT
   // =============================================
   router.get('/customers', requirePermission('customers'), async (req, res) => {
@@ -2899,6 +3267,93 @@ export function createAdminErpRouter(
       }
     }
   );
+
+  router.post('/customers/preview-email', requirePermission('customers'), maybeBroadcastMultipart, async (req, res) => {
+    if (typeof req.body.attachments === 'string') {
+      try { req.body.attachments = JSON.parse(req.body.attachments); } catch { }
+    }
+
+    const previewSchema = z.object({
+      recipientName: z.string().optional().default('Valued Patron'),
+      recipientEmail: z.string().optional().default('patron@sethandsons.com'),
+      subject: z.string().trim().min(1, 'Subject is required'),
+      message: z.string().trim().min(1, 'Message body is required'),
+      previewText: z.string().trim().optional(),
+      ctaText: z.string().trim().optional(),
+      ctaUrl: z.string().trim().optional(),
+      attachments: z.array(z.object({
+        filename: z.string(),
+        url: z.string(),
+        mimeType: z.string().optional().default('application/octet-stream'),
+        sizeBytes: z.number().optional().default(0),
+        publicId: z.string().optional(),
+        content: z.string().optional(),
+      })).optional(),
+    });
+
+    const parsed = previewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid preview parameters.' });
+      return;
+    }
+
+    const { recipientName, recipientEmail, subject, message, previewText, ctaText, ctaUrl } = parsed.data;
+    const allAttachments: BroadcastEmailAttachment[] = [...(parsed.data.attachments || [])];
+
+    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    if (files.length > 0) {
+      for (const file of files) {
+        const mime = file.mimetype || 'application/octet-stream';
+        allAttachments.push({
+          filename: file.originalname || 'attachment',
+          url: `data:${mime};base64,${file.buffer.toString('base64')}`,
+          mimeType: mime,
+          sizeBytes: file.size || file.buffer.length,
+          content: file.buffer.toString('base64'),
+        });
+      }
+    }
+
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const brandLogoUrl = await getBrandLogoUrl();
+    const { imagesHtml, docsHtml } = generateEmailAttachmentsHtml(allAttachments, origin);
+
+    let bodyHtml = `
+      <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
+        Namaste ${escapeHtml(recipientName)},
+      </p>
+      <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:20px;">
+        ${escapeHtml(message).replace(/\n/g, '<br/>')}
+      </div>
+      ${imagesHtml}
+    `;
+
+    if (ctaText && ctaUrl) {
+      bodyHtml += `
+        <div style="margin:28px 0;text-align:center;">
+          ${ctaButtonHtml(ctaText, ctaUrl)}
+        </div>
+      `;
+    }
+
+    bodyHtml += docsHtml;
+
+    const html = wrapInBrandEmailLayout({
+      brandLogoUrl,
+      brandName: BRAND_CONFIG.name,
+      supportEmail: BRAND_CONFIG.supportEmail,
+      preheader: previewText || subject,
+      bodyHtml,
+    });
+
+    res.json({
+      html,
+      subject,
+      recipientName,
+      recipientEmail,
+      attachmentsCount: allAttachments.length,
+    });
+  });
 
   router.post('/customers/mass-email', requirePermission('customers'), maybeBroadcastMultipart, async (req, res) => {
     if (typeof req.body.customerIds === 'string') {
@@ -3395,9 +3850,31 @@ export function createAdminErpRouter(
   });
 
   router.post('/customers/:id/send-email', requirePermission('customers'), maybeBroadcastMultipart, async (req, res) => {
-    const target = await db.models.Customer.findOne({ id: req.params.id, role: 'customer' }).lean();
+    let target: any = await db.models.Customer.findOne({ id: req.params.id, role: 'customer' }).lean();
+    if (!target && req.params.id && req.params.id.length === 24) {
+      target = await db.models.Customer.findOne({ _id: req.params.id, role: 'customer' }).lean();
+    }
     if (!target) {
-      res.status(404).json({ error: 'Customer not found.' });
+      const ord = await db.models.Order.findOne({
+        $or: [{ customerId: req.params.id }, { id: req.params.id }, { orderNumber: req.params.id }]
+      }).lean();
+      if (ord) {
+        const cSnap = (ord.customerSnapshot as any) || {};
+        const dAddr = (ord.deliveryAddress as any) || {};
+        const email = normalizeEmail(cSnap.email || dAddr.email || '');
+        if (email) {
+          target = {
+            id: ord.customerId || ord.id,
+            name: (cSnap.name || dAddr.fullName || 'Valued Patron').trim(),
+            email,
+            role: 'customer',
+          };
+        }
+      }
+    }
+
+    if (!target || !target.email) {
+      res.status(404).json({ error: 'Customer not found or no valid email on file.' });
       return;
     }
 
