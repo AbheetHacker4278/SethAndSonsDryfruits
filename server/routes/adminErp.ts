@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import { Router } from 'express';
+import path from 'node:path';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { BRAND_CONFIG, parseWeightGrams, calculateOrderShippingCharge, getVariantStockUnits, isSuratCity } from '../../shared/catalogSeed.ts';
@@ -67,6 +68,167 @@ const productImgUpload = makeUploader(false);
 const invoiceDocUpload = makeUploader(true);
 const receiptUpload = makeUploader(true);
 const paymentProofUpload = makeUploader(true);
+
+const ALLOWED_BROADCAST_ATTACHMENT_EXTS = [
+  '.png', '.jpg', '.jpeg', '.webp', '.gif',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.ppt', '.pptx', '.zip',
+];
+
+const ALLOWED_BROADCAST_ATTACHMENT_MIMES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/csv',
+  'text/plain',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/octet-stream',
+];
+
+function isImageMime(mime: string, name: string): boolean {
+  const m = (mime || '').toLowerCase();
+  const ext = path.extname(name || '').toLowerCase();
+  return (
+    m.startsWith('image/') ||
+    ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.bmp', '.ico'].includes(ext)
+  );
+}
+
+const broadcastDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per file
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (ALLOWED_BROADCAST_ATTACHMENT_MIMES.includes(file.mimetype) || ALLOWED_BROADCAST_ATTACHMENT_EXTS.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Unsupported file format. Supported: Images (PNG, JPG, WEBP) and Documents (PDF, Word, Excel, CSV, TXT, ZIP).'));
+    }
+  },
+});
+
+function maybeBroadcastMultipart(req: Request, res: Response, next: NextFunction) {
+  if (req.is('multipart/form-data')) {
+    broadcastDocUpload.array('attachments', 5)(req, res, (err: unknown) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          res.status(400).json({ error: 'Each attachment must be 10 MB or smaller.' });
+          return;
+        }
+        if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+          res.status(400).json({ error: 'You can upload at most 5 attachments.' });
+          return;
+        }
+        res.status(400).json({ error: err.message || 'Invalid attachment upload.' });
+        return;
+      }
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Upload failed.' });
+    });
+    return;
+  }
+  next();
+}
+
+interface BroadcastEmailAttachment {
+  filename: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number;
+  publicId?: string;
+  content?: string;
+}
+
+function generateEmailAttachmentsHtml(attachments: BroadcastEmailAttachment[], baseUrl?: string): {
+  imagesHtml: string;
+  docsHtml: string;
+} {
+  if (!attachments || attachments.length === 0) {
+    return { imagesHtml: '', docsHtml: '' };
+  }
+
+  const images = attachments.filter(a => isImageMime(a.mimeType, a.filename));
+  const docs = attachments.filter(a => !isImageMime(a.mimeType, a.filename));
+
+  let imagesHtml = '';
+  if (images.length > 0) {
+    imagesHtml = `
+      <div style="margin:20px 0 24px 0;">
+        ${images
+        .map(
+          img => {
+            const safeImgUrl = baseUrl && !img.url.startsWith('http')
+              ? `${baseUrl.replace(/\/+$/, '')}/${img.url.replace(/^\/+/, '')}`
+              : img.url;
+            return `
+          <div style="margin:16px 0;text-align:center;">
+            <a href="${escapeHtml(safeImgUrl)}" target="_blank" style="text-decoration:none;display:inline-block;">
+              <img src="${escapeHtml(safeImgUrl)}" alt="${escapeHtml(img.filename)}" style="max-width:100%;height:auto;border-radius:12px;border:1px solid #E9E4D9;box-shadow:0 4px 14px rgba(0,0,0,0.06);display:block;margin:0 auto;" />
+            </a>
+            <div style="font-size:12px;color:#888B83;margin-top:6px;font-style:italic;">${escapeHtml(img.filename)}</div>
+          </div>
+        `;
+          }
+        )
+        .join('')}
+      </div>
+    `;
+  }
+
+  let docsHtml = '';
+  if (docs.length > 0) {
+    docsHtml = `
+      <div style="margin:24px 0;padding:16px 20px;background-color:#F8F6F0;border:1px solid #E9E4D9;border-radius:12px;">
+        <div style="font-size:12px;font-weight:700;color:#183D32;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          Attached Documents &amp; Files (${docs.length})
+        </div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+          ${docs
+        .map(
+          doc => {
+            const ext = path.extname(doc.filename || '').toLowerCase();
+            const extLabel = ext ? ext.replace('.', '').toUpperCase() : 'DOC';
+            const safeDownloadUrl = baseUrl
+              ? `${baseUrl.replace(/\/+$/, '')}/api/media/attachment?url=${encodeURIComponent(doc.url)}&name=${encodeURIComponent(doc.filename)}&download=1`
+              : doc.url;
+            const sizeLabel = doc.sizeBytes && doc.sizeBytes > 0
+              ? `${Math.max(1, Math.round(doc.sizeBytes / 1024))} KB`
+              : '';
+            return `
+            <tr>
+              <td style="padding:10px 0;border-bottom:1px solid #EAE6DB;">
+                <div style="font-size:14px;font-weight:600;color:#183D32;margin-bottom:4px;">
+                  📄 <span style="display:inline-block;padding:1px 6px;margin-right:6px;background-color:#064E3B;color:#DFC471;border-radius:4px;font-size:10px;font-weight:bold;letter-spacing:0.5px;">${escapeHtml(extLabel)}</span>
+                  ${escapeHtml(doc.filename)}
+                  ${sizeLabel ? `<span style="font-size:11px;color:#888B83;font-weight:normal;margin-left:6px;">(${sizeLabel})</span>` : ''}
+                </div>
+                <div style="margin-top:6px;">
+                  <a href="${escapeHtml(safeDownloadUrl)}" target="_blank" download="${escapeHtml(doc.filename)}" style="display:inline-block;padding:6px 14px;background-color:#183D32;color:#FFFFFF;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;letter-spacing:0.3px;">
+                    Download ${escapeHtml(extLabel)} &rarr;
+                  </a>
+                </div>
+              </td>
+            </tr>
+          `;
+          }
+        )
+        .join('')}
+        </table>
+      </div>
+    `;
+  }
+
+  return { imagesHtml, docsHtml };
+}
 
 const erpProductSchema = z.object({
   name: z.string().trim().min(2, 'Product name is required'),
@@ -557,8 +719,8 @@ export function createAdminErpRouter(
         p.unit === 'ml'
           ? parseWeightGrams(String(p.weightLabel || '100ml')) || 100
           : p.unit === 'gram'
-          ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
-          : 1;
+            ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
+            : 1;
       return s + (Number(p.stock || 0) / baseUnitsPerPack) * Number(p.purchasePrice || 0);
     }, 0);
     const totalStockQty = productsList.reduce((s, p) => s + Number(p.stock || 0), 0);
@@ -682,12 +844,12 @@ export function createAdminErpRouter(
       const snap = (
         typeof o.customerSnapshot === 'string'
           ? (() => {
-              try {
-                return JSON.parse(o.customerSnapshot);
-              } catch {
-                return {};
-              }
-            })()
+            try {
+              return JSON.parse(o.customerSnapshot);
+            } catch {
+              return {};
+            }
+          })()
           : o.customerSnapshot || {}
       ) as { name?: string };
       return {
@@ -823,7 +985,7 @@ export function createAdminErpRouter(
         if (typeof o.deliveryAddress === 'string') {
           try {
             addr = JSON.parse(o.deliveryAddress);
-          } catch {}
+          } catch { }
         } else if (o.deliveryAddress && typeof o.deliveryAddress === 'object') {
           addr = o.deliveryAddress;
         }
@@ -1534,8 +1696,8 @@ export function createAdminErpRouter(
         p.unit === 'ml'
           ? parseWeightGrams(String(p.weightLabel || '100ml')) || 100
           : p.unit === 'gram'
-          ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
-          : 1;
+            ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
+            : 1;
       const itemValuation = Math.round(
         (Number(p.stock || 0) / baseUnitsPerPack) * Number(p.purchasePrice || 0)
       );
@@ -2687,7 +2849,65 @@ export function createAdminErpRouter(
     });
   });
 
-  router.post('/customers/mass-email', requirePermission('customers'), async (req, res) => {
+  router.post(
+    '/customers/upload-attachment',
+    requirePermission('customers'),
+    (req: Request, res: Response, next: NextFunction) => {
+      broadcastDocUpload.single('file')(req, res, (err: unknown) => {
+        if (!err) return next();
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            res.status(400).json({ error: 'Attachment file size exceeds the 10 MB limit.' });
+            return;
+          }
+          res.status(400).json({ error: err.message || 'File upload error.' });
+          return;
+        }
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid attachment file.' });
+      });
+    },
+    async (req, res) => {
+      if (!req.file) {
+        res.status(400).json({ error: 'Please choose an image, PDF, document, or spreadsheet file to attach.' });
+        return;
+      }
+      try {
+        const mime = req.file.mimetype || 'application/octet-stream';
+        const isImg = isImageMime(mime, req.file.originalname);
+        const uploaded = await mediaStorage.uploadBuffer({
+          buffer: req.file.buffer,
+          filename: req.file.originalname || 'attachment',
+          folder: 'broadcast',
+          mimeType: mime,
+          resourceType: isImg ? 'image' : 'raw',
+        });
+        res.json({
+          attachment: {
+            filename: req.file.originalname || 'attachment',
+            url: uploaded.url,
+            mimeType: mime,
+            sizeBytes: req.file.size || req.file.buffer.length,
+            publicId: uploaded.publicId,
+            content: req.file.buffer.toString('base64'),
+          },
+        });
+      } catch (err) {
+        const status = (err as { statusCode?: number }).statusCode || 500;
+        res.status(status).json({
+          error: err instanceof Error ? err.message : 'Attachment upload to media storage failed.',
+        });
+      }
+    }
+  );
+
+  router.post('/customers/mass-email', requirePermission('customers'), maybeBroadcastMultipart, async (req, res) => {
+    if (typeof req.body.customerIds === 'string') {
+      try { req.body.customerIds = JSON.parse(req.body.customerIds); } catch { }
+    }
+    if (typeof req.body.attachments === 'string') {
+      try { req.body.attachments = JSON.parse(req.body.attachments); } catch { }
+    }
+
     const massSchema = z.object({
       segment: z.enum(['all', 'frequent', 'vip', 'unverified', 'inactive', 'selected']),
       customerIds: z.array(z.string()).optional(),
@@ -2696,6 +2916,14 @@ export function createAdminErpRouter(
       previewText: z.string().trim().optional(),
       ctaText: z.string().trim().optional(),
       ctaUrl: z.string().trim().optional(),
+      attachments: z.array(z.object({
+        filename: z.string(),
+        url: z.string(),
+        mimeType: z.string().optional().default('application/octet-stream'),
+        sizeBytes: z.number().optional().default(0),
+        publicId: z.string().optional(),
+        content: z.string().optional(),
+      })).optional(),
     });
 
     const parsed = massSchema.safeParse(req.body);
@@ -2705,6 +2933,30 @@ export function createAdminErpRouter(
     }
 
     const { segment, customerIds, subject, message, previewText, ctaText, ctaUrl } = parsed.data;
+    const allAttachments: BroadcastEmailAttachment[] = [...(parsed.data.attachments || [])];
+
+    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    if (files.length > 0) {
+      for (const file of files) {
+        const mime = file.mimetype || 'application/octet-stream';
+        const isImg = isImageMime(mime, file.originalname);
+        const uploaded = await mediaStorage.uploadBuffer({
+          buffer: file.buffer,
+          filename: file.originalname || 'attachment',
+          folder: 'broadcast',
+          mimeType: mime,
+          resourceType: isImg ? 'image' : 'raw',
+        });
+        allAttachments.push({
+          filename: file.originalname || 'attachment',
+          url: uploaded.url,
+          mimeType: mime,
+          sizeBytes: file.size || file.buffer.length,
+          publicId: uploaded.publicId,
+          content: file.buffer.toString('base64'),
+        });
+      }
+    }
 
     let targetDocs: any[] = [];
     if (segment === 'selected' && customerIds && customerIds.length > 0) {
@@ -2745,7 +2997,9 @@ export function createAdminErpRouter(
       return;
     }
 
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
     const brandLogoUrl = await getBrandLogoUrl();
+    const { imagesHtml, docsHtml } = generateEmailAttachmentsHtml(allAttachments, origin);
 
     let dispatched = 0;
     for (const cust of targetDocs) {
@@ -2753,9 +3007,10 @@ export function createAdminErpRouter(
         <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
           Namaste ${escapeHtml(cust.name)},
         </p>
-        <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:24px;">
+        <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:20px;">
           ${escapeHtml(message).replace(/\n/g, '<br/>')}
         </div>
+        ${imagesHtml}
       `;
 
       if (ctaText && ctaUrl) {
@@ -2766,6 +3021,8 @@ export function createAdminErpRouter(
         `;
       }
 
+      bodyHtml += docsHtml;
+
       const html = wrapInBrandEmailLayout({
         brandLogoUrl,
         brandName: BRAND_CONFIG.name,
@@ -2774,13 +3031,25 @@ export function createAdminErpRouter(
         bodyHtml,
       });
 
+      const textAttachments = allAttachments.length > 0
+        ? `\n\nAttachments:\n` + allAttachments.map(a => `- ${a.filename}: ${a.url}`).join('\n')
+        : '';
+
       const job = await queue.enqueue({
         recipient: cust.email,
         customerId: cust.id,
         emailType: 'admin_broadcast',
         subject,
         html,
-        text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}Warm regards,\nSeth And Sons DryFruits`,
+        text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}${textAttachments}\n\nWarm regards,\nSeth And Sons DryFruits`,
+        attachments: allAttachments.map(a => ({
+          filename: a.filename,
+          url: a.url,
+          contentType: a.mimeType,
+          sizeBytes: a.sizeBytes,
+          publicId: a.publicId,
+          content: a.content,
+        })),
       });
 
       if (job.jobId) {
@@ -2795,13 +3064,13 @@ export function createAdminErpRouter(
       action: 'customer_mass_email_sent',
       entityType: 'customer',
       entityId: segment,
-      details: { segment, recipientsCount: dispatched, subject },
+      details: { segment, recipientsCount: dispatched, subject, attachmentsCount: allAttachments.length },
       ipAddress: req.ip || '',
     });
 
     res.json({
       dispatchedCount: dispatched,
-      message: `Mass broadcast successfully delivered to ${dispatched} patrons.`,
+      message: `Mass broadcast successfully delivered to ${dispatched} patrons${allAttachments.length > 0 ? ` with ${allAttachments.length} attachment(s)` : ''}.`,
     });
   });
 
@@ -2927,7 +3196,7 @@ export function createAdminErpRouter(
       if (u.profilePicture) {
         try {
           await mediaStorage.deleteAsset?.({ url: u.profilePicture });
-        } catch {}
+        } catch { }
       }
     }
 
@@ -3089,7 +3358,7 @@ export function createAdminErpRouter(
     if (target.profilePicture) {
       try {
         await mediaStorage.deleteAsset?.({ url: target.profilePicture });
-      } catch {}
+      } catch { }
     }
 
     await Promise.all([
@@ -3125,11 +3394,15 @@ export function createAdminErpRouter(
     });
   });
 
-  router.post('/customers/:id/send-email', requirePermission('customers'), async (req, res) => {
+  router.post('/customers/:id/send-email', requirePermission('customers'), maybeBroadcastMultipart, async (req, res) => {
     const target = await db.models.Customer.findOne({ id: req.params.id, role: 'customer' }).lean();
     if (!target) {
       res.status(404).json({ error: 'Customer not found.' });
       return;
+    }
+
+    if (typeof req.body.attachments === 'string') {
+      try { req.body.attachments = JSON.parse(req.body.attachments); } catch { }
     }
 
     const emailSchema = z.object({
@@ -3138,6 +3411,14 @@ export function createAdminErpRouter(
       previewText: z.string().trim().optional(),
       ctaText: z.string().trim().optional(),
       ctaUrl: z.string().trim().optional(),
+      attachments: z.array(z.object({
+        filename: z.string(),
+        url: z.string(),
+        mimeType: z.string().optional().default('application/octet-stream'),
+        sizeBytes: z.number().optional().default(0),
+        publicId: z.string().optional(),
+        content: z.string().optional(),
+      })).optional(),
     });
 
     const parsed = emailSchema.safeParse(req.body);
@@ -3147,15 +3428,43 @@ export function createAdminErpRouter(
     }
 
     const { subject, message, previewText, ctaText, ctaUrl } = parsed.data;
+    const allAttachments: BroadcastEmailAttachment[] = [...(parsed.data.attachments || [])];
+
+    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    if (files.length > 0) {
+      for (const file of files) {
+        const mime = file.mimetype || 'application/octet-stream';
+        const isImg = isImageMime(mime, file.originalname);
+        const uploaded = await mediaStorage.uploadBuffer({
+          buffer: file.buffer,
+          filename: file.originalname || 'attachment',
+          folder: 'broadcast',
+          mimeType: mime,
+          resourceType: isImg ? 'image' : 'raw',
+        });
+        allAttachments.push({
+          filename: file.originalname || 'attachment',
+          url: uploaded.url,
+          mimeType: mime,
+          sizeBytes: file.size || file.buffer.length,
+          publicId: uploaded.publicId,
+          content: file.buffer.toString('base64'),
+        });
+      }
+    }
+
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
     const brandLogoUrl = await getBrandLogoUrl();
+    const { imagesHtml, docsHtml } = generateEmailAttachmentsHtml(allAttachments, origin);
 
     let bodyHtml = `
       <p style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
         Namaste ${escapeHtml(target.name)},
       </p>
-      <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:24px;">
+      <div style="font-size:15px;line-height:26px;color:#27332D;white-space:pre-wrap;margin-bottom:20px;">
         ${escapeHtml(message).replace(/\n/g, '<br/>')}
       </div>
+      ${imagesHtml}
     `;
 
     if (ctaText && ctaUrl) {
@@ -3166,6 +3475,8 @@ export function createAdminErpRouter(
       `;
     }
 
+    bodyHtml += docsHtml;
+
     const html = wrapInBrandEmailLayout({
       brandLogoUrl,
       brandName: BRAND_CONFIG.name,
@@ -3174,13 +3485,25 @@ export function createAdminErpRouter(
       bodyHtml,
     });
 
+    const textAttachments = allAttachments.length > 0
+      ? `\n\nAttachments:\n` + allAttachments.map(a => `- ${a.filename}: ${a.url}`).join('\n')
+      : '';
+
     const job = await queue.enqueue({
       recipient: target.email,
       customerId: target.id,
       emailType: 'admin_direct_message',
       subject,
       html,
-      text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}Warm regards,\nSeth And Sons DryFruits`,
+      text: `${message}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}${textAttachments}\n\nWarm regards,\nSeth And Sons DryFruits`,
+      attachments: allAttachments.map(a => ({
+        filename: a.filename,
+        url: a.url,
+        contentType: a.mimeType,
+        sizeBytes: a.sizeBytes,
+        publicId: a.publicId,
+        content: a.content,
+      })),
     });
 
     if (job.jobId) {
@@ -3193,11 +3516,11 @@ export function createAdminErpRouter(
       action: 'customer_email_sent',
       entityType: 'customer',
       entityId: target.id,
-      details: { email: target.email, subject },
+      details: { email: target.email, subject, attachmentsCount: allAttachments.length },
       ipAddress: req.ip || '',
     });
 
-    res.json({ message: `Custom email dispatched to ${target.name} (${target.email}).` });
+    res.json({ message: `Custom email dispatched to ${target.name} (${target.email})${allAttachments.length > 0 ? ` with ${allAttachments.length} attachment(s)` : ''}.` });
   });
 
   router.post('/customers/:id/coupon', requirePermission('customers'), async (req, res) => {
@@ -3833,9 +4156,8 @@ export function createAdminErpRouter(
     });
 
     res.json({
-      message: `Purchase order #${existing.purchaseNumber} deleted${
-        existing.status === 'received' ? ' and stock reversed' : ''
-      }.`,
+      message: `Purchase order #${existing.purchaseNumber} deleted${existing.status === 'received' ? ' and stock reversed' : ''
+        }.`,
     });
   });
 
@@ -4154,8 +4476,8 @@ export function createAdminErpRouter(
           p.unit === 'ml'
             ? parseWeightGrams(String(p.weightLabel || '100ml')) || 100
             : p.unit === 'gram'
-            ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
-            : 1;
+              ? parseWeightGrams(String(p.weightLabel || '1g')) || 1
+              : 1;
         return {
           sku: p.sku || '',
           name: p.name,
@@ -4329,7 +4651,7 @@ export function createAdminErpRouter(
         if (typeof o.deliveryAddress === 'string') {
           try {
             addr = JSON.parse(o.deliveryAddress);
-          } catch {}
+          } catch { }
         } else if (o.deliveryAddress && typeof o.deliveryAddress === 'object') {
           addr = o.deliveryAddress;
         }
@@ -4797,13 +5119,13 @@ export function createAdminErpRouter(
       const downloaded = mediaStorage.downloadAsset
         ? await mediaStorage.downloadAsset({ url: rawUrl })
         : await (async () => {
-            const r = await fetch(rawUrl);
-            if (!r.ok) throw new Error(`Unable to fetch media (HTTP ${r.status}).`);
-            return {
-              buffer: Buffer.from(await r.arrayBuffer()),
-              contentType: r.headers.get('content-type') || 'application/octet-stream',
-            };
-          })();
+          const r = await fetch(rawUrl);
+          if (!r.ok) throw new Error(`Unable to fetch media (HTTP ${r.status}).`);
+          return {
+            buffer: Buffer.from(await r.arrayBuffer()),
+            contentType: r.headers.get('content-type') || 'application/octet-stream',
+          };
+        })();
 
       const pathname = new URL(rawUrl).pathname;
       const filename = decodeURIComponent(pathname.split('/').pop() || 'document.pdf').replace(/["\r\n]/g, '_');

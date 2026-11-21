@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { Router } from 'express';
 import {
   parseWeightGrams,
@@ -531,6 +532,79 @@ export function createPublicRouter(
     }
 
     res.json({ received: true });
+  });
+
+  // Public secure attachment stream/download endpoint for broadcast email attachments & documents
+  router.get('/media/attachment', async (req, res) => {
+    const rawUrl = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+    const forceDownload = req.query.download === '1';
+    const customName = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+    if (!rawUrl) {
+      res.status(400).json({ error: 'Media URL is required.' });
+      return;
+    }
+
+    const allowed = mediaStorage.isAllowedMediaUrl
+      ? mediaStorage.isAllowedMediaUrl(rawUrl)
+      : rawUrl.startsWith('https://res.cloudinary.com/');
+
+    if (!allowed) {
+      res.status(403).json({ error: 'Invalid or unauthorized media URL.' });
+      return;
+    }
+
+    try {
+      const downloaded = mediaStorage.downloadAsset
+        ? await mediaStorage.downloadAsset({ url: rawUrl })
+        : await (async () => {
+            const r = await fetch(rawUrl);
+            if (!r.ok) throw new Error(`Unable to fetch media (HTTP ${r.status}).`);
+            return {
+              buffer: Buffer.from(await r.arrayBuffer()),
+              contentType: r.headers.get('content-type') || 'application/octet-stream',
+            };
+          })();
+
+      const pathname = new URL(rawUrl).pathname;
+      const defaultFilename = decodeURIComponent(pathname.split('/').pop() || 'document.pdf');
+      const filename = (customName || defaultFilename).replace(/["\r\n]/g, '_');
+      const ext = path.extname(filename).toLowerCase();
+      let contentType = downloaded.contentType;
+      if (ext === '.pdf' || downloaded.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
+        contentType = 'application/pdf';
+      } else if (ext === '.doc') {
+        contentType = 'application/msword';
+      } else if (ext === '.docx') {
+        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else if (ext === '.xls') {
+        contentType = 'application/vnd.ms-excel';
+      } else if (ext === '.xlsx') {
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else if (ext === '.csv') {
+        contentType = 'text/csv';
+      } else if (ext === '.txt') {
+        contentType = 'text/plain';
+      } else if (ext === '.zip') {
+        contentType = 'application/zip';
+      } else if (ext === '.png') {
+        contentType = 'image/png';
+      } else if (ext === '.jpg' || ext === '.jpeg') {
+        contentType = 'image/jpeg';
+      } else if (ext === '.webp') {
+        contentType = 'image/webp';
+      } else if (ext === '.gif') {
+        contentType = 'image/gif';
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${filename}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(downloaded.buffer);
+    } catch (err) {
+      const sc = (err as { statusCode?: number }).statusCode || 502;
+      res.status(sc).json({ error: err instanceof Error ? err.message : 'Unable to retrieve media.' });
+    }
   });
 
   return router;

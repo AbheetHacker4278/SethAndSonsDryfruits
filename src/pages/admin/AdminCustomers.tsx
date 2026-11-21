@@ -21,6 +21,9 @@ import {
   MessageCircle,
   ExternalLink,
   User as UserIcon,
+  Paperclip,
+  X,
+  FileText,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import {
@@ -31,7 +34,7 @@ import {
   StatusBadge,
   ToastBanner,
 } from '../../components/admin/AdminUI';
-import { apiRequest, ApiError } from '../../services/api';
+import { apiRequest, ApiError, apiUpload } from '../../services/api';
 import { formatINR } from '../../utils/priceCalculator';
 
 interface CustomerStats {
@@ -102,6 +105,20 @@ export default function AdminCustomers() {
     ctaText: '',
     ctaUrl: '',
   });
+
+  interface EmailAttachmentItem {
+    filename: string;
+    url: string;
+    mimeType: string;
+    sizeBytes: number;
+    publicId?: string;
+    content?: string;
+  }
+
+  const [massAttachments, setMassAttachments] = useState<EmailAttachmentItem[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [directAttachments, setDirectAttachments] = useState<EmailAttachmentItem[]>([]);
+  const [uploadingDirectAttachment, setUploadingDirectAttachment] = useState(false);
 
   // Targeted Coupon Generation
   const [couponTarget, setCouponTarget] = useState<any | null>(null);
@@ -288,8 +305,100 @@ export default function AdminCustomers() {
     }
   };
 
+  function formatBytes(bytes: number): string {
+    if (!bytes || bytes <= 0) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  const ALLOWED_ATTACHMENT_EXTS = [
+    '.png', '.jpg', '.jpeg', '.webp', '.gif',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt', '.ppt', '.pptx', '.zip',
+  ];
+
+  function getPreviewUrl(item: EmailAttachmentItem): string {
+    const isImg =
+      item.mimeType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp|gif|svg)$/i.test(item.filename);
+    if (isImg) return item.url;
+    return `/api/media/attachment?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(item.filename)}`;
+  }
+
+  function getFileTypeTag(item: EmailAttachmentItem): { label: string; badgeClass: string } {
+    const isImg =
+      item.mimeType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp|gif|svg)$/i.test(item.filename);
+    if (isImg) return { label: 'IMAGE', badgeClass: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    const ext = item.filename.slice(item.filename.lastIndexOf('.')).toLowerCase();
+    if (ext === '.pdf') return { label: 'PDF', badgeClass: 'text-red-700 bg-red-50 border-red-200' };
+    if (['.doc', '.docx'].includes(ext)) return { label: 'DOC', badgeClass: 'text-blue-700 bg-blue-50 border-blue-200' };
+    if (['.xls', '.xlsx', '.csv'].includes(ext)) return { label: 'SHEET', badgeClass: 'text-green-700 bg-green-50 border-green-200' };
+    if (['.ppt', '.pptx'].includes(ext)) return { label: 'SLIDE', badgeClass: 'text-orange-700 bg-orange-50 border-orange-200' };
+    if (['.zip', '.rar'].includes(ext)) return { label: 'ARCHIVE', badgeClass: 'text-purple-700 bg-purple-50 border-purple-200' };
+    return { label: 'DOC', badgeClass: 'text-[#183D32] bg-[#E9E4D9]/40 border-[#E9E4D9]' };
+  }
+
+  const handleAttachmentUpload = async (
+    files: FileList | null,
+    isDirect = false
+  ) => {
+    if (!files || files.length === 0) return;
+
+    const currentList = isDirect ? directAttachments : massAttachments;
+    const setList = isDirect ? setDirectAttachments : setMassAttachments;
+    const setUploading = isDirect ? setUploadingDirectAttachment : setUploadingAttachment;
+
+    if (currentList.length + files.length > 5) {
+      setToast({ type: 'err', text: 'You can attach at most 5 files (Images & Documents).' });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const newItems: EmailAttachmentItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 10 * 1024 * 1024) {
+          setToast({ type: 'err', text: `"${file.name}" exceeds the 10 MB limit.` });
+          continue;
+        }
+
+        const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        if (!ALLOWED_ATTACHMENT_EXTS.includes(ext) && !file.type.startsWith('image/') && file.type !== 'application/pdf') {
+          setToast({
+            type: 'err',
+            text: `"${file.name}" has an unsupported format. Supported: Images, PDFs, Word, Excel, CSV, TXT, PowerPoint, ZIP.`,
+          });
+          continue;
+        }
+
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await apiUpload<{ attachment: EmailAttachmentItem }>(
+          '/api/admin/customers/upload-attachment',
+          fd
+        );
+        newItems.push(res.attachment);
+      }
+
+      if (newItems.length > 0) {
+        setList(prev => [...prev, ...newItems]);
+        setToast({ type: 'ok', text: `Attached ${newItems.length} file(s) successfully.` });
+      }
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to upload attachment.',
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const openEmailModal = (c: any) => {
     setEmailTarget(c);
+    setDirectAttachments([]);
     setEmailForm({
       subject: `A Note From Seth And Sons DryFruits`,
       message: `Dear ${c.name},\n\nWe wanted to extend our sincere appreciation for being a valued patron of our heritage reserve.\n\nShould you have any inquiries regarding upcoming harvest reserves or bespoke packaging, our concierge team remains entirely at your service.`,
@@ -306,9 +415,13 @@ export default function AdminCustomers() {
     try {
       const res = await apiRequest<{ message: string }>(`/api/admin/customers/${emailTarget.id}/send-email`, {
         method: 'POST',
-        body: emailForm,
+        body: {
+          ...emailForm,
+          attachments: directAttachments,
+        },
       });
       setEmailTarget(null);
+      setDirectAttachments([]);
       setToast({ type: 'ok', text: res.message || 'Email sent successfully.' });
     } catch (err) {
       setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Failed to send email.' });
@@ -323,9 +436,13 @@ export default function AdminCustomers() {
     try {
       const res = await apiRequest<{ message: string; dispatchedCount: number }>('/api/admin/customers/mass-email', {
         method: 'POST',
-        body: massEmailForm,
+        body: {
+          ...massEmailForm,
+          attachments: massAttachments,
+        },
       });
       setMassEmailOpen(false);
+      setMassAttachments([]);
       setToast({ type: 'ok', text: res.message || `Dispatched to ${res.dispatchedCount} patrons.` });
     } catch (err) {
       setToast({ type: 'err', text: err instanceof ApiError ? err.message : 'Broadcast failed.' });
@@ -1287,10 +1404,13 @@ export default function AdminCustomers() {
         {/* 5. INDIVIDUAL EMAIL COMPOSER MODAL */}
         <AdminModal
           open={Boolean(emailTarget)}
-          onClose={() => setEmailTarget(null)}
+          onClose={() => {
+            setEmailTarget(null);
+            setDirectAttachments([]);
+          }}
           title={`Compose Email for ${emailTarget?.name || ''}`}
           subtitle={`Sending to: ${emailTarget?.email || ''}`}
-          maxWidth="max-w-lg"
+          maxWidth="max-w-xl"
         >
           {emailTarget && (
             <form onSubmit={handleSendIndividualEmail} className="space-y-3 text-xs">
@@ -1341,21 +1461,131 @@ export default function AdminCustomers() {
                 </div>
               </div>
 
+              {/* Attachments Section (Images, PDF) */}
+              <div className="pt-2 border-t border-[#E9E4D9]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[#5C6058] font-semibold">
+                    Attachments (Images &amp; Documents)
+                  </label>
+                  <span className="text-[11px] text-[#888B83]">
+                    {directAttachments.length}/5 files (Max 10 MB each)
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[#C8A96B] bg-[#FAF8F5] hover:bg-[#F3EFEA] text-[#183D32] font-semibold cursor-pointer transition ${
+                      uploadingDirectAttachment || directAttachments.length >= 5 ? 'opacity-50 pointer-events-none' : ''
+                    }`}
+                  >
+                    <Paperclip className="w-4 h-4 text-[#C8A96B]" />
+                    <span>
+                      {uploadingDirectAttachment
+                        ? 'Uploading Attachment...'
+                        : 'Attach Images & Documents'}
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.zip"
+                      disabled={uploadingDirectAttachment || directAttachments.length >= 5}
+                      onChange={e => {
+                        handleAttachmentUpload(e.target.files, true);
+                        e.target.value = '';
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {uploadingDirectAttachment && (
+                    <RefreshCw className="w-4 h-4 text-[#C8A96B] animate-spin" />
+                  )}
+                </div>
+
+                {directAttachments.length > 0 && (
+                  <div className="mt-2.5 space-y-1.5">
+                    {directAttachments.map((att, idx) => {
+                      const isImg =
+                        att.mimeType?.startsWith('image/') ||
+                        /\.(png|jpe?g|webp|gif|svg)$/i.test(att.filename);
+                      const tag = getFileTypeTag(att);
+                      const previewLink = getPreviewUrl(att);
+                      return (
+                        <div
+                          key={`${att.url}_${idx}`}
+                          className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#E9E4D9] shadow-xs"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {isImg ? (
+                              <img
+                                src={att.url}
+                                alt={att.filename}
+                                className="w-8 h-8 rounded-lg object-cover border border-[#E9E4D9] shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] border border-[#E9E4D9] text-[#183D32] flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4 text-[#C8A96B]" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-semibold text-[#183D32] truncate max-w-[280px]">
+                                {att.filename}
+                              </div>
+                              <div className="text-[10px] text-[#888B83] flex items-center gap-1.5">
+                                <span className={`px-1.5 py-0.2 rounded font-bold text-[9px] border ${tag.badgeClass}`}>
+                                  {tag.label}
+                                </span>
+                                <span>·</span>
+                                <span>{formatBytes(att.sizeBytes)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <a
+                              href={previewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-[#5C6058] hover:text-[#183D32] transition"
+                              title="Preview or Download file"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDirectAttachments(prev => prev.filter((_, i) => i !== idx))
+                              }
+                              className="p-1.5 text-[#C65B50] hover:bg-red-50 rounded-lg transition cursor-pointer"
+                              title="Remove attachment"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <p className="text-[11px] text-[#888B83] italic">
-                This email will be delivered in the official Seth And Sons luxury Deep Emerald & Champagne Gold format with authentic branding.
+                This email will be delivered in the official Seth And Sons luxury Deep Emerald &amp; Champagne Gold format with authentic branding.
               </p>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setEmailTarget(null)}
+                  onClick={() => {
+                    setEmailTarget(null);
+                    setDirectAttachments([]);
+                  }}
                   className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={actionLoading || uploadingDirectAttachment}
                   className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5 text-[#C8A96B]" />
@@ -1369,10 +1599,13 @@ export default function AdminCustomers() {
         {/* 6. MASS BROADCAST EMAIL MODAL */}
         <AdminModal
           open={massEmailOpen}
-          onClose={() => setMassEmailOpen(false)}
+          onClose={() => {
+            setMassEmailOpen(false);
+            setMassAttachments([]);
+          }}
           title="Compose Mass Broadcast Email"
           subtitle="Send official branded announcements to customer segments"
-          maxWidth="max-w-lg"
+          maxWidth="max-w-xl"
         >
           <form onSubmit={handleSendMassEmail} className="space-y-3 text-xs">
             <div>
@@ -1437,17 +1670,127 @@ export default function AdminCustomers() {
               </div>
             </div>
 
+            {/* Attachments Section (Images, PDF) */}
+            <div className="pt-2 border-t border-[#E9E4D9]">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[#5C6058] font-semibold">
+                  Attachments (Images &amp; Documents)
+                </label>
+                <span className="text-[11px] text-[#888B83]">
+                  {massAttachments.length}/5 files (Images, PDFs, Word, Excel, CSV, TXT, Max 10 MB each)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[#C8A96B] bg-[#FAF8F5] hover:bg-[#F3EFEA] text-[#183D32] font-semibold cursor-pointer transition ${
+                    uploadingAttachment || massAttachments.length >= 5 ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
+                  <Paperclip className="w-4 h-4 text-[#C8A96B]" />
+                  <span>
+                    {uploadingAttachment
+                      ? 'Uploading Attachment...'
+                      : 'Attach Images & Documents'}
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.zip"
+                    disabled={uploadingAttachment || massAttachments.length >= 5}
+                    onChange={e => {
+                      handleAttachmentUpload(e.target.files, false);
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {uploadingAttachment && (
+                  <RefreshCw className="w-4 h-4 text-[#C8A96B] animate-spin" />
+                )}
+              </div>
+
+              {massAttachments.length > 0 && (
+                <div className="mt-2.5 space-y-1.5">
+                  {massAttachments.map((att, idx) => {
+                    const isImg =
+                      att.mimeType?.startsWith('image/') ||
+                      /\.(png|jpe?g|webp|gif|svg)$/i.test(att.filename);
+                    const tag = getFileTypeTag(att);
+                    const previewLink = getPreviewUrl(att);
+                    return (
+                      <div
+                        key={`${att.url}_${idx}`}
+                        className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#E9E4D9] shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isImg ? (
+                            <img
+                              src={att.url}
+                              alt={att.filename}
+                              className="w-8 h-8 rounded-lg object-cover border border-[#E9E4D9] shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-[#FAF8F5] border border-[#E9E4D9] text-[#183D32] flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-[#C8A96B]" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold text-[#183D32] truncate max-w-[280px]">
+                              {att.filename}
+                            </div>
+                            <div className="text-[10px] text-[#888B83] flex items-center gap-1.5">
+                              <span className={`px-1.5 py-0.2 rounded font-bold text-[9px] border ${tag.badgeClass}`}>
+                                {tag.label}
+                              </span>
+                              <span>·</span>
+                              <span>{formatBytes(att.sizeBytes)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <a
+                            href={previewLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-[#5C6058] hover:text-[#183D32] transition"
+                            title="Preview or Download file"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMassAttachments(prev => prev.filter((_, i) => i !== idx))
+                            }
+                            className="p-1.5 text-[#C65B50] hover:bg-red-50 rounded-lg transition cursor-pointer"
+                            title="Remove attachment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setMassEmailOpen(false)}
+                onClick={() => {
+                  setMassEmailOpen(false);
+                  setMassAttachments([]);
+                }}
                 className="px-4 py-2 rounded-xl border border-[#E9E4D9] hover:bg-[#F8F6F0] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={actionLoading}
+                disabled={actionLoading || uploadingAttachment}
                 className="px-5 py-2 rounded-xl bg-[#183D32] text-white font-semibold hover:bg-[#245746] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5 text-[#C8A96B]" />

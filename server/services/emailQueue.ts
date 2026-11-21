@@ -5,6 +5,7 @@ import { AppConfig } from '../config.ts';
 import { MongoDatabase } from '../db/mongo.ts';
 import { normalizeEmail } from '../utils/crypto.ts';
 import { EmailTransport } from './emailProvider.ts';
+import { createCloudinaryStorage, type MediaStorageService } from './cloudinaryService.ts';
 
 export interface EnqueueEmailInput {
   recipient: string;
@@ -14,6 +15,14 @@ export interface EnqueueEmailInput {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  attachments?: Array<{
+    filename: string;
+    url?: string;
+    contentType?: string;
+    sizeBytes?: number;
+    publicId?: string;
+    content?: string;
+  }>;
   relatedOrderId?: string | null;
   campaignId?: string | null;
   idempotencyKey?: string;
@@ -41,8 +50,10 @@ export interface EmailQueueService {
 export function createEmailQueue(
   db: MongoDatabase,
   config: AppConfig,
-  transport: EmailTransport
+  transport: EmailTransport,
+  mediaStorage?: MediaStorageService
 ): EmailQueueService {
+  const storage = mediaStorage || createCloudinaryStorage(config);
   let timer: NodeJS.Timeout | null = null;
   let isProcessing = false;
   let bullQueue: Queue | null = null;
@@ -124,10 +135,47 @@ export function createEmailQueue(
     }
 
     let headers: Record<string, string> | undefined;
+    let attachments: Array<{
+      filename: string;
+      url?: string;
+      contentType?: string;
+      sizeBytes?: number;
+      publicId?: string;
+      content?: string;
+    }> | undefined;
     if (jobId) {
       const jobRow = await db.models.EmailJob.findOne({ id: jobId }).lean();
       if (jobRow?.payload && typeof jobRow.payload === 'object') {
-        headers = (jobRow.payload as { headers?: Record<string, string> }).headers;
+        const p = jobRow.payload as {
+          headers?: Record<string, string>;
+          attachments?: Array<{
+            filename: string;
+            url?: string;
+            contentType?: string;
+            sizeBytes?: number;
+            publicId?: string;
+            content?: string;
+          }>;
+        };
+        headers = p.headers;
+        attachments = p.attachments;
+      }
+    }
+
+    if (attachments && attachments.length > 0) {
+      for (const a of attachments) {
+        if (!a.content && a.url) {
+          try {
+            if (storage?.downloadAsset) {
+              const dl = await storage.downloadAsset({ url: a.url, publicId: a.publicId });
+              if (dl?.buffer) {
+                a.content = dl.buffer.toString('base64');
+              }
+            }
+          } catch (e) {
+            console.warn(`[EmailQueue] Could not pre-download attachment "${a.filename}":`, e);
+          }
+        }
       }
     }
 
@@ -140,6 +188,7 @@ export function createEmailQueue(
         html: log.htmlBody || '',
         text: log.textBody || '',
         headers,
+        attachments,
         idempotencyKey: log.idempotencyKey || undefined,
       });
 
@@ -263,7 +312,10 @@ export function createEmailQueue(
         idempotencyKey: input.idempotencyKey || undefined,
         emailLogId: logId,
         jobType: input.emailType,
-        payload: { headers: input.headers || {} },
+        payload: {
+          headers: input.headers || {},
+          attachments: input.attachments || [],
+        },
         status: 'pending',
         attempts: 0,
         maxAttempts: 5,

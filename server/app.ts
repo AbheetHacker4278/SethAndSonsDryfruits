@@ -100,10 +100,10 @@ export async function createApp(overrides?: {
   await seedDatabase(db, config);
   await syncAllIndexes(db);
 
-  const transport = overrides?.emailTransport || createEmailTransport(config);
-  const queue = createEmailQueue(db, config, transport);
-  const emailService = createEmailService(db, config, queue);
   const mediaStorage = overrides?.mediaStorage || createCloudinaryStorage(config);
+  const transport = overrides?.emailTransport || createEmailTransport(config, mediaStorage);
+  const queue = createEmailQueue(db, config, transport, mediaStorage);
+  const emailService = createEmailService(db, config, queue);
   const cache = createCacheService(config);
 
   if (overrides?.startQueueWorker !== false) {

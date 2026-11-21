@@ -2,6 +2,16 @@ import crypto from 'node:crypto';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport/index.js';
 import { AppConfig } from '../config.ts';
+import { createCloudinaryStorage, type MediaStorageService } from './cloudinaryService.ts';
+
+export interface OutboundEmailAttachment {
+  filename: string;
+  url?: string;
+  contentType?: string;
+  content?: string;
+  sizeBytes?: number;
+  publicId?: string;
+}
 
 export interface OutboundEmailPayload {
   to: string;
@@ -9,6 +19,7 @@ export interface OutboundEmailPayload {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  attachments?: OutboundEmailAttachment[];
   idempotencyKey?: string;
 }
 
@@ -39,7 +50,11 @@ export interface EmailTransport {
   };
 }
 
-export function createEmailTransport(config: AppConfig): EmailTransport {
+export function createEmailTransport(
+  config: AppConfig,
+  mediaStorage?: MediaStorageService
+): EmailTransport {
+  const storage = mediaStorage || createCloudinaryStorage(config);
   let cachedTransporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
   let etherealAccount: { user: string; pass: string; host: string; port: number } | null = null;
 
@@ -115,6 +130,41 @@ export function createEmailTransport(config: AppConfig): EmailTransport {
     if (payload.headers && Object.keys(payload.headers).length > 0) {
       body.headers = payload.headers;
     }
+    if (payload.attachments && payload.attachments.length > 0) {
+      const brevoAtts: Array<{ content?: string; url?: string; name: string }> = [];
+      for (const a of payload.attachments) {
+        if (a.content) {
+          brevoAtts.push({
+            content: a.content,
+            name: a.filename,
+          });
+        } else if (a.url) {
+          let b64: string | null = null;
+          try {
+            if (storage?.downloadAsset) {
+              const dl = await storage.downloadAsset({ url: a.url, publicId: a.publicId });
+              if (dl?.buffer) b64 = dl.buffer.toString('base64');
+            }
+          } catch (e) {
+            console.warn('[Brevo] Failed to download asset buffer for base64 embed:', e);
+          }
+          if (b64) {
+            brevoAtts.push({
+              content: b64,
+              name: a.filename,
+            });
+          } else {
+            brevoAtts.push({
+              url: a.url,
+              name: a.filename,
+            });
+          }
+        }
+      }
+      if (brevoAtts.length > 0) {
+        body.attachment = brevoAtts;
+      }
+    }
 
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -144,6 +194,38 @@ export function createEmailTransport(config: AppConfig): EmailTransport {
     if (payload.idempotencyKey) {
       headers['Idempotency-Key'] = payload.idempotencyKey;
     }
+    let resendAttachments: Array<{ filename: string; content?: Buffer; path?: string }> | undefined;
+    if (payload.attachments && payload.attachments.length > 0) {
+      resendAttachments = [];
+      for (const a of payload.attachments) {
+        if (a.content) {
+          resendAttachments.push({
+            filename: a.filename,
+            content: Buffer.from(a.content, 'base64'),
+          });
+        } else if (a.url) {
+          let buf: Buffer | null = null;
+          try {
+            if (storage?.downloadAsset) {
+              const dl = await storage.downloadAsset({ url: a.url, publicId: a.publicId });
+              if (dl?.buffer) buf = dl.buffer;
+            }
+          } catch {}
+          if (buf) {
+            resendAttachments.push({
+              filename: a.filename,
+              content: buf,
+            });
+          } else {
+            resendAttachments.push({
+              filename: a.filename,
+              path: a.url,
+            });
+          }
+        }
+      }
+    }
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers,
@@ -155,6 +237,7 @@ export function createEmailTransport(config: AppConfig): EmailTransport {
         html: payload.html,
         text: payload.text,
         headers: payload.headers,
+        attachments: resendAttachments,
       }),
     });
 
@@ -264,7 +347,7 @@ export function createEmailTransport(config: AppConfig): EmailTransport {
       }
 
       const { transporter, mode } = await getSmtpTransporter();
-      const info = await transporter.sendMail({
+      const mailOptions: Parameters<typeof transporter.sendMail>[0] = {
         from: `"${config.emailFromName}" <${config.emailFrom}>`,
         to: payload.to,
         replyTo: config.emailReplyTo,
@@ -272,7 +355,49 @@ export function createEmailTransport(config: AppConfig): EmailTransport {
         html: payload.html,
         text: payload.text,
         headers: payload.headers,
-      });
+      };
+      if (payload.attachments && payload.attachments.length > 0) {
+        const nodemailerAttachments: Array<{
+          filename: string;
+          content?: Buffer;
+          path?: string;
+          contentType?: string;
+        }> = [];
+        for (const a of payload.attachments) {
+          if (a.content) {
+            nodemailerAttachments.push({
+              filename: a.filename,
+              content: Buffer.from(a.content, 'base64'),
+              contentType: a.contentType,
+            });
+          } else if (a.url) {
+            let buf: Buffer | null = null;
+            try {
+              if (storage?.downloadAsset) {
+                const dl = await storage.downloadAsset({ url: a.url, publicId: a.publicId });
+                if (dl?.buffer) buf = dl.buffer;
+              }
+            } catch (e) {
+              console.warn('[Nodemailer] Failed to resolve attachment buffer:', e);
+            }
+            if (buf) {
+              nodemailerAttachments.push({
+                filename: a.filename,
+                content: buf,
+                contentType: a.contentType,
+              });
+            } else {
+              nodemailerAttachments.push({
+                filename: a.filename,
+                path: a.url,
+                contentType: a.contentType,
+              });
+            }
+          }
+        }
+        mailOptions.attachments = nodemailerAttachments;
+      }
+      const info = await transporter.sendMail(mailOptions);
 
       const preview = nodemailer.getTestMessageUrl(info);
       return {
