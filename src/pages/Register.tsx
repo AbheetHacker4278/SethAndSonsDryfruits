@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
@@ -14,6 +14,9 @@ import {
   MapPin,
   Home,
   Building,
+  Crown,
+  Sparkles,
+  Check,
 } from 'lucide-react';
 import ScrollReveal from '../components/ScrollReveal';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
@@ -45,17 +48,21 @@ export default function Register() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     if (!fullName.trim() || fullName.trim().length < 2) {
-      setError('Please enter your full name.');
+      setError('Please enter your full name (minimum 2 characters).');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
-      setError('Please enter a valid email address.');
+      setError('Please enter a valid email address (e.g. name@domain.com).');
       return;
     }
     const cleanDigits = mobileNumber.replace(/\D/g, '');
@@ -64,11 +71,11 @@ export default function Register() {
       return;
     }
     if (!houseFlat.trim()) {
-      setError('House / Flat number is mandatory for shipping delivery.');
+      setError('House / Flat number is mandatory for courier shipping.');
       return;
     }
     if (!streetArea.trim()) {
-      setError('Street / Area / Locality is mandatory for shipping delivery.');
+      setError('Street / Area / Locality is mandatory for courier shipping.');
       return;
     }
     if (!city.trim() || city.trim().length < 2) {
@@ -81,7 +88,7 @@ export default function Register() {
     }
     const cleanPin = pincode.replace(/\D/g, '');
     if (!/^\d{6}$/.test(cleanPin)) {
-      setError('Please enter a valid 6-digit PIN code.');
+      setError('Please enter a valid 6-digit postal PIN code.');
       return;
     }
     if (!country.trim()) {
@@ -90,7 +97,7 @@ export default function Register() {
     }
     const strength = evaluatePasswordStrength(password);
     if (!strength.valid) {
-      setError('Please choose a stronger password meeting all security requirements.');
+      setError('Please choose a stronger password meeting all 5 security requirements below.');
       return;
     }
     if (password !== confirmPassword) {
@@ -136,170 +143,214 @@ export default function Register() {
     }
   };
 
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
   return (
-    <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-28 pb-24 flex items-center justify-center px-4">
-      <div className="w-full max-w-xl">
+    <div className="relative min-h-screen bg-[#0c0704] text-[#ede4dc] pt-28 pb-24 flex items-center justify-center px-4 sm:px-6 overflow-hidden">
+      {/* Ambient Luxury Lighting Orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-48 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(223,196,113,0.14)_0%,transparent_70%)] blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-12 -right-24 w-[500px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(185,146,37,0.08)_0%,transparent_70%)] blur-2xl"
+      />
+
+      <div className="w-full max-w-2xl relative z-10">
         <ScrollReveal>
-          <div className="bg-[#150d09] border border-[#38281d] rounded-3xl p-7 sm:p-10 shadow-2xl">
+          {/* Grand Luxury Glassmorphic Card */}
+          <div className="relative bg-gradient-to-b from-[#180f0a] via-[#140d09] to-[#110a07] border-2 border-[#dfc471]/35 rounded-3xl p-6 sm:p-10 shadow-[0_25px_70px_rgba(0,0,0,0.85),0_0_40px_rgba(212,175,55,0.08)] overflow-hidden">
+            {/* Top Gold Foil Accent Bar */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#dfc471] to-transparent" />
+
+            {/* Header Section */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 text-[10px] font-semibold uppercase tracking-[0.2em] mb-3">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Patron Registration</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#dfc471]/15 to-[#b99225]/15 border border-[#dfc471]/40 text-[#dfc471] text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.22em] mb-3.5 shadow-[0_0_15px_rgba(223,196,113,0.12)]">
+                <Crown className="w-3.5 h-3.5 text-[#dfc471]" />
+                <span>Patron Registration • Seth &amp; Sons</span>
               </div>
-              <h1 className="font-serif text-3xl sm:text-4xl font-normal text-[#f9f6f2]">
-                Create Your Patron Account
+              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal text-[#faf6f0] tracking-wide">
+                Join The Royal Reserve
               </h1>
-              <p className="text-xs sm:text-sm text-[#d5c4b4]/75 mt-2">
-                Join Seth And Sons DryFruits for verified Jammu harvests, live order tracking, and seasonal reserve alerts.
+              <p className="text-xs sm:text-sm text-[#d5c4b4] mt-2.5 max-w-lg mx-auto leading-relaxed">
+                Register as a distinguished patron for direct Jammu valley harvests, batch-tested saffron, live courier tracking, and seasonal member allocations.
               </p>
             </div>
 
+            {/* Error Notification */}
             {error && (
-              <div className="mb-6 p-3.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                <span>{error}</span>
+              <div className="mb-6 p-4 rounded-2xl bg-red-950/80 border-2 border-red-500/50 text-red-200 text-xs sm:text-sm flex items-start gap-3 shadow-lg">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{error}</span>
               </div>
             )}
 
+            {/* Success Notification */}
             {successMsg && (
-              <div className="mb-6 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-200 text-xs flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>{successMsg} Redirecting to verification...</span>
+              <div className="mb-6 p-4 rounded-2xl bg-emerald-950/80 border-2 border-emerald-500/50 text-emerald-200 text-xs sm:text-sm flex items-start gap-3 shadow-lg">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{successMsg} Redirecting to verification...</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                  Full Name *
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                    placeholder="e.g. Aarav Mahajan"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                    Email Address *
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                    />
-                  </div>
+            <form onSubmit={handleSubmit} className="space-y-7">
+              {/* SECTION 1: Personal Profile */}
+              <div className="bg-[#170e0a]/80 border border-[#3e2b1e] rounded-2xl p-4 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-[#342419]">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#dfc471]/20 border border-[#dfc471]/50 text-[11px] font-bold text-[#dfc471]">
+                    1
+                  </span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-[#dfc471] flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    <span>Patron Identity &amp; Contact</span>
+                  </h2>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                    Mobile Number *
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                    Full Name <span className="text-[#dfc471] font-bold">*</span>
                   </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="tel"
-                      required
-                      value={mobileNumber}
-                      onChange={e => setMobileNumber(e.target.value)}
-                      placeholder="9876543210"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Mandatory Shipping Address Details */}
-              <div className="pt-2 border-t border-[#38281d]/80 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#dfc471]">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>Mandatory Shipping Address</span>
-                  </div>
-                  <span className="text-[10px] text-[#d5c4b4]/60">Required for delivery</span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                    House Number / Flat Number *
-                  </label>
-                  <div className="relative">
-                    <Home className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <div className="relative group">
+                    <User className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
                     <input
                       type="text"
                       required
-                      value={houseFlat}
-                      onChange={e => setHouseFlat(e.target.value)}
-                      placeholder="e.g. Flat 302, Krishna Tower / Plot 45"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                    Street / Area / Locality *
-                  </label>
-                  <div className="relative">
-                    <Building className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      required
-                      value={streetArea}
-                      onChange={e => setStreetArea(e.target.value)}
-                      placeholder="e.g. Vesu Main Road, Near City Mall"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      placeholder="e.g. Aarav Mahajan"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                      City *
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      Email Address <span className="text-[#dfc471] font-bold">*</span>
+                    </label>
+                    <div className="relative group">
+                      <Mail className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="you@domain.com"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      Mobile Number <span className="text-[#dfc471] font-bold">*</span>
+                    </label>
+                    <div className="relative group">
+                      <Phone className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                      <input
+                        type="tel"
+                        required
+                        value={mobileNumber}
+                        onChange={e => setMobileNumber(e.target.value)}
+                        placeholder="10-digit mobile number"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: Mandatory Shipping Address */}
+              <div className="bg-[#170e0a]/80 border border-[#3e2b1e] rounded-2xl p-4 sm:p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#342419]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#dfc471]/20 border border-[#dfc471]/50 text-[11px] font-bold text-[#dfc471]">
+                      2
+                    </span>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-[#dfc471] flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>Mandatory Shipping Address</span>
+                    </h2>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full bg-[#dfc471]/15 border border-[#dfc471]/35 text-[#dfc471]">
+                    Required for Courier Delivery
+                  </span>
+                </div>
+
+                <p className="text-xs text-[#d5c4b4]/90 -mt-1">
+                  Ensure accurate address details for safe, temperature-aware courier dispatch from Jammu.
+                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                    House / Flat / Villa / Suite <span className="text-[#dfc471] font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <Home className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                    <input
+                      type="text"
+                      required
+                      value={houseFlat}
+                      onChange={e => setHouseFlat(e.target.value)}
+                      placeholder="e.g. Flat 402, Royal Residency / House 12"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                    Street / Area / Locality / Landmark <span className="text-[#dfc471] font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <Building className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                    <input
+                      type="text"
+                      required
+                      value={streetArea}
+                      onChange={e => setStreetArea(e.target.value)}
+                      placeholder="e.g. VIP Road, Near City Center Landmark"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      City <span className="text-[#dfc471] font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={city}
                       onChange={e => setCity(e.target.value)}
-                      placeholder="e.g. Surat"
-                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                      placeholder="e.g. Mumbai, Delhi, Surat"
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                      State *
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      State <span className="text-[#dfc471] font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={state}
                       onChange={e => setState(e.target.value)}
-                      placeholder="e.g. Gujarat"
-                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                      placeholder="e.g. Maharashtra, Gujarat"
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                      PIN Code (6 digits) *
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      PIN Code (6 digits) <span className="text-[#dfc471] font-bold">*</span>
                     </label>
                     <input
                       type="text"
@@ -307,14 +358,14 @@ export default function Register() {
                       maxLength={6}
                       value={pincode}
                       onChange={e => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="e.g. 395007"
-                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                      placeholder="e.g. 400001"
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all tracking-wider shadow-inner"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                      Country *
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                      Country <span className="text-[#dfc471] font-bold">*</span>
                     </label>
                     <input
                       type="text"
@@ -322,104 +373,155 @@ export default function Register() {
                       value={country}
                       onChange={e => setCountry(e.target.value)}
                       placeholder="India"
-                      className="w-full px-4 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
                     />
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                  Password *
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Create a strong password"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#d5c4b4]/60 hover:text-[#dfc471] cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              {/* SECTION 3: Account Security */}
+              <div className="bg-[#170e0a]/80 border border-[#3e2b1e] rounded-2xl p-4 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-[#342419]">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#dfc471]/20 border border-[#dfc471]/50 text-[11px] font-bold text-[#dfc471]">
+                    3
+                  </span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-[#dfc471] flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Account Security</span>
+                  </h2>
                 </div>
-                <PasswordStrengthMeter password={password} />
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#f5eed3] mb-1.5">
+                    Password <span className="text-[#dfc471] font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <Lock className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Create a strong password (min 8 chars)"
+                      className="w-full pl-11 pr-12 py-3.5 rounded-xl bg-[#231710] border-2 border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471] focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(p => !p)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#d5c4b4] hover:text-[#dfc471] cursor-pointer p-1 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <PasswordStrengthMeter password={password} />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-[#f5eed3]">
+                      Confirm Password <span className="text-[#dfc471] font-bold">*</span>
+                    </label>
+                    {passwordsMatch && (
+                      <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Passwords match
+                      </span>
+                    )}
+                    {passwordsMismatch && (
+                      <span className="text-[11px] font-semibold text-amber-400">
+                        Passwords do not match
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative group">
+                    <Lock className="w-4 h-4 text-[#dfc471] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors group-focus-within:text-[#f3dda2]" />
+                    <input
+                      type={showConfirm ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter your password"
+                      className={`w-full pl-11 pr-12 py-3.5 rounded-xl bg-[#231710] border-2 ${
+                        passwordsMismatch
+                          ? 'border-amber-500/70 focus:border-amber-400'
+                          : passwordsMatch
+                          ? 'border-emerald-500/70 focus:border-emerald-400'
+                          : 'border-[#543d2c] hover:border-[#dfc471]/60 focus:border-[#dfc471]'
+                      } focus:ring-4 focus:ring-[#dfc471]/20 focus:bg-[#2a1a13] text-sm sm:text-base text-white placeholder:text-[#a89584] placeholder:font-normal focus:outline-none transition-all shadow-inner`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(p => !p)}
+                      aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#d5c4b4] hover:text-[#dfc471] cursor-pointer p-1 transition-colors"
+                    >
+                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-[#d5c4b4] mb-1.5">
-                  Confirm Password *
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#d5c4b4]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type={showConfirm ? 'text' : 'password'}
-                    required
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter your password"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl bg-[#1c120c] border border-[#38281d] text-sm text-[#f9f6f2] placeholder-[#d5c4b4]/40 focus:outline-none focus:border-[#dfc471]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(p => !p)}
-                    aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#d5c4b4]/60 hover:text-[#dfc471] cursor-pointer"
-                  >
-                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2.5 pt-2">
-                <label className="flex items-start gap-2.5 text-xs text-[#d5c4b4] cursor-pointer">
+              {/* SECTION 4: Patron Consents */}
+              <div className="space-y-3 pt-1">
+                <label className="flex items-start gap-3 p-3 rounded-xl bg-[#170e0a]/60 border border-[#38281d] hover:border-[#dfc471]/40 transition-colors cursor-pointer text-xs sm:text-sm text-[#ede4dc]">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={e => setAcceptTerms(e.target.checked)}
-                    className="mt-0.5 accent-[#dfc471]"
+                    className="mt-0.5 w-4 h-4 rounded border-[#543d2c] accent-[#dfc471] cursor-pointer shrink-0"
                   />
-                  <span>
-                    I accept the <strong className="text-[#f9f6f2]">Terms &amp; Conditions</strong> and Privacy Policy of Seth And Sons DryFruits. *
+                  <span className="leading-relaxed">
+                    I accept the <strong className="text-[#f5eed3] font-semibold underline underline-offset-2 decoration-[#dfc471]/60">Terms &amp; Conditions</strong> and Privacy Policy of Seth And Sons DryFruits. <span className="text-[#dfc471] font-bold">*</span>
                   </span>
                 </label>
 
-                <label className="flex items-start gap-2.5 text-xs text-[#d5c4b4]/80 cursor-pointer">
+                <label className="flex items-start gap-3 p-3 rounded-xl bg-[#170e0a]/60 border border-[#38281d] hover:border-[#dfc471]/40 transition-colors cursor-pointer text-xs sm:text-sm text-[#d5c4b4]">
                   <input
                     type="checkbox"
                     checked={marketingConsent}
                     onChange={e => setMarketingConsent(e.target.checked)}
-                    className="mt-0.5 accent-[#dfc471]"
+                    className="mt-0.5 w-4 h-4 rounded border-[#543d2c] accent-[#dfc471] cursor-pointer shrink-0"
                   />
-                  <span>
-                    Send me new harvest arrivals, festival sale offers, and exclusive patron coupons (you can unsubscribe anytime).
+                  <span className="leading-relaxed">
+                    Send me private notices on fresh valley harvests, festival reserve crates, and exclusive member discounts (unsubscribe anytime).
                   </span>
                 </label>
               </div>
 
+              {/* Submit CTA Button */}
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-xl transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2 mt-4"
+                className="w-full py-4 px-6 rounded-full text-xs sm:text-sm font-bold tracking-[0.2em] uppercase bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 active:scale-[0.99] shadow-[0_10px_30px_rgba(212,175,55,0.35)] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5"
               >
-                <span>{submitting ? 'Creating Account...' : 'Create Patron Account'}</span>
+                <Sparkles className="w-4 h-4" />
+                <span>{submitting ? 'Creating Patron Account...' : 'Create Patron Account'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-[#38281d] text-center text-xs text-[#d5c4b4]/80">
-              Already have an account?{' '}
-              <Link to="/login" className="text-[#dfc471] font-semibold hover:underline">
-                Sign In Here
+            {/* Bottom Navigation */}
+            <div className="mt-8 pt-6 border-t border-[#342419] text-center text-xs sm:text-sm text-[#d5c4b4]">
+              Already a registered patron?{' '}
+              <Link
+                to="/login"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="text-[#dfc471] font-bold hover:text-[#f3dda2] underline underline-offset-4 decoration-[#dfc471]/50 hover:decoration-[#dfc471] transition-colors ml-1"
+              >
+                Sign In To Your Account
               </Link>
+            </div>
+
+            {/* Trust Assurances Footer */}
+            <div className="mt-6 pt-5 border-t border-[#291b12] flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#a89584]">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#dfc471]" />
+                256-Bit SSL Encryption
+              </span>
+              <span>•</span>
+              <span>Direct Jammu Harvests</span>
+              <span>•</span>
+              <span>Verified Patron Data Protection</span>
             </div>
           </div>
         </ScrollReveal>
@@ -427,4 +529,3 @@ export default function Register() {
     </div>
   );
 }
-
