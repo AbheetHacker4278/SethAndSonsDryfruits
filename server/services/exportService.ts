@@ -141,74 +141,80 @@ export function generatePdfBuffer(report: ReportTableData): Promise<Buffer> {
   });
 }
 
-export function calculateItemRate(item: {
+export function calculateItemRatePerKg(item: {
   unitPrice: number;
   weightLabel?: string | null;
   unit?: string | null;
   stockQuantity?: number | null;
   quantity?: number;
-}): { rateUnit: string; rateValue: number; rateText: string } {
+}): { ratePerKg: number; rateText: string } {
   const unitPrice = Number(item.unitPrice || 0);
   const qty = Math.max(1, Number(item.quantity || 1));
   const unit = (item.unit || 'kg').toLowerCase();
   const label = item.weightLabel ? String(item.weightLabel).trim() : '';
 
-  // 1. Check if item is liquid / oil (unit is 'ml' or label contains ml/liter/oil)
-  const isLiquid = unit === 'ml' || /\b(?:ml|milliliter|milliliters|l|liter|liters|litre|litres)\b/i.test(label);
-
-  if (isLiquid) {
-    let ml = label ? parseWeightGrams(label) : null;
-    if (!ml && typeof item.stockQuantity === 'number' && item.stockQuantity > 0) {
-      ml = (item.stockQuantity / qty) * (unit === 'ml' ? 1 : 1000);
+  // 1. Check weight variant / label
+  if (label) {
+    const grams = parseWeightGrams(label);
+    if (grams && grams > 0) {
+      if (unit === 'ml' || /\b(?:ml|l|liter|liters|litre|litres)\b/i.test(label)) {
+        const liters = grams / 1000;
+        const ratePerLiter = Math.round(unitPrice / liters);
+        return {
+          ratePerKg: ratePerLiter,
+          rateText: `Rs. ${ratePerLiter.toLocaleString('en-IN')} / L`,
+        };
+      }
+      const packKg = grams / 1000;
+      const ratePerKg = Math.round(unitPrice / packKg);
+      return {
+        ratePerKg,
+        rateText: `Rs. ${ratePerKg.toLocaleString('en-IN')} / kg`,
+      };
     }
-    if (!ml || ml <= 0) {
-      ml = unit === 'ml' ? 100 : 1000;
-    }
-    const ratePer100ml = (unitPrice / ml) * 100;
-    const rateStr = Number.isInteger(ratePer100ml)
-      ? ratePer100ml.toLocaleString('en-IN')
-      : ratePer100ml >= 10
-        ? Math.round(ratePer100ml).toLocaleString('en-IN')
-        : ratePer100ml.toFixed(2);
-    return {
-      rateUnit: '100ml',
-      rateValue: ratePer100ml,
-      rateText: `Rs. ${rateStr} / 100ml`,
-    };
   }
 
-  // 2. Check if piece-based item
+  // 2. Check stockQuantity base kg units
+  if (typeof item.stockQuantity === 'number' && item.stockQuantity > 0) {
+    const packKg = item.stockQuantity / qty;
+    if (packKg > 0) {
+      const ratePerKg = Math.round(unitPrice / packKg);
+      return {
+        ratePerKg,
+        rateText: `Rs. ${ratePerKg.toLocaleString('en-IN')} / kg`,
+      };
+    }
+  }
+
+  // 3. Fallbacks based on item base unit
+  if (unit === 'gram' || unit === 'g') {
+    const ratePerKg = Math.round(unitPrice * 1000);
+    return {
+      ratePerKg,
+      rateText: `Rs. ${ratePerKg.toLocaleString('en-IN')} / kg`,
+    };
+  }
+  if (unit === 'ml') {
+    const ratePerLiter = Math.round(unitPrice * 10);
+    return {
+      ratePerKg: ratePerLiter,
+      rateText: `Rs. ${ratePerLiter.toLocaleString('en-IN')} / L`,
+    };
+  }
   if (unit === 'piece' || unit === 'pc') {
     return {
-      rateUnit: 'pc',
-      rateValue: unitPrice,
-      rateText: `Rs. ${Math.round(unitPrice).toLocaleString('en-IN')} / pc`,
+      ratePerKg: unitPrice,
+      rateText: `Rs. ${unitPrice.toLocaleString('en-IN')} / pc`,
     };
   }
 
-  // 3. Weight-based items (dry fruits, nuts, saffron, dates, spices): Calculate Rate in Per gm
-  let grams: number | null = label ? parseWeightGrams(label) : null;
-  if (!grams && typeof item.stockQuantity === 'number' && item.stockQuantity > 0) {
-    grams = (item.stockQuantity / qty) * (unit === 'gram' || unit === 'g' ? 1 : 1000);
-  }
-  if (!grams || grams <= 0) {
-    grams = unit === 'gram' || unit === 'g' ? 1 : 1000;
-  }
-
-  const ratePerGm = unitPrice / grams;
-  const rateStr = Number.isInteger(ratePerGm)
-    ? ratePerGm.toLocaleString('en-IN')
-    : ratePerGm.toFixed(2);
-
   return {
-    rateUnit: 'gm',
-    rateValue: ratePerGm,
-    rateText: `Rs. ${rateStr} / gm`,
+    ratePerKg: unitPrice,
+    rateText: `Rs. ${unitPrice.toLocaleString('en-IN')} / kg`,
   };
 }
 
-// Retain alias for backward compatibility
-export const calculateItemRatePerKg = calculateItemRate;
+export const calculateItemRate = calculateItemRatePerKg;
 
 export function generateOrderInvoicePdf(params: {
   businessName: string;
