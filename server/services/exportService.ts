@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { parseWeightGrams } from '../../shared/catalogSeed.ts';
 
 export interface ReportTableData {
   title: string;
@@ -140,6 +141,75 @@ export function generatePdfBuffer(report: ReportTableData): Promise<Buffer> {
   });
 }
 
+export function calculateItemRate(item: {
+  unitPrice: number;
+  weightLabel?: string | null;
+  unit?: string | null;
+  stockQuantity?: number | null;
+  quantity?: number;
+}): { rateUnit: string; rateValue: number; rateText: string } {
+  const unitPrice = Number(item.unitPrice || 0);
+  const qty = Math.max(1, Number(item.quantity || 1));
+  const unit = (item.unit || 'kg').toLowerCase();
+  const label = item.weightLabel ? String(item.weightLabel).trim() : '';
+
+  // 1. Check if item is liquid / oil (unit is 'ml' or label contains ml/liter/oil)
+  const isLiquid = unit === 'ml' || /\b(?:ml|milliliter|milliliters|l|liter|liters|litre|litres)\b/i.test(label);
+
+  if (isLiquid) {
+    let ml = label ? parseWeightGrams(label) : null;
+    if (!ml && typeof item.stockQuantity === 'number' && item.stockQuantity > 0) {
+      ml = (item.stockQuantity / qty) * (unit === 'ml' ? 1 : 1000);
+    }
+    if (!ml || ml <= 0) {
+      ml = unit === 'ml' ? 100 : 1000;
+    }
+    const ratePer100ml = (unitPrice / ml) * 100;
+    const rateStr = Number.isInteger(ratePer100ml)
+      ? ratePer100ml.toLocaleString('en-IN')
+      : ratePer100ml >= 10
+        ? Math.round(ratePer100ml).toLocaleString('en-IN')
+        : ratePer100ml.toFixed(2);
+    return {
+      rateUnit: '100ml',
+      rateValue: ratePer100ml,
+      rateText: `Rs. ${rateStr} / 100ml`,
+    };
+  }
+
+  // 2. Check if piece-based item
+  if (unit === 'piece' || unit === 'pc') {
+    return {
+      rateUnit: 'pc',
+      rateValue: unitPrice,
+      rateText: `Rs. ${Math.round(unitPrice).toLocaleString('en-IN')} / pc`,
+    };
+  }
+
+  // 3. Weight-based items (dry fruits, nuts, saffron, dates, spices): Calculate Rate in Per gm
+  let grams: number | null = label ? parseWeightGrams(label) : null;
+  if (!grams && typeof item.stockQuantity === 'number' && item.stockQuantity > 0) {
+    grams = (item.stockQuantity / qty) * (unit === 'gram' || unit === 'g' ? 1 : 1000);
+  }
+  if (!grams || grams <= 0) {
+    grams = unit === 'gram' || unit === 'g' ? 1 : 1000;
+  }
+
+  const ratePerGm = unitPrice / grams;
+  const rateStr = Number.isInteger(ratePerGm)
+    ? ratePerGm.toLocaleString('en-IN')
+    : ratePerGm.toFixed(2);
+
+  return {
+    rateUnit: 'gm',
+    rateValue: ratePerGm,
+    rateText: `Rs. ${rateStr} / gm`,
+  };
+}
+
+// Retain alias for backward compatibility
+export const calculateItemRatePerKg = calculateItemRate;
+
 export function generateOrderInvoicePdf(params: {
   businessName: string;
   businessAddress: string;
@@ -161,6 +231,7 @@ export function generateOrderInvoicePdf(params: {
     weightLabel?: string | null;
     unitPrice: number;
     subtotal: number;
+    stockQuantity?: number | null;
   }>;
   subtotal: number;
   discountAmount: number;
@@ -210,10 +281,16 @@ export function generateOrderInvoicePdf(params: {
       const qtyText = item.weightLabel
         ? `${item.quantity} x ${item.weightLabel}`
         : `${item.quantity} ${item.unit === 'gram' ? 'g' : item.unit === 'ml' ? 'ml' : item.unit === 'piece' ? 'pc' : 'kg'}`;
+      const { rateText } = calculateItemRate(item);
+      const actualAmount =
+        typeof item.subtotal === 'number' && item.subtotal > 0
+          ? item.subtotal
+          : Math.round((item.unitPrice || 0) * (item.quantity || 1));
+
       doc.text(item.productName, 52, y, { width: 215 });
       doc.text(qtyText, 280, y);
-      doc.text(`Rs. ${item.unitPrice.toLocaleString('en-IN')}`, 355, y);
-      doc.text(`Rs. ${item.subtotal.toLocaleString('en-IN')}`, 455, y);
+      doc.text(rateText, 355, y);
+      doc.text(`Rs. ${actualAmount.toLocaleString('en-IN')}`, 455, y);
       y += 22;
       doc.moveTo(45, y - 5).lineTo(550, y - 5).strokeColor('#E9E4D9').stroke();
     }
