@@ -47,7 +47,7 @@ import {
   getVariantBaseCost,
   calculateDynamicSellingPrice,
 } from '../../utils/priceCalculator';
-import { calculateOrderShippingCharge } from '../../../shared/catalogSeed';
+import { calculateOrderShippingCharge, calculateCustomWeightPrice } from '../../../shared/catalogSeed';
 
 const COURIER_PARTNERS = [
   'Delhivery',
@@ -122,6 +122,7 @@ export default function AdminOrders() {
   // Product picker controls
   const [pickerProductId, setPickerProductId] = useState('');
   const [pickerVariantId, setPickerVariantId] = useState('');
+  const [pickerCustomGrams, setPickerCustomGrams] = useState('350');
   const [pickerQuantity, setPickerQuantity] = useState(1);
   const [pickerUnitPrice, setPickerUnitPrice] = useState<string>('');
 
@@ -167,6 +168,7 @@ export default function AdminOrders() {
 
   const [editPickerProductId, setEditPickerProductId] = useState('');
   const [editPickerVariantId, setEditPickerVariantId] = useState('');
+  const [editPickerCustomGrams, setEditPickerCustomGrams] = useState('350');
   const [editPickerQuantity, setEditPickerQuantity] = useState(1);
   const [editPickerUnitPrice, setEditPickerUnitPrice] = useState('');
 
@@ -213,6 +215,7 @@ export default function AdminOrders() {
     setOrderItems([]);
     setPickerProductId('');
     setPickerVariantId('');
+    setPickerCustomGrams('350');
     setPickerQuantity(1);
     setPickerUnitPrice('');
     setPaymentMethod('upi');
@@ -247,17 +250,57 @@ export default function AdminOrders() {
     setPickerVariantId(varId);
     const prod = catalogProducts.find(p => p.id === pickerProductId);
     if (!prod) return;
+    if (varId === 'custom') {
+      const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+      setPickerCustomGrams(String(g));
+      const calc = calculateCustomWeightPrice(prod, g);
+      setPickerUnitPrice(String(calc.unitPrice));
+      return;
+    }
     const variant = prod.weightVariants?.find((v: any) => v.id === varId);
     if (variant) {
       setPickerUnitPrice(String(variant.sellingPrice || prod.price));
+    } else {
+      setPickerUnitPrice(String(prod.price));
+    }
+  };
+
+  const handleCustomGramsChange = (gramsStr: string) => {
+    setPickerCustomGrams(gramsStr);
+    const prod = catalogProducts.find(p => p.id === pickerProductId);
+    if (!prod) return;
+    const g = Number(gramsStr);
+    if (g > 0) {
+      const calc = calculateCustomWeightPrice(prod, g);
+      setPickerUnitPrice(String(calc.unitPrice));
     }
   };
 
   const handleAddItem = () => {
     const prod = catalogProducts.find(p => p.id === pickerProductId);
     if (!prod) return;
-    const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
-    const unitPrice = Number(pickerUnitPrice) > 0 ? Number(pickerUnitPrice) : prod.price;
+
+    let variantId: string | undefined = undefined;
+    let weightLabel: string | undefined = undefined;
+    let unitPrice = Number(pickerUnitPrice);
+
+    if (pickerVariantId === 'custom') {
+      const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+      const calc = calculateCustomWeightPrice(prod, g);
+      weightLabel = calc.weightLabel;
+      variantId = undefined;
+      if (!unitPrice || unitPrice <= 0) {
+        unitPrice = calc.unitPrice;
+      }
+    } else {
+      const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
+      variantId = variant?.id;
+      weightLabel = variant?.weightLabel || (prod.unit ? `1 ${prod.unit}` : undefined);
+      if (!unitPrice || unitPrice <= 0) {
+        unitPrice = Number(variant?.sellingPrice || prod.price);
+      }
+    }
+
     const qty = Math.max(0.1, Number(pickerQuantity) || 1);
     const lineSubtotal = Math.round(unitPrice * qty);
 
@@ -266,8 +309,8 @@ export default function AdminOrders() {
       {
         productId: prod.id,
         productName: prod.name,
-        variantId: variant?.id,
-        weightLabel: variant?.weightLabel,
+        variantId,
+        weightLabel,
         unitPrice,
         quantity: qty,
         subtotal: lineSubtotal,
@@ -276,6 +319,7 @@ export default function AdminOrders() {
 
     setPickerProductId('');
     setPickerVariantId('');
+    setPickerCustomGrams('350');
     setPickerQuantity(1);
     setPickerUnitPrice('');
   };
@@ -474,6 +518,7 @@ export default function AdminOrders() {
 
     setEditPickerProductId('');
     setEditPickerVariantId('');
+    setEditPickerCustomGrams('350');
     setEditPickerQuantity(1);
     setEditPickerUnitPrice('');
     setEditModalOpen(true);
@@ -507,17 +552,57 @@ export default function AdminOrders() {
     setEditPickerVariantId(varId);
     const prod = catalogProducts.find(p => p.id === editPickerProductId);
     if (!prod) return;
+    if (varId === 'custom') {
+      const g = Math.max(1, Number(editPickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+      setEditPickerCustomGrams(String(g));
+      const calc = calculateCustomWeightPrice(prod, g);
+      setEditPickerUnitPrice(String(calc.unitPrice));
+      return;
+    }
     const variant = prod.weightVariants?.find((v: any) => v.id === varId);
     if (variant) {
       setEditPickerUnitPrice(String(variant.sellingPrice || prod.price));
+    } else {
+      setEditPickerUnitPrice(String(prod.price));
+    }
+  };
+
+  const handleEditCustomGramsChange = (gramsStr: string) => {
+    setEditPickerCustomGrams(gramsStr);
+    const prod = catalogProducts.find(p => p.id === editPickerProductId);
+    if (!prod) return;
+    const g = Number(gramsStr);
+    if (g > 0) {
+      const calc = calculateCustomWeightPrice(prod, g);
+      setEditPickerUnitPrice(String(calc.unitPrice));
     }
   };
 
   const handleEditAddItem = () => {
     const prod = catalogProducts.find(p => p.id === editPickerProductId);
     if (!prod) return;
-    const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
-    const unitPrice = Number(editPickerUnitPrice) > 0 ? Number(editPickerUnitPrice) : prod.price;
+
+    let variantId: string | undefined = undefined;
+    let weightLabel: string | undefined = undefined;
+    let unitPrice = Number(editPickerUnitPrice);
+
+    if (editPickerVariantId === 'custom') {
+      const g = Math.max(1, Number(editPickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+      const calc = calculateCustomWeightPrice(prod, g);
+      weightLabel = calc.weightLabel;
+      variantId = undefined;
+      if (!unitPrice || unitPrice <= 0) {
+        unitPrice = calc.unitPrice;
+      }
+    } else {
+      const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
+      variantId = variant?.id;
+      weightLabel = variant?.weightLabel || (prod.unit ? `1 ${prod.unit}` : undefined);
+      if (!unitPrice || unitPrice <= 0) {
+        unitPrice = Number(variant?.sellingPrice || prod.price);
+      }
+    }
+
     const qty = Math.max(0.1, Number(editPickerQuantity) || 1);
     const lineSubtotal = Math.round(unitPrice * qty);
 
@@ -526,8 +611,8 @@ export default function AdminOrders() {
       {
         productId: prod.id,
         productName: prod.name,
-        variantId: variant?.id,
-        weightLabel: variant?.weightLabel,
+        variantId,
+        weightLabel,
         unitPrice,
         quantity: qty,
         subtotal: lineSubtotal,
@@ -536,6 +621,7 @@ export default function AdminOrders() {
 
     setEditPickerProductId('');
     setEditPickerVariantId('');
+    setEditPickerCustomGrams('350');
     setEditPickerQuantity(1);
     setEditPickerUnitPrice('');
   };
@@ -1888,17 +1974,86 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Weight / Variant</label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="block text-[11px] font-medium text-[#5C6058]">Weight / Variant</label>
+                    {pickerProductId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (pickerVariantId === 'custom') {
+                            const prod = catalogProducts.find(p => p.id === pickerProductId);
+                            if (prod?.weightVariants && prod.weightVariants.length > 0) {
+                              handleVariantSelect(prod.weightVariants[0].id);
+                            } else {
+                              setPickerVariantId('');
+                              setPickerUnitPrice(String(prod?.price || ''));
+                            }
+                          } else {
+                            handleVariantSelect('custom');
+                          }
+                        }}
+                        className="text-[10px] text-[#8F6C2B] hover:text-[#183D32] font-bold underline cursor-pointer"
+                      >
+                        {pickerVariantId === 'custom' ? 'Standard Pack' : '+ Custom Grams'}
+                      </button>
+                    )}
+                  </div>
                   {(() => {
                     const prod = catalogProducts.find(p => p.id === pickerProductId);
-                    if (prod?.weightVariants && prod.weightVariants.length > 0) {
+                    if (!prod) {
                       return (
-                        <select
-                          value={pickerVariantId}
-                          onChange={e => handleVariantSelect(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
-                        >
-                          {prod.weightVariants.map((v: any) => {
+                        <div className="px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] text-[#888B83] text-xs border border-[#E9E4D9]">
+                          Select product
+                        </div>
+                      );
+                    }
+
+                    if (pickerVariantId === 'custom') {
+                      return (
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={pickerCustomGrams}
+                              onChange={e => handleCustomGramsChange(e.target.value)}
+                              placeholder="e.g. 350"
+                              className="w-full pl-2.5 pr-14 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#C8A96B] text-xs font-bold text-[#183D32] focus:ring-1 focus:ring-[#183D32]"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#8F6C2B] uppercase">
+                              grams
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[9px] text-[#888B83] uppercase tracking-wider">Presets:</span>
+                            {[100, 150, 350, 750, 1500].map(g => (
+                              <button
+                                key={g}
+                                type="button"
+                                onClick={() => handleCustomGramsChange(String(g))}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors ${
+                                  pickerCustomGrams === String(g)
+                                    ? 'bg-[#183D32] text-[#DFC471] border-[#183D32]'
+                                    : 'bg-white text-[#5C6058] border-[#E9E4D9] hover:bg-[#F8F6F0]'
+                                }`}
+                              >
+                                {g >= 1000 ? `${g / 1000}kg` : `${g}g`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <select
+                        value={pickerVariantId}
+                        onChange={e => handleVariantSelect(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
+                      >
+                        {prod.weightVariants && prod.weightVariants.length > 0 ? (
+                          prod.weightVariants.map((v: any) => {
                             const vCost = getVariantBaseCost(v);
                             const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
                             const p25 = calculateDynamicSellingPrice(vCost, 25);
@@ -1907,14 +2062,12 @@ export default function AdminOrders() {
                                 {v.weightLabel} — 40%: ₹{p40} | 25%: ₹{p25}
                               </option>
                             );
-                          })}
-                        </select>
-                      );
-                    }
-                    return (
-                      <div className="px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] text-[#888B83] text-xs border border-[#E9E4D9]">
-                        {prod ? `Standard (${prod.unit})` : 'Select product'}
-                      </div>
+                          })
+                        ) : (
+                          <option value="">Standard ({prod.unit}) — ₹{prod.price}</option>
+                        )}
+                        <option value="custom">✨ Custom Weight (Enter Grams)...</option>
+                      </select>
                     );
                   })()}
                 </div>
@@ -1933,6 +2086,40 @@ export default function AdminOrders() {
                   {(() => {
                     const prod = catalogProducts.find(p => p.id === pickerProductId);
                     if (!prod) return null;
+
+                    if (pickerVariantId === 'custom') {
+                      const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+                      const calc = calculateCustomWeightPrice(prod, g);
+                      const cost = calc.baseCost;
+                      const p40 = calculateDynamicSellingPrice(cost, 40);
+                      const p25 = calculateDynamicSellingPrice(cost, 25);
+                      return (
+                        <div className="space-y-1 mt-1">
+                          <div className="text-[10px] text-[#245746] font-medium truncate" title={calc.formula}>
+                            {calc.formula}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => setPickerUnitPrice(String(p40))}
+                              className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold hover:bg-emerald-100 cursor-pointer"
+                              title="Set to 40% profit rate"
+                            >
+                              40%: ₹{p40}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPickerUnitPrice(String(p25))}
+                              className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-300 font-bold hover:bg-amber-100 cursor-pointer"
+                              title="Set to 25% profit rate"
+                            >
+                              25%: ₹{p25}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
                     const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
                     const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
@@ -2002,7 +2189,14 @@ export default function AdminOrders() {
                       {orderItems.map((it, idx) => (
                         <tr key={idx} className="hover:bg-[#FAF3E3]/40">
                           <td className="py-2 px-3 font-medium text-[#183D32]">{it.productName}</td>
-                          <td className="py-2 px-2 text-[#5C6058]">{it.weightLabel || 'Base'}</td>
+                          <td className="py-2 px-2 text-[#5C6058]">
+                            <span className="font-medium text-[#183D32]">{it.weightLabel || 'Base'}</span>
+                            {!it.variantId && it.weightLabel && (
+                              <span className="text-[10px] bg-[#EAE3D2] text-[#183D32] px-1.5 py-0.5 rounded font-bold ml-1.5 inline-block">
+                                Custom
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 px-2 text-[#5C6058]">
                             <div className="flex items-center gap-1">
                               <span className="text-[#888B83]">₹</span>
@@ -2408,17 +2602,86 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Weight / Variant</label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="block text-[11px] font-medium text-[#5C6058]">Weight / Variant</label>
+                    {editPickerProductId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editPickerVariantId === 'custom') {
+                            const prod = catalogProducts.find(p => p.id === editPickerProductId);
+                            if (prod?.weightVariants && prod.weightVariants.length > 0) {
+                              handleEditVariantSelect(prod.weightVariants[0].id);
+                            } else {
+                              setEditPickerVariantId('');
+                              setEditPickerUnitPrice(String(prod?.price || ''));
+                            }
+                          } else {
+                            handleEditVariantSelect('custom');
+                          }
+                        }}
+                        className="text-[10px] text-[#8F6C2B] hover:text-[#183D32] font-bold underline cursor-pointer"
+                      >
+                        {editPickerVariantId === 'custom' ? 'Standard Pack' : '+ Custom Grams'}
+                      </button>
+                    )}
+                  </div>
                   {(() => {
                     const prod = catalogProducts.find(p => p.id === editPickerProductId);
-                    if (prod?.weightVariants && prod.weightVariants.length > 0) {
+                    if (!prod) {
                       return (
-                        <select
-                          value={editPickerVariantId}
-                          onChange={e => handleEditVariantSelect(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
-                        >
-                          {prod.weightVariants.map((v: any) => {
+                        <div className="px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] text-[#888B83] text-xs border border-[#E9E4D9]">
+                          Select product
+                        </div>
+                      );
+                    }
+
+                    if (editPickerVariantId === 'custom') {
+                      return (
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={editPickerCustomGrams}
+                              onChange={e => handleEditCustomGramsChange(e.target.value)}
+                              placeholder="e.g. 350"
+                              className="w-full pl-2.5 pr-14 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#C8A96B] text-xs font-bold text-[#183D32] focus:ring-1 focus:ring-[#183D32]"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#8F6C2B] uppercase">
+                              grams
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[9px] text-[#888B83] uppercase tracking-wider">Presets:</span>
+                            {[100, 150, 350, 750, 1500].map(g => (
+                              <button
+                                key={g}
+                                type="button"
+                                onClick={() => handleEditCustomGramsChange(String(g))}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-colors ${
+                                  editPickerCustomGrams === String(g)
+                                    ? 'bg-[#183D32] text-[#DFC471] border-[#183D32]'
+                                    : 'bg-white text-[#5C6058] border-[#E9E4D9] hover:bg-[#F8F6F0]'
+                                }`}
+                              >
+                                {g >= 1000 ? `${g / 1000}kg` : `${g}g`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <select
+                        value={editPickerVariantId}
+                        onChange={e => handleEditVariantSelect(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
+                      >
+                        {prod.weightVariants && prod.weightVariants.length > 0 ? (
+                          prod.weightVariants.map((v: any) => {
                             const vCost = getVariantBaseCost(v);
                             const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
                             const p25 = calculateDynamicSellingPrice(vCost, 25);
@@ -2427,14 +2690,12 @@ export default function AdminOrders() {
                                 {v.weightLabel} — 40%: ₹{p40} | 25%: ₹{p25}
                               </option>
                             );
-                          })}
-                        </select>
-                      );
-                    }
-                    return (
-                      <div className="px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] text-[#888B83] text-xs border border-[#E9E4D9]">
-                        {prod ? `Standard (${prod.unit})` : 'Select product'}
-                      </div>
+                          })
+                        ) : (
+                          <option value="">Standard ({prod.unit}) — ₹{prod.price}</option>
+                        )}
+                        <option value="custom">✨ Custom Weight (Enter Grams)...</option>
+                      </select>
                     );
                   })()}
                 </div>
@@ -2453,6 +2714,40 @@ export default function AdminOrders() {
                   {(() => {
                     const prod = catalogProducts.find(p => p.id === editPickerProductId);
                     if (!prod) return null;
+
+                    if (editPickerVariantId === 'custom') {
+                      const g = Math.max(1, Number(editPickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+                      const calc = calculateCustomWeightPrice(prod, g);
+                      const cost = calc.baseCost;
+                      const p40 = calculateDynamicSellingPrice(cost, 40);
+                      const p25 = calculateDynamicSellingPrice(cost, 25);
+                      return (
+                        <div className="space-y-1 mt-1">
+                          <div className="text-[10px] text-[#245746] font-medium truncate" title={calc.formula}>
+                            {calc.formula}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => setEditPickerUnitPrice(String(p40))}
+                              className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold hover:bg-emerald-100 cursor-pointer"
+                              title="Set to 40% profit rate"
+                            >
+                              40%: ₹{p40}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditPickerUnitPrice(String(p25))}
+                              className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-300 font-bold hover:bg-amber-100 cursor-pointer"
+                              title="Set to 25% profit rate"
+                            >
+                              25%: ₹{p25}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
                     const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
                     const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
@@ -2522,7 +2817,14 @@ export default function AdminOrders() {
                       {editOrderItems.map((it, idx) => (
                         <tr key={idx} className="hover:bg-[#FAF3E3]/40">
                           <td className="py-2 px-3 font-medium text-[#183D32]">{it.productName}</td>
-                          <td className="py-2 px-2 text-[#5C6058]">{it.weightLabel || 'Base'}</td>
+                          <td className="py-2 px-2 text-[#5C6058]">
+                            <span className="font-medium text-[#183D32]">{it.weightLabel || 'Base'}</span>
+                            {!it.variantId && it.weightLabel && (
+                              <span className="text-[10px] bg-[#EAE3D2] text-[#183D32] px-1.5 py-0.5 rounded font-bold ml-1.5 inline-block">
+                                Custom
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 px-2 text-[#5C6058]">
                             <div className="flex items-center gap-1">
                               <span className="text-[#888B83]">₹</span>

@@ -2266,13 +2266,17 @@ export function createAdminErpRouter(
         }
       }
 
-      const itemSubtotal = Math.round(unitPrice * qty);
-      const itemCost = Math.round(purchasePrice * qty);
-      totalCostOfGoods += itemCost;
-
       const baseUnitsToDeduct = weightLabel
         ? getVariantStockUnits(weightLabel, (product.unit as any) || 'kg') * qty
         : qty;
+
+      const packRatio = (!variantId && weightLabel)
+        ? (qty > 0 ? baseUnitsToDeduct / qty : 1)
+        : 1;
+      const effectivePurchaseCost = Number((purchasePrice * packRatio).toFixed(2));
+      const itemSubtotal = Math.round(unitPrice * qty);
+      const itemCost = Math.round(effectivePurchaseCost * qty);
+      totalCostOfGoods += itemCost;
 
       resolvedItems.push({
         productId: product.id,
@@ -2282,7 +2286,7 @@ export function createAdminErpRouter(
         productImage: product.image || '/assets/products/akhrot.jpg',
         category: product.category || 'nuts',
         unit: product.unit || 'kg',
-        purchasePrice,
+        purchasePrice: effectivePurchaseCost,
         unitPrice,
         quantity: qty,
         stockQuantity: baseUnitsToDeduct,
@@ -2598,13 +2602,17 @@ export function createAdminErpRouter(
         }
       }
 
-      const itemSubtotal = Math.round(unitPrice * qty);
-      const itemCost = Math.round(purchasePrice * qty);
-      totalCostOfGoods += itemCost;
-
       const baseUnitsToDeduct = weightLabel
         ? getVariantStockUnits(weightLabel, (product.unit as any) || 'kg') * qty
         : qty;
+
+      const packRatio = (!variantId && weightLabel)
+        ? (qty > 0 ? baseUnitsToDeduct / qty : 1)
+        : 1;
+      const effectivePurchaseCost = Number((purchasePrice * packRatio).toFixed(2));
+      const itemSubtotal = Math.round(unitPrice * qty);
+      const itemCost = Math.round(effectivePurchaseCost * qty);
+      totalCostOfGoods += itemCost;
 
       resolvedItems.push({
         productId: product.id,
@@ -2614,7 +2622,7 @@ export function createAdminErpRouter(
         productImage: product.image || '/assets/products/akhrot.jpg',
         category: product.category || 'nuts',
         unit: product.unit || 'kg',
-        purchasePrice,
+        purchasePrice: effectivePurchaseCost,
         unitPrice,
         quantity: qty,
         stockQuantity: baseUnitsToDeduct,

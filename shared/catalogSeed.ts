@@ -352,6 +352,93 @@ export function calculateDynamicSellingPrice(baseCost: number, marginPercent: nu
 }
 
 /**
+ * Calculate proportional unit selling price, base cost, and weight label for arbitrary weight in grams.
+ * Allows admins to price custom pack sizes (e.g. 150g, 350g, 750g, 1200g) proportionally based on product rates.
+ */
+export function calculateCustomWeightPrice(
+  product: {
+    price: number;
+    purchasePrice?: number;
+    unit?: string;
+    appliedProfitMargin?: number;
+    weightVariants?: Array<{
+      id: string;
+      weightLabel: string;
+      sellingPrice: number;
+      purchasePrice?: number;
+      appliedProfitMargin?: number;
+    }>;
+  },
+  grams: number,
+  marginPercent?: number
+): {
+  unitPrice: number;
+  baseCost: number;
+  weightLabel: string;
+  perKgRate: number;
+  formula: string;
+} {
+  const safeGrams = Math.max(1, Number(grams) || 0);
+  const baseUnit = product.unit || 'kg';
+
+  let sellingPerGram = 0;
+  let costPerGram = 0;
+
+  if (baseUnit === 'gram') {
+    const g1Var = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 1);
+    if (g1Var && Number(g1Var.sellingPrice) > 0) {
+      sellingPerGram = Number(g1Var.sellingPrice);
+      costPerGram = getVariantBaseCost(g1Var);
+    } else {
+      sellingPerGram = Number(product.price);
+      costPerGram = getProductBaseCost(product as any);
+    }
+  } else {
+    const kg1Var = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 1000);
+    const halfKgVar = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 500);
+    const qtrKgVar = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 250);
+
+    if (kg1Var && Number(kg1Var.sellingPrice) > 0) {
+      sellingPerGram = Number(kg1Var.sellingPrice) / 1000;
+      costPerGram = getVariantBaseCost(kg1Var) / 1000;
+    } else if (halfKgVar && Number(halfKgVar.sellingPrice) > 0) {
+      sellingPerGram = Number(halfKgVar.sellingPrice) / 500;
+      costPerGram = getVariantBaseCost(halfKgVar) / 500;
+    } else if (qtrKgVar && Number(qtrKgVar.sellingPrice) > 0) {
+      sellingPerGram = Number(qtrKgVar.sellingPrice) / 250;
+      costPerGram = getVariantBaseCost(qtrKgVar) / 250;
+    } else {
+      sellingPerGram = Number(product.price) / 1000;
+      costPerGram = getProductBaseCost(product as any) / 1000;
+    }
+  }
+
+  const baseCost = Math.round(costPerGram * safeGrams);
+  let unitPrice = Math.round(sellingPerGram * safeGrams);
+
+  if (typeof marginPercent === 'number' && marginPercent > 0) {
+    unitPrice = calculateDynamicSellingPrice(baseCost, marginPercent);
+  }
+
+  const perKgRate = Math.round(sellingPerGram * 1000);
+  const weightLabel = safeGrams >= 1000 && safeGrams % 100 === 0
+    ? `${(safeGrams / 1000).toFixed(safeGrams % 1000 === 0 ? 0 : 2)}kg (${safeGrams}g)`
+    : `${safeGrams}g`;
+
+  const formula = baseUnit === 'gram'
+    ? `₹${sellingPerGram}/g × ${safeGrams}g = ₹${unitPrice}`
+    : `₹${perKgRate}/kg × ${safeGrams}g = ₹${unitPrice}`;
+
+  return {
+    unitPrice,
+    baseCost,
+    weightLabel,
+    perKgRate,
+    formula,
+  };
+}
+
+/**
  * Calculate order/cart shipping charge:
  * - Customers from Surat, Gujarat: ₹0 (Free Shipping)
  * - Customers from all other destinations: Weight-based calculation ceil(Cart Weight in grams / 500) * 30,

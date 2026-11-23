@@ -23,6 +23,7 @@ export {
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
+  calculateCustomWeightPrice,
   type CatalogProduct,
   type HealthPillar,
   type NutritionInfo,
