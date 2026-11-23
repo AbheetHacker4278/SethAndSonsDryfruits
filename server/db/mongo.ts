@@ -1342,6 +1342,47 @@ export async function getWebsiteSettingsDoc(db: MongoDatabase): Promise<typeof D
   return normalizeWebsiteSettings();
 }
 
+export async function syncProductVariantsStock(
+  db: MongoDatabase,
+  productId: string,
+  newProductStock: number,
+  unit?: string,
+  nowIso?: string
+): Promise<void> {
+  const now = nowIso || new Date().toISOString();
+  const prod = await db.models.Product.findOne({ id: productId }).lean();
+  if (!prod) return;
+  const prodUnit = (unit || prod.unit || 'kg') as 'kg' | 'gram' | 'ml' | 'piece';
+  const variants = await db.models.ProductVariant.find({ productId }).lean();
+  if (!variants || variants.length === 0) return;
+
+  if (newProductStock <= 0) {
+    await db.models.ProductVariant.updateMany(
+      { productId },
+      { $set: { stock: 0, active: false, updatedAt: now } }
+    );
+    return;
+  }
+
+  for (const v of variants) {
+    const packUnits = Math.max(0.0001, getVariantStockUnits(String(v.weightLabel || '1kg'), prodUnit));
+    const maxPackable = Math.max(0, Math.floor(newProductStock / packUnits));
+    const currentVarStock = Number(v.stock || 0);
+
+    let nextStock: number;
+    if (currentVarStock <= 0) {
+      nextStock = Math.min(maxPackable, Math.max(1, Math.round(maxPackable / 2)));
+    } else {
+      nextStock = Math.min(currentVarStock, maxPackable);
+    }
+
+    await db.models.ProductVariant.updateOne(
+      { id: v.id },
+      { $set: { stock: nextStock, active: nextStock > 0, updatedAt: now } }
+    );
+  }
+}
+
 export async function syncInventoryRecord(db: MongoDatabase, productId: string): Promise<void> {
   const prod = await db.models.Product.findOne({ id: productId }).lean();
   if (!prod) return;
@@ -1372,6 +1413,7 @@ export async function syncInventoryRecord(db: MongoDatabase, productId: string):
     },
     { upsert: true }
   );
+  await syncProductVariantsStock(db, productId, stockQuantity, prod.unit);
 }
 
 export async function syncAllIndexes(
@@ -1722,28 +1764,6 @@ export async function seedDatabase(db: MongoDatabase, config: AppConfig): Promis
         { $set: { weightLabel: '1kg', updatedAt: now } }
       );
       await syncInventoryRecord(db, prod.id);
-    }
-  }
-
-  // Ensure products with 0 or sub-unit stock are restored to catalog seed stock
-  for (const [prodId, meta] of Object.entries(PRODUCT_CATEGORY_MAP)) {
-    const existing = await models.Product.findOne({ id: prodId }).lean();
-    if (existing) {
-      const curStock = Number(existing.stock || 0);
-      const isMlSubUnit = existing.unit === 'ml' && curStock < 100;
-      if (curStock <= 0 || isMlSubUnit) {
-        await models.Product.updateOne(
-          { id: prodId },
-          {
-            $set: {
-              stock: meta.stock,
-              inStock: true,
-              updatedAt: now,
-            },
-          }
-        );
-        await syncInventoryRecord(db, prodId);
-      }
     }
   }
 

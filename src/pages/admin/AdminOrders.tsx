@@ -127,7 +127,8 @@ export default function AdminOrders() {
 
   // Payment controls
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash' | 'card'>('upi');
-  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending'>('paid');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending' | 'cod'>('paid');
+  const [sendPaymentEmail, setSendPaymentEmail] = useState(true);
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentScreenshotUrl, setPaymentScreenshotUrl] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -171,6 +172,7 @@ export default function AdminOrders() {
 
   const [editPaymentMethod, setEditPaymentMethod] = useState<'upi' | 'cash' | 'card'>('upi');
   const [editPaymentStatus, setEditPaymentStatus] = useState<'paid' | 'pending' | 'cod'>('paid');
+  const [editSendPaymentEmail, setEditSendPaymentEmail] = useState(false);
   const [editPaymentReference, setEditPaymentReference] = useState('');
   const [editPaymentScreenshotUrl, setEditPaymentScreenshotUrl] = useState('');
   const [editDiscountAmount, setEditDiscountAmount] = useState('0');
@@ -215,6 +217,7 @@ export default function AdminOrders() {
     setPickerUnitPrice('');
     setPaymentMethod('upi');
     setPaymentStatus('paid');
+    setSendPaymentEmail(true);
     setPaymentReference('');
     setPaymentScreenshotUrl('');
     setDiscountAmount('0');
@@ -372,6 +375,7 @@ export default function AdminOrders() {
         })),
         paymentMethod,
         paymentStatus,
+        sendPaymentEmail: paymentStatus !== 'paid' && sendPaymentEmail && Boolean(customerEmail.trim()),
         paymentReference: paymentReference.trim(),
         paymentScreenshotUrl: paymentScreenshotUrl.trim(),
         shippingCharge: draftShipping,
@@ -379,7 +383,7 @@ export default function AdminOrders() {
         internalNotes: manualOrderNotes.trim(),
       };
 
-      const res = await apiRequest<{ ok: boolean; order: PersistedOrder; invoiceUrl: string }>(
+      const res = await apiRequest<{ ok: boolean; order: PersistedOrder; invoiceUrl: string; message?: string; paymentReminderSent?: boolean }>(
         '/api/admin/orders',
         {
           method: 'POST',
@@ -389,7 +393,7 @@ export default function AdminOrders() {
 
       setToast({
         type: 'ok',
-        text: `Manual order #${res.order.orderNumber} created! Final tax invoice generated.`,
+        text: res.message || `Manual order #${res.order.orderNumber} created! Final tax invoice generated.`,
       });
 
       setCreateModalOpen(false);
@@ -461,6 +465,7 @@ export default function AdminOrders() {
     const pm = (ord.paymentMethod || 'upi').toLowerCase();
     setEditPaymentMethod(pm === 'cash' ? 'cash' : pm === 'card' ? 'card' : 'upi');
     setEditPaymentStatus(ord.paymentStatus || 'paid');
+    setEditSendPaymentEmail(false);
     setEditPaymentReference(ord.paymentReference || '');
     setEditPaymentScreenshotUrl(ord.paymentScreenshotUrl || '');
     setEditDiscountAmount(String(ord.discountAmount || 0));
@@ -624,6 +629,7 @@ export default function AdminOrders() {
         })),
         paymentMethod: editPaymentMethod,
         paymentStatus: editPaymentStatus,
+        sendPaymentEmail: editPaymentStatus !== 'paid' && editSendPaymentEmail && Boolean(editCustomerEmail.trim()),
         paymentReference: editPaymentReference.trim(),
         paymentScreenshotUrl: editPaymentScreenshotUrl.trim(),
         shippingCharge: editDraftShipping,
@@ -631,7 +637,7 @@ export default function AdminOrders() {
         internalNotes: editInternalNotes.trim(),
       };
 
-      const res = await apiRequest<{ ok: boolean; message: string; order: PersistedOrder }>(
+      const res = await apiRequest<{ ok: boolean; message: string; order: PersistedOrder; paymentReminderSent?: boolean }>(
         `/api/admin/orders/${encodeURIComponent(editingOrder.orderNumber)}/manual-edit`,
         {
           method: 'PUT',
@@ -2134,6 +2140,46 @@ export default function AdminOrders() {
                 </div>
               </div>
 
+              {/* Payment Request Email Option (when payment is unpaid / pending / COD) */}
+              {paymentStatus !== 'paid' && (
+                <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#C8A96B] transition-all space-y-1.5">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendPaymentEmail}
+                      onChange={e => setSendPaymentEmail(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded text-[#183D32] accent-[#183D32] border-[#D8D1C3] cursor-pointer focus:ring-2 focus:ring-[#183D32]"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="font-semibold text-xs text-[#183D32] flex items-center gap-1.5 flex-wrap">
+                        <Mail className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Send Payment Request Email to Customer</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#183D32] text-[#DFC471] font-bold">
+                          Unpaid Order
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#5C6058] leading-relaxed">
+                        Automatically dispatches an itemized payment email with order balance ({formatINR(draftTotal)}), UPI payment ID, and payment proof submission instructions.
+                      </p>
+                    </div>
+                  </label>
+
+                  {sendPaymentEmail && (
+                    customerEmail.trim() ? (
+                      <div className="text-[11px] font-medium text-[#245746] flex items-center gap-1.5 pl-6 pt-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#245746] shrink-0" />
+                        <span>Payment reminder will be sent to: <strong>{customerEmail.trim()}</strong></span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] font-medium text-[#B25E09] flex items-center gap-1.5 pl-6 pt-0.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#B25E09] shrink-0" />
+                        <span>Please enter customer email in <strong>Customer &amp; Delivery Details</strong> above to dispatch this payment email.</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
               {/* Upload Payment Screenshot or Receipt */}
               <div className="pt-2 border-t border-[#E9E4D9]">
                 <label className="block text-[11px] font-semibold text-[#183D32] mb-1.5">
@@ -2613,6 +2659,46 @@ export default function AdminOrders() {
                   />
                 </div>
               </div>
+
+              {/* Payment Request Email Option (when payment is unpaid / pending / COD) */}
+              {editPaymentStatus !== 'paid' && (
+                <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#C8A96B] transition-all space-y-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editSendPaymentEmail}
+                      onChange={e => setEditSendPaymentEmail(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded text-[#183D32] accent-[#183D32] border-[#D8D1C3] cursor-pointer focus:ring-2 focus:ring-[#183D32]"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="font-semibold text-xs text-[#183D32] flex items-center gap-1.5 flex-wrap">
+                        <Mail className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Send Payment Request Email to Customer</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#183D32] text-[#DFC471] font-bold">
+                          Unpaid Order
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#5C6058] leading-relaxed">
+                        Dispatches an itemized payment email with updated order balance ({formatINR(editDraftTotal)}), UPI payment ID, and payment proof submission instructions.
+                      </p>
+                    </div>
+                  </label>
+
+                  {editSendPaymentEmail && (
+                    editCustomerEmail.trim() ? (
+                      <div className="text-[11px] font-medium text-[#245746] flex items-center gap-1.5 pl-6 pt-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#245746] shrink-0" />
+                        <span>Payment reminder will be sent to: <strong>{editCustomerEmail.trim()}</strong></span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] font-medium text-[#B25E09] flex items-center gap-1.5 pl-6 pt-0.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#B25E09] shrink-0" />
+                        <span>Please enter customer email in <strong>Customer &amp; Delivery Details</strong> above to dispatch this payment email.</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
 
               {/* Upload or Update Payment Screenshot */}
               <div className="pt-2 border-t border-[#E9E4D9]">

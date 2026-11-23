@@ -454,14 +454,13 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
 
         // PRE-FLIGHT INVENTORY VALIDATION (SEC-02)
         let currentProdStock = Number(prod.stock || 0);
-        if (matchedVariant && Number(matchedVariant.stock || 0) >= item.quantity && currentProdStock < stockDeduction) {
-          // Parent stock is desynchronized from active variant stock - heal parent stock
-          const neededStock = stockDeduction - currentProdStock;
-          await db.models.Product.updateOne(
-            { id: prod.id },
-            { $inc: { stock: neededStock }, $set: { inStock: true, updatedAt: now } }
+        if (matchedVariant && currentProdStock < stockDeduction) {
+          // If parent product stock is insufficient, clamp stale variant stock to actual packable units
+          const maxPacks = Math.max(0, Math.floor(currentProdStock / stockUnitsPerPack));
+          await db.models.ProductVariant.updateOne(
+            { id: matchedVariant.id },
+            { $set: { stock: maxPacks, active: maxPacks > 0, updatedAt: now } }
           );
-          currentProdStock = stockDeduction;
         }
 
         if (currentProdStock < stockDeduction) {
@@ -754,25 +753,14 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         );
 
         if (!updatedProd && ri.variantId) {
-          // If variant is present and has stock, heal parent product stock and re-attempt
-          const varDoc = await db.models.ProductVariant.findOne({ id: ri.variantId, stock: { $gte: ri.quantity } }).lean();
-          if (varDoc) {
-            await db.models.Product.updateOne(
-              { id: ri.productId },
-              { $inc: { stock: ri.stockQuantity }, $set: { inStock: true, updatedAt: now } }
-            );
-            updatedProd = await db.models.Product.findOneAndUpdate(
-              {
-                id: ri.productId,
-                stock: { $gte: ri.stockQuantity },
-              },
-              {
-                $inc: { stock: -ri.stockQuantity },
-                $set: { updatedAt: now },
-              },
-              { returnDocument: 'after' }
-            );
-          }
+          // If product stock is insufficient, clamp stale variant stock to prevent phantom checkout attempts
+          const currentProd = await db.models.Product.findOne({ id: ri.productId }).lean();
+          const pStock = Number(currentProd?.stock || 0);
+          const maxPacks = Math.max(0, Math.floor(pStock / Math.max(0.0001, ri.stockQuantity / ri.quantity)));
+          await db.models.ProductVariant.updateOne(
+            { id: ri.variantId },
+            { $set: { stock: maxPacks, active: maxPacks > 0, updatedAt: now } }
+          );
         }
 
         if (!updatedProd) {

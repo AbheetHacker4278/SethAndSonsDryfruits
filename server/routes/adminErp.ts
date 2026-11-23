@@ -1762,104 +1762,146 @@ export function createAdminErpRouter(
   });
 
   router.post('/inventory/adjust', requirePermission('inventory'), async (req, res) => {
-    const schema = z.object({
-      productId: z.string().min(1),
-      movementType: z.enum(['stock_in', 'stock_out', 'adjustment']),
-      quantity: z.number().nonnegative(),
-      reason: z.string().trim().min(2, 'Reason is required for inventory audit trail'),
-      unitCost: z.number().min(0).optional(),
-      batchNumber: z.string().trim().optional(),
-      expiryDate: z.string().trim().optional(),
-    });
+    const schema = z
+      .object({
+        productId: z.string().trim().optional(),
+        productIds: z.array(z.string().trim().min(1)).optional(),
+        movementType: z.enum(['stock_in', 'stock_out', 'adjustment']),
+        quantity: z.number().nonnegative(),
+        reason: z.string().trim().min(2, 'Reason is required for inventory audit trail'),
+        unitCost: z.number().min(0).optional(),
+        batchNumber: z.string().trim().optional(),
+        expiryDate: z.string().trim().optional(),
+      })
+      .refine(data => Boolean(data.productId || (data.productIds && data.productIds.length > 0)), {
+        message: 'At least one product must be selected for stock movement.',
+      });
+
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid adjustment input' });
       return;
     }
-    const { productId, movementType, quantity, reason, unitCost, batchNumber, expiryDate } = parsed.data;
-    const prod = await db.models.Product.findOne({ id: productId }).lean();
-    if (!prod) {
-      res.status(404).json({ error: 'Product not found.' });
+
+    const { productId, productIds, movementType, quantity, reason, unitCost, batchNumber, expiryDate } = parsed.data;
+    const targetProductIds: string[] = [];
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      targetProductIds.push(...productIds);
+    } else if (productId) {
+      targetProductIds.push(productId);
+    }
+    const uniqueProductIds = Array.from(new Set(targetProductIds.filter(Boolean)));
+    if (uniqueProductIds.length === 0) {
+      res.status(400).json({ error: 'No valid products provided for stock adjustment.' });
       return;
     }
 
-    const prevStock = Number(prod.stock || 0);
-    let updatedStock = prevStock;
-    if (movementType === 'stock_in') updatedStock = prevStock + quantity;
-    else if (movementType === 'stock_out') updatedStock = Math.max(0, prevStock - quantity);
-    else updatedStock = quantity;
-
     const now = new Date().toISOString();
-    const resolvedBatchNo = batchNumber || `BAT-${new Date().getFullYear()}-${crypto.randomInt(1000, 9999)}`;
-    if (movementType === 'stock_in') {
-      await db.models.InventoryBatch.create({
-        id: `batch_${crypto.randomUUID()}`,
-        productId,
-        batchNumber: resolvedBatchNo,
+    const results: Array<{ productId: string; productName: string; previousStock: number; updatedStock: number }> = [];
+
+    for (const pId of uniqueProductIds) {
+      const prod = await db.models.Product.findOne({ id: pId }).lean();
+      if (!prod) continue;
+
+      const prevStock = Number(prod.stock || 0);
+      let updatedStock = prevStock;
+      if (movementType === 'stock_in') updatedStock = Number((prevStock + quantity).toFixed(3));
+      else if (movementType === 'stock_out') updatedStock = Math.max(0, Number((prevStock - quantity).toFixed(3)));
+      else updatedStock = Number(quantity.toFixed(3));
+
+      const resolvedBatchNo = batchNumber || `BAT-${new Date().getFullYear()}-${crypto.randomInt(1000, 9999)}`;
+      if (movementType === 'stock_in') {
+        await db.models.InventoryBatch.create({
+          id: `batch_${crypto.randomUUID()}`,
+          productId: pId,
+          batchNumber: resolvedBatchNo,
+          quantity,
+          remainingQty: quantity,
+          purchaseCost: unitCost ?? prod.purchasePrice,
+          expiryDate: expiryDate || null,
+          notes: reason,
+          receivedAt: now,
+        });
+      }
+
+      await db.models.Product.updateOne(
+        { id: pId },
+        { $set: { stock: updatedStock, inStock: updatedStock > 0, updatedAt: now } }
+      );
+      await syncInventoryRecord(db, pId);
+      await clearResolvedStockAlerts(db, pId, updatedStock, Number(prod.minStockAlert ?? 5));
+
+      await db.models.InventoryTransaction.create({
+        id: `invtx_${crypto.randomUUID()}`,
+        productId: pId,
+        movementType,
         quantity,
-        remainingQty: quantity,
-        purchaseCost: unitCost ?? prod.purchasePrice,
-        expiryDate: expiryDate || null,
-        notes: reason,
-        receivedAt: now,
+        previousStock: prevStock,
+        updatedStock,
+        unitCost: unitCost ?? prod.purchasePrice,
+        batchNumber: movementType === 'stock_in' ? resolvedBatchNo : null,
+        reason: uniqueProductIds.length > 1 ? `[Bulk] ${reason}` : reason,
+        adminId: req.user!.id,
+        adminName: req.user!.name,
+        timestamp: now,
+      });
+
+      if (updatedStock <= 0) {
+        await createAdminNotification(db, {
+          type: 'out_of_stock',
+          title: `Out of Stock: ${prod.name}`,
+          message: `${prod.name} stock reached 0 (${reason}).`,
+          severity: 'critical',
+          entityType: 'product',
+          entityId: pId,
+        });
+      } else if (updatedStock <= Number(prod.minStockAlert ?? 5)) {
+        await createAdminNotification(db, {
+          type: 'low_stock',
+          title: `Low Stock Alert: ${prod.name}`,
+          message: `Stock is ${updatedStock} ${prod.unit} (alert level: ${prod.minStockAlert}).`,
+          severity: 'warning',
+          entityType: 'product',
+          entityId: pId,
+        });
+      }
+
+      await logAudit(db, {
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: `inventory_${movementType}`,
+        entityType: 'product',
+        entityId: pId,
+        details: { previousStock: prevStock, updatedStock, quantity, reason, isBulk: uniqueProductIds.length > 1 },
+        ipAddress: req.ip || '',
+      });
+
+      results.push({
+        productId: pId,
+        productName: prod.name,
+        previousStock: prevStock,
+        updatedStock,
       });
     }
 
-    await db.models.Product.updateOne(
-      { id: productId },
-      { $set: { stock: updatedStock, inStock: updatedStock > 0, updatedAt: now } }
-    );
-    await syncInventoryRecord(db, productId);
-    await clearResolvedStockAlerts(db, productId, updatedStock, Number(prod.minStockAlert ?? 5));
-
-    await db.models.InventoryTransaction.create({
-      id: `invtx_${crypto.randomUUID()}`,
-      productId,
-      movementType,
-      quantity,
-      previousStock: prevStock,
-      updatedStock,
-      unitCost: unitCost ?? prod.purchasePrice,
-      batchNumber: movementType === 'stock_in' ? resolvedBatchNo : null,
-      reason,
-      adminId: req.user!.id,
-      adminName: req.user!.name,
-      timestamp: now,
-    });
-
-    if (updatedStock <= 0) {
-      await createAdminNotification(db, {
-        type: 'out_of_stock',
-        title: `Out of Stock: ${prod.name}`,
-        message: `${prod.name} stock reached 0 (${reason}).`,
-        severity: 'critical',
-        entityType: 'product',
-        entityId: productId,
-      });
-    } else if (updatedStock <= Number(prod.minStockAlert ?? 5)) {
-      await createAdminNotification(db, {
-        type: 'low_stock',
-        title: `Low Stock Alert: ${prod.name}`,
-        message: `Stock is ${updatedStock} ${prod.unit} (alert level: ${prod.minStockAlert}).`,
-        severity: 'warning',
-        entityType: 'product',
-        entityId: productId,
-      });
+    if (results.length === 0) {
+      res.status(404).json({ error: 'None of the specified products were found in catalog.' });
+      return;
     }
 
     await checkAndEmitExpiryNotifications(db);
+    invalidatePublicCache();
 
-    await logAudit(db, {
-      actorId: req.user!.id,
-      actorEmail: req.user!.email,
-      action: `inventory_${movementType}`,
-      entityType: 'product',
-      entityId: productId,
-      details: { previousStock: prevStock, updatedStock, quantity, reason },
-      ipAddress: req.ip || '',
+    res.json({
+      message:
+        results.length === 1
+          ? 'Inventory updated and audit trail recorded.'
+          : `Bulk inventory updated for ${results.length} products and audit trail recorded.`,
+      count: results.length,
+      previousStock: results[0]?.previousStock ?? 0,
+      updatedStock: results[0]?.updatedStock ?? 0,
+      results,
     });
-
-    res.json({ message: 'Inventory updated and audit trail recorded.', previousStock: prevStock, updatedStock });
   });
 
   // =============================================
@@ -2404,12 +2446,26 @@ export function createAdminErpRouter(
       ipAddress: req.ip || '',
     });
 
+    let paymentReminderSent = false;
+    let paymentReminderRecipient = '';
+    if (Boolean(body.sendPaymentEmail) && paymentStatus !== 'paid') {
+      const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+      const reminderResult = await sendOrderPaymentReminder(createdOrder, origin, req.user);
+      if (reminderResult.sent) {
+        paymentReminderSent = true;
+        paymentReminderRecipient = reminderResult.recipient || '';
+      }
+    }
+
     const hydrated = (await hydrateOrder(db, createdOrder.toObject ? createdOrder.toObject() : createdOrder)) as any;
 
     res.status(201).json({
       ok: true,
-      message: `Manual order #${orderNumber} created successfully.`,
+      message: paymentReminderSent
+        ? `Manual order #${orderNumber} created! Payment request email sent to ${paymentReminderRecipient}.`
+        : `Manual order #${orderNumber} created successfully.`,
       order: hydrated,
+      paymentReminderSent,
       invoiceUrl: `/api/admin/orders/${encodeURIComponent(orderNumber)}/invoice.pdf`,
     });
   });
@@ -2659,22 +2715,74 @@ export function createAdminErpRouter(
     const updatedOrder = await db.models.Order.findOne({ orderNumber }).lean();
     const hydrated = await hydrateOrder(db, updatedOrder!);
 
+    let paymentReminderSent = false;
+    let paymentReminderRecipient = '';
+    if (Boolean(body.sendPaymentEmail) && (updateFields.paymentStatus || order.paymentStatus) !== 'paid') {
+      const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+      const reminderResult = await sendOrderPaymentReminder(updatedOrder, origin, req.user);
+      if (reminderResult.sent) {
+        paymentReminderSent = true;
+        paymentReminderRecipient = reminderResult.recipient || '';
+      }
+    }
+
     await logAudit(db, {
       actorId: req.user?.id || 'admin',
       actorEmail: req.user?.email || 'admin@sethandsons.com',
       action: 'manual_order_edited',
       entityType: 'order',
       entityId: orderNumber,
-      details: { newTotal: totalAmount, itemsCount: resolvedItems.length },
+      details: { newTotal: totalAmount, itemsCount: resolvedItems.length, paymentReminderSent },
       ipAddress: req.ip || '',
     });
 
     res.json({
       ok: true,
-      message: `Manual order #${orderNumber} updated successfully.`,
+      message: paymentReminderSent
+        ? `Manual order #${orderNumber} updated! Payment request email sent to ${paymentReminderRecipient}.`
+        : `Manual order #${orderNumber} updated successfully.`,
       order: hydrated,
+      paymentReminderSent,
     });
   });
+
+  async function sendOrderPaymentReminder(order: any, origin: string, user: any) {
+    try {
+      const mailData = await buildPaymentReminderEmail(order, origin);
+      if (!mailData.customerEmail) {
+        return { sent: false, error: 'No recipient email on file' };
+      }
+      const job = await queue.enqueue({
+        recipient: mailData.customerEmail,
+        customerId: order.customerId,
+        emailType: 'admin_direct_message',
+        relatedOrderId: order.id,
+        subject: mailData.subject,
+        html: mailData.html,
+        text: mailData.text,
+      });
+      if (job.jobId) {
+        await queue.processJobNow(job.jobId);
+      }
+      await db.models.Order.updateOne(
+        { id: order.id },
+        { $set: { lastPaymentReminderSentAt: new Date().toISOString() } }
+      );
+      await logAudit(db, {
+        actorId: user?.id || 'admin',
+        actorEmail: user?.email || 'admin@sethandsons.com',
+        action: 'payment_reminder_sent',
+        entityType: 'order',
+        entityId: order.orderNumber,
+        details: { recipient: mailData.customerEmail, amount: order.totalAmount, trigger: 'manual_order_flow' },
+        ipAddress: '',
+      });
+      return { sent: true, recipient: mailData.customerEmail };
+    } catch (err) {
+      console.warn('[PAYMENT REMINDER] Failed to dispatch payment email:', err);
+      return { sent: false, error: err instanceof Error ? err.message : 'Send failed' };
+    }
+  }
 
   // =============================================
   // 4B. UNPAID PAYMENT REQUEST REMINDERS
@@ -2760,7 +2868,7 @@ export function createAdminErpRouter(
                 Payment Method &amp; Status
               </div>
               <div style="display:inline-block;margin-top:4px;padding:4px 10px;background-color:#FFF4E5;border:1px solid #FFE2B8;border-radius:20px;color:#B25E09;font-weight:bold;font-size:12px;">
-                ${escapeHtml(order.paymentMethod || 'Concierge Invoice / COD')} (UNPAID)
+                ${escapeHtml(order.paymentMethod || 'Invoice / COD')} (UNPAID)
               </div>
             </td>
           </tr>
@@ -2816,17 +2924,12 @@ export function createAdminErpRouter(
         </div>
         <div style="padding:12px 16px;background-color:#ffffff;border:1px solid #E9E4D9;border-radius:8px;margin-bottom:12px;">
           <div style="font-size:11px;color:#888B83;text-transform:uppercase;letter-spacing:0.5px;">Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)</div>
-          <div style="font-family:monospace;font-size:16px;font-weight:bold;color:#064e3b;margin:4px 0;">sethandsons@okhdfcbank</div>
+          <div style="font-family:monospace;font-size:16px;font-weight:bold;color:#064e3b;margin:4px 0;">aseth9588-1@okhdfcbank</div>
           <div style="font-size:11px;color:#5C6058;">Beneficiary: Seth And Sons DryFruits</div>
         </div>
         <div style="font-size:12px;color:#5C6058;line-height:18px;">
-          Once completed, please reply directly to this email or share your payment screenshot / UTR with our Jammu Concierge at <strong>+91 91039 37573</strong> for instant ledger clearance.
+          Once completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at <strong>+91 6356038361</strong> for instant ledger clearance.
         </div>
-      </div>
-
-      <!-- CTA Invoice Button -->
-      <div style="margin:28px 0;text-align:center;">
-        ${ctaButtonHtml('View Official Tax Invoice', `${baseUrl.replace(/\/+$/, '')}/api/admin/orders/${encodeURIComponent(orderNumber)}/invoice.pdf`)}
       </div>
     `;
 
@@ -2842,7 +2945,7 @@ export function createAdminErpRouter(
     });
 
     const textItems = items.map(it => `- ${it.productName} (${it.weightLabel || it.quantity}): ₹${it.subtotal}`).join('\n');
-    const text = `Namaste ${customerName},\n\nThis is a payment reminder for your order #${orderNumber} placed on ${formattedDate}.\n\nItems Reserved:\n${textItems}\n\nTotal Amount Due: ${totalStr}\nPayment Method: ${order.paymentMethod || 'Concierge Invoice / COD'}\n\nPlease transfer ${totalStr} to UPI ID: sethandsons@okhdfcbank\n\nThank you for choosing Seth And Sons DryFruits.\nSupport: ${BRAND_CONFIG.supportEmail}`;
+    const text = `Namaste ${customerName},\n\nThis is a payment reminder for your order #${orderNumber} placed on ${formattedDate}.\n\nItems Reserved:\n${textItems}\n\nTotal Amount Due: ${totalStr}\nPayment Method: ${order.paymentMethod || 'Concierge Invoice / COD'}\n\nPlease transfer ${totalStr} to UPI ID: aseth9588-1@okhdfcbank\n\nOnce completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at +91 6356038361 for instant ledger clearance.\n\nThank you for choosing Seth And Sons DryFruits.\nSupport: ${BRAND_CONFIG.supportEmail}`;
 
     return {
       customerName,

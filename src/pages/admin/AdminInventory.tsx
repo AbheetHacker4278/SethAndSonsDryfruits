@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   PackageX,
   RefreshCw,
+  CheckSquare,
+  Layers,
+  Plus,
 } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 import {
@@ -88,6 +91,7 @@ export default function AdminInventory() {
 
   // Adjustment Form State
   const [productId, setProductId] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [movementType, setMovementType] = useState<'stock_in' | 'stock_out' | 'adjustment'>('stock_in');
   const [quantity, setQuantity] = useState('10');
   const [unitCost, setUnitCost] = useState('');
@@ -107,6 +111,10 @@ export default function AdminInventory() {
         setProductId(prev =>
           prev && res.products.some((p: any) => p.id === prev) ? prev : res.products[0].id
         );
+        setSelectedProductIds(prev => {
+          const valid = prev.filter(id => res.products.some((p: any) => p.id === id));
+          return valid.length > 0 ? valid : [res.products[0].id];
+        });
       }
     } catch (err) {
       setToast({
@@ -126,10 +134,23 @@ export default function AdminInventory() {
     setPage(1);
   }, [tab, searchQuery, healthFilter, categoryFilter, sortBy, onlyExpiringBatches]);
 
+  const allProducts = data?.products || [];
+  const allCategories = data?.categories || [];
+
   const selectedProduct = useMemo(() => {
     if (!data?.products) return null;
     return data.products.find((p: any) => p.id === productId) || data.products[0] || null;
   }, [data, productId]);
+
+  const selectedProducts = useMemo(() => {
+    if (!data?.products || selectedProductIds.length === 0) {
+      return selectedProduct ? [selectedProduct] : [];
+    }
+    const map = new Map(data.products.map((p: any) => [p.id, p]));
+    return selectedProductIds.map(id => map.get(id)).filter(Boolean);
+  }, [data, selectedProductIds, selectedProduct]);
+
+  const isMultiSelect = selectedProductIds.length > 1;
 
   const resultingPreview = useMemo(() => {
     if (!selectedProduct) return null;
@@ -146,8 +167,28 @@ export default function AdminInventory() {
     return { prev, next, unit: selectedProduct.unit || 'kg', health };
   }, [selectedProduct, movementType, quantity]);
 
-  const allProducts = data?.products || [];
-  const allCategories = data?.categories || [];
+  const multiResultingPreviews = useMemo(() => {
+    const delta = Math.max(0, Number(quantity) || 0);
+    return selectedProducts.map((prod: any) => {
+      const prev = Number(prod.stock || 0);
+      const next =
+        movementType === 'stock_in'
+          ? Number((prev + delta).toFixed(3))
+          : movementType === 'stock_out'
+          ? Math.max(0, Number((prev - delta).toFixed(3)))
+          : Number(delta.toFixed(3));
+      const min = Number(prod.minStockAlert ?? 5);
+      const health = next <= 0 ? 'out_of_stock' : next <= min ? 'low_stock' : 'active';
+      return {
+        id: prod.id,
+        name: prod.name,
+        prev,
+        next,
+        unit: prod.unit || 'kg',
+        health,
+      };
+    });
+  }, [selectedProducts, movementType, quantity]);
 
   const healthCounts = useMemo(() => {
     let healthy = 0;
@@ -238,8 +279,94 @@ export default function AdminInventory() {
   const safePage = Math.min(page, totalPages);
   const pagedRows = activeRows.slice((safePage - 1) * perPage, safePage * perPage);
 
+  const toggleProductSelection = (id: string) => {
+    setSelectedProductIds(prev => {
+      const exists = prev.includes(id);
+      let next: string[];
+      if (exists) {
+        next = prev.filter(x => x !== id);
+        if (next.length === 0 && data?.products?.length) {
+          next = [id];
+        }
+      } else {
+        next = [...prev, id];
+      }
+      if (next.length > 0 && !next.includes(productId)) {
+        setProductId(next[0]);
+      }
+      return next;
+    });
+  };
+
+  const selectAllOnPage = () => {
+    if (pagedRows.length === 0) return;
+    const pageIds = pagedRows.map((p: any) => p.id);
+    const allPageSelected = pageIds.every((id: string) => selectedProductIds.includes(id));
+    if (allPageSelected) {
+      const remaining = selectedProductIds.filter(id => !pageIds.includes(id));
+      setSelectedProductIds(remaining.length > 0 ? remaining : [pageIds[0]]);
+      setProductId(remaining.length > 0 ? remaining[0] : pageIds[0]);
+    } else {
+      const merged = Array.from(new Set([...selectedProductIds, ...pageIds]));
+      setSelectedProductIds(merged);
+      if (merged.length > 0) setProductId(merged[0]);
+    }
+  };
+
+  const selectAllFiltered = () => {
+    const ids = filteredStock.map((p: any) => p.id);
+    if (ids.length === 0) return;
+    setSelectedProductIds(ids);
+    setProductId(ids[0]);
+    setLiveMsg(`Selected all ${ids.length} filtered products for bulk stock movement.`);
+  };
+
+  const selectAllAlerts = () => {
+    const ids = criticalAlerts.map((p: any) => p.id);
+    if (ids.length > 0) {
+      setSelectedProductIds(ids);
+      setProductId(ids[0]);
+      setMovementType('stock_in');
+      setQuantity('10');
+      setReason('Restock alert replenishment');
+      setLiveMsg(`Selected all ${ids.length} low/out-of-stock products for bulk restock.`);
+      formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      requestAnimationFrame(() => qtyInputRef.current?.focus());
+    }
+  };
+
+  const clearSelection = () => {
+    const fallbackId = pagedRows[0]?.id || allProducts[0]?.id || productId;
+    setSelectedProductIds(fallbackId ? [fallbackId] : []);
+    if (fallbackId) setProductId(fallbackId);
+    setLiveMsg('Reset selection to single product mode.');
+  };
+
+  const removeSelectedProduct = (id: string) => {
+    setSelectedProductIds(prev => {
+      const next = prev.filter(x => x !== id);
+      if (next.length === 0 && data?.products?.length) {
+        return [data.products[0].id];
+      }
+      if (id === productId && next.length > 0) {
+        setProductId(next[0]);
+      }
+      return next;
+    });
+  };
+
+  const addProductToSelection = (id: string) => {
+    if (!id) return;
+    setSelectedProductIds(prev => {
+      if (prev.includes(id)) return prev;
+      return [...prev, id];
+    });
+    setProductId(id);
+  };
+
   const quickSelectForAdjustment = (p: any, defaultMovement: 'stock_in' | 'adjustment' = 'stock_in') => {
     setProductId(p.id);
+    setSelectedProductIds([p.id]);
     setMovementType(defaultMovement);
     const suggestedQty = p.unit === 'gram' || p.unit === 'ml' ? '250' : '10';
     setQuantity(suggestedQty);
@@ -253,11 +380,13 @@ export default function AdminInventory() {
     e.preventDefault();
     setToast(null);
     setSubmitting(true);
+    const targetIds = selectedProductIds.length > 0 ? selectedProductIds : [productId];
     try {
-      const res = await apiRequest<{ message: string }>('/api/admin/inventory/adjust', {
+      const res = await apiRequest<{ message: string; count?: number }>('/api/admin/inventory/adjust', {
         method: 'POST',
         body: {
-          productId,
+          productId: targetIds[0],
+          productIds: targetIds,
           movementType,
           quantity: Number(quantity),
           reason: reason.trim(),
@@ -493,17 +622,26 @@ export default function AdminInventory() {
                     {criticalAlerts.length} product{criticalAlerts.length === 1 ? '' : 's'} at or below minimum stock alert
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab('stock');
-                    setHealthFilter('alerts');
-                    setSortBy('critical');
-                  }}
-                  className="px-3 py-1 rounded-lg bg-[#8F6C2B] hover:bg-[#73551F] text-white font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
-                >
-                  Filter to Alerts ({criticalAlerts.length})
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllAlerts}
+                    className="px-3 py-1 rounded-lg bg-[#183D32] hover:bg-[#245746] text-white font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                  >
+                    Select All Low Stock ({criticalAlerts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('stock');
+                      setHealthFilter('alerts');
+                      setSortBy('critical');
+                    }}
+                    className="px-3 py-1 rounded-lg bg-[#8F6C2B] hover:bg-[#73551F] text-white font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                  >
+                    Filter to Alerts ({criticalAlerts.length})
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -537,32 +675,137 @@ export default function AdminInventory() {
             {/* Sticky Left Panel: Stock Movement Entry */}
             <div ref={formPanelRef} className="lg:col-span-4 lg:sticky lg:top-6">
               <AdminCard>
-                <h2 className="font-admin-serif text-xl font-semibold text-[#183D32] mb-1 flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4 text-[#C8A96B]" aria-hidden="true" />
-                  <span>Stock Movement Entry</span>
-                </h2>
-                <p className="text-xs text-[#5C6058] mb-4">
-                  Select a product below or click <strong>Adjust</strong> on any row to pre-fill.
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-admin-serif text-xl font-semibold text-[#183D32] flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-[#C8A96B]" aria-hidden="true" />
+                    <span>Stock Movement Entry</span>
+                  </h2>
+                  {isMultiSelect ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#183D32] text-[#DFC471] border border-[#183D32]">
+                      <Layers className="w-3 h-3" />
+                      {selectedProductIds.length} Products
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-xs text-[#5C6058] mb-3">
+                  {isMultiSelect
+                    ? `Updating stock for ${selectedProductIds.length} selected products simultaneously.`
+                    : 'Select a product below or use table checkboxes to update multiple items together.'}
                 </p>
 
-                <form onSubmit={handleAdjust} className="space-y-3.5 text-xs">
-                  <div>
-                    <label htmlFor="inv-product-select" className="block font-semibold text-[#252923] mb-1">
-                      Product <span className="text-[#C65B50]" aria-hidden="true">*</span>
-                    </label>
-                    <select
-                      id="inv-product-select"
-                      value={productId}
-                      onChange={e => setProductId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#F8F6F0] border border-[#D8D1C3] text-[#252923] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                {isMultiSelect && (
+                  <div className="mb-3.5 pb-2.5 border-b border-[#E9E4D9] flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[#183D32]">Bulk Mode Active</span>
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      className="text-[11px] font-semibold text-[#8F6C2B] hover:text-[#183D32] underline cursor-pointer"
                     >
-                      {allProducts.map((p: any) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} — {p.stock} {p.unit} ({p.sku || p.id})
-                        </option>
-                      ))}
-                    </select>
+                      Single Product Mode
+                    </button>
                   </div>
+                )}
+
+                <form onSubmit={handleAdjust} className="space-y-3.5 text-xs">
+                  {isMultiSelect ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="font-semibold text-[#252923]">
+                          Selected Products ({selectedProductIds.length}) <span className="text-[#C65B50]" aria-hidden="true">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (pagedRows.length > 0) {
+                              const pageIds = pagedRows.map((p: any) => p.id);
+                              setSelectedProductIds(Array.from(new Set([...selectedProductIds, ...pageIds])));
+                            }
+                          }}
+                          className="text-[11px] text-[#183D32] underline font-medium cursor-pointer"
+                        >
+                          + Add Current Page
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-[#F8F6F0] border border-[#D8D1C3] space-y-2 max-h-48 overflow-y-auto">
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedProducts.map((p: any) => (
+                            <span
+                              key={p.id}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-[#D8D1C3] text-[11px] text-[#183D32] font-semibold shadow-2xs"
+                            >
+                              <span className="truncate max-w-[140px]">{p.name}</span>
+                              <span className="text-[10px] text-[#5C6058] font-normal tabular-nums">({p.stock} {p.unit})</span>
+                              <button
+                                type="button"
+                                onClick={() => removeSelectedProduct(p.id)}
+                                className="p-0.5 rounded hover:bg-[#F0ECE1] text-[#888B83] hover:text-[#C65B50] cursor-pointer"
+                                aria-label={`Remove ${p.name} from selection`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="pt-2 border-t border-[#E9E4D9]">
+                          <select
+                            onChange={e => {
+                              if (e.target.value) {
+                                addProductToSelection(e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            defaultValue=""
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white border border-[#D8D1C3] text-[#4A4E47] focus:outline-none focus:ring-1 focus:ring-[#183D32]"
+                          >
+                            <option value="" disabled>+ Add another product to this batch...</option>
+                            {allProducts
+                              .filter((p: any) => !selectedProductIds.includes(p.id))
+                              .map((p: any) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} — {p.stock} {p.unit} ({p.sku || p.id})
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label htmlFor="inv-product-select" className="block font-semibold text-[#252923]">
+                          Product <span className="text-[#C65B50]" aria-hidden="true">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (pagedRows.length > 0) {
+                              setSelectedProductIds(pagedRows.slice(0, 3).map((p: any) => p.id));
+                            }
+                          }}
+                          className="text-[11px] text-[#183D32] underline font-medium cursor-pointer"
+                        >
+                          + Multi-Select Mode
+                        </button>
+                      </div>
+                      <select
+                        id="inv-product-select"
+                        value={productId}
+                        onChange={e => {
+                          setProductId(e.target.value);
+                          setSelectedProductIds([e.target.value]);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl bg-[#F8F6F0] border border-[#D8D1C3] text-[#252923] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                      >
+                        {allProducts.map((p: any) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — {p.stock} {p.unit} ({p.sku || p.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
@@ -582,7 +825,7 @@ export default function AdminInventory() {
                     </div>
                     <div>
                       <label htmlFor="inv-qty-input" className="block font-semibold text-[#252923] mb-1">
-                        Quantity ({selectedProduct?.unit || 'kg'}) <span className="text-[#C65B50]" aria-hidden="true">*</span>
+                        {isMultiSelect ? 'Qty per Product' : `Quantity (${selectedProduct?.unit || 'kg'})`} <span className="text-[#C65B50]" aria-hidden="true">*</span>
                       </label>
                       <input
                         id="inv-qty-input"
@@ -619,7 +862,37 @@ export default function AdminInventory() {
                   </div>
 
                   {/* Live Stock Resulting Preview */}
-                  {resultingPreview && (
+                  {isMultiSelect ? (
+                    <div className="p-3 rounded-xl bg-[#F4F1EA] border border-[#E2DDD2] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-[#5C6058]">
+                          Stock Preview ({selectedProducts.length} Items)
+                        </span>
+                        <span className="text-[11px] font-bold text-[#183D32]">
+                          {movementType === 'stock_in'
+                            ? `+${quantity} each`
+                            : movementType === 'stock_out'
+                            ? `-${quantity} each`
+                            : `Set to ${quantity}`}
+                        </span>
+                      </div>
+                      <div className="max-h-32 overflow-y-auto space-y-1 divide-y divide-[#E9E4D9]/70 pr-1">
+                        {multiResultingPreviews.slice(0, 5).map(item => (
+                          <div key={item.id} className="pt-1 first:pt-0 flex items-center justify-between text-[11px]">
+                            <span className="text-[#252923] truncate max-w-[160px] font-medium">{item.name}</span>
+                            <span className="font-semibold text-[#183D32] tabular-nums">
+                              {item.prev} → {item.next} {item.unit}
+                            </span>
+                          </div>
+                        ))}
+                        {multiResultingPreviews.length > 5 && (
+                          <div className="pt-1.5 text-[10px] text-[#5C6058] italic text-center">
+                            +{multiResultingPreviews.length - 5} more products will be updated
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : resultingPreview ? (
                     <div className="p-3 rounded-xl bg-[#F4F1EA] border border-[#E2DDD2] flex items-center justify-between gap-2">
                       <div>
                         <div className="text-[11px] text-[#5C6058]">Stock Preview After Save</div>
@@ -629,7 +902,7 @@ export default function AdminInventory() {
                       </div>
                       <StatusBadge status={resultingPreview.health} />
                     </div>
-                  )}
+                  ) : null}
 
                   {movementType === 'stock_in' && (
                     <div className="grid grid-cols-2 gap-2.5">
@@ -663,7 +936,9 @@ export default function AdminInventory() {
 
                   <div>
                     <label htmlFor="inv-unit-cost" className="block font-medium text-[#252923] mb-1">
-                      Purchase Cost (₹ per {selectedProduct?.weightLabel || selectedProduct?.unit || 'pack'}, optional)
+                      {isMultiSelect
+                        ? 'Purchase Cost (₹ per unit/pack, optional)'
+                        : `Purchase Cost (₹ per ${selectedProduct?.weightLabel || selectedProduct?.unit || 'pack'}, optional)`}
                     </label>
                     <input
                       id="inv-unit-cost"
@@ -671,7 +946,11 @@ export default function AdminInventory() {
                       min={0}
                       value={unitCost}
                       onChange={e => setUnitCost(e.target.value)}
-                      placeholder={selectedProduct ? `Current: ₹${selectedProduct.purchasePrice || 0}` : 'e.g. 850'}
+                      placeholder={
+                        isMultiSelect
+                          ? 'Optional cost override for batch'
+                          : selectedProduct ? `Current: ₹${selectedProduct.purchasePrice || 0}` : 'e.g. 850'
+                      }
                       className="w-full px-3 py-2 rounded-xl bg-[#F8F6F0] border border-[#D8D1C3] text-[#252923] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
                     />
                   </div>
@@ -707,9 +986,13 @@ export default function AdminInventory() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-3 rounded-xl bg-[#183D32] hover:bg-[#245746] disabled:opacity-60 text-white font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                    className="w-full py-3 rounded-xl bg-[#183D32] hover:bg-[#245746] disabled:opacity-60 text-white font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32] transition-colors"
                   >
-                    {submitting ? 'Recording Movement...' : 'Record Stock Movement'}
+                    {submitting
+                      ? 'Recording Movement...'
+                      : isMultiSelect
+                      ? `Record Stock Movement (${selectedProductIds.length} Products)`
+                      : 'Record Stock Movement'}
                   </button>
                 </form>
               </AdminCard>
@@ -912,6 +1195,42 @@ export default function AdminInventory() {
                       />
                     ) : (
                       <>
+                        {selectedProductIds.length > 0 && (
+                          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#E7F3EE] border border-[#B8DCD0] text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#183D32] tabular-nums">
+                                {selectedProductIds.length} Product{selectedProductIds.length === 1 ? '' : 's'} Selected
+                              </span>
+                              <span className="text-[#5C6058] hidden sm:inline">
+                                — ready to update at Stock Movement Entry
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={selectAllOnPage}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-[#B8DCD0] text-[11px] font-semibold text-[#183D32] hover:bg-[#F8F6F0] cursor-pointer"
+                              >
+                                Select Page ({pagedRows.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={selectAllFiltered}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-[#B8DCD0] text-[11px] font-semibold text-[#183D32] hover:bg-[#F8F6F0] cursor-pointer"
+                              >
+                                Select All Filtered ({filteredStock.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={clearSelection}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-[#D8D1C3] text-[11px] font-semibold text-[#5C6058] hover:text-[#C65B50] cursor-pointer"
+                              >
+                                Clear Selection
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="overflow-x-auto">
                           <table className="w-full text-left text-xs">
                             <caption className="sr-only">
@@ -919,6 +1238,22 @@ export default function AdminInventory() {
                             </caption>
                             <thead>
                               <tr className="border-b border-[#E9E4D9] text-[#5C6058] uppercase text-[11px]">
+                                <th scope="col" className="py-2.5 pl-3 pr-2 w-9">
+                                  <input
+                                    type="checkbox"
+                                    aria-label="Select all products on current page"
+                                    checked={pagedRows.length > 0 && pagedRows.every((p: any) => selectedProductIds.includes(p.id))}
+                                    ref={el => {
+                                      if (el) {
+                                        const someSelected = pagedRows.some((p: any) => selectedProductIds.includes(p.id));
+                                        const allSelected = pagedRows.length > 0 && pagedRows.every((p: any) => selectedProductIds.includes(p.id));
+                                        el.indeterminate = someSelected && !allSelected;
+                                      }
+                                    }}
+                                    onChange={selectAllOnPage}
+                                    className="w-4 h-4 rounded text-[#183D32] accent-[#183D32] border-[#D8D1C3] cursor-pointer focus:ring-2 focus:ring-[#183D32]"
+                                  />
+                                </th>
                                 <th scope="col" className="py-2.5 pr-3">Product</th>
                                 <th scope="col" className="py-2.5 pr-3">SKU</th>
                                 <th scope="col" className="py-2.5 pr-3">Available</th>
@@ -932,7 +1267,7 @@ export default function AdminInventory() {
                               {pagedRows.map((p: any) => {
                                 const health = computeProductHealth(p);
                                 const itemValuation = computeProductValuation(p);
-                                const isSelectedRow = p.id === productId;
+                                const isSelectedRow = selectedProductIds.includes(p.id);
                                 const ratioPct = Math.min(
                                   100,
                                   Math.round(
@@ -944,9 +1279,18 @@ export default function AdminInventory() {
                                   <tr
                                     key={p.id}
                                     className={`transition-colors ${
-                                      isSelectedRow ? 'bg-[#E7F3EE]/45' : 'hover:bg-[#F8F6F0]/70'
+                                      isSelectedRow ? 'bg-[#E7F3EE]/60 border-l-2 border-[#183D32]' : 'hover:bg-[#F8F6F0]/70'
                                     }`}
                                   >
+                                    <td className="py-3 pl-3 pr-2 w-9">
+                                      <input
+                                        type="checkbox"
+                                        aria-label={`Select ${p.name}`}
+                                        checked={selectedProductIds.includes(p.id)}
+                                        onChange={() => toggleProductSelection(p.id)}
+                                        className="w-4 h-4 rounded text-[#183D32] accent-[#183D32] border-[#D8D1C3] cursor-pointer focus:ring-2 focus:ring-[#183D32]"
+                                      />
+                                    </td>
                                     <td className="py-3 pr-3">
                                       <div className="flex items-center gap-2.5">
                                         <img
@@ -1005,9 +1349,17 @@ export default function AdminInventory() {
                                     <td className="py-3 text-right whitespace-nowrap">
                                       <button
                                         type="button"
-                                        onClick={() => quickSelectForAdjustment(p, 'stock_in')}
+                                        onClick={() => {
+                                          if (isSelectedRow && selectedProductIds.length === 1) {
+                                            quickSelectForAdjustment(p, 'stock_in');
+                                          } else {
+                                            toggleProductSelection(p.id);
+                                            setProductId(p.id);
+                                            formPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                          }
+                                        }}
                                         aria-label={`Adjust stock for ${p.name}`}
-                                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32] ${
+                                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32] transition-colors ${
                                           isSelectedRow
                                             ? 'bg-[#183D32] text-white border-[#183D32]'
                                             : 'bg-[#F8F6F0] text-[#183D32] border-[#D8D1C3] hover:border-[#183D32]'
