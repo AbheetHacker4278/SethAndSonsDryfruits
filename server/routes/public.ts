@@ -87,7 +87,7 @@ function parseProductRow(row: Record<string, any>) {
     variants: safeArr(row.variants, []),
     tasteProfile: row.tasteProfile,
     jammuStory: row.jammuStory,
-    inStock: Boolean(row.inStock),
+    inStock: Boolean(row.inStock && Number(row.stock ?? 0) > 0),
     harvestSeason: row.harvestSeason,
     nutrition: safeObj(row.nutrition, {}),
     status: row.status,
@@ -254,12 +254,12 @@ export function createPublicRouter(
 
     const catMap = new Map(categories.map(c => [String(c.id), String(c.name)]));
 
-    const visibleRows = req.user
-      ? rows
-      : rows.filter(r => !GUEST_HIDDEN_PRODUCT_IDS.includes(String(r.id)));
+    const isSuratUser = Boolean(req.user && isSuratCity(req.user.shippingAddress?.city));
+    const visibleRows = rows;
 
     const products = visibleRows.map(r => {
       const base = parseProductRow(r);
+      const effectiveInStock = isSuratUser ? Boolean(r.inStock && Number(r.stock ?? 0) > 0) : true;
       const baseCost = getProductBaseCost(base);
       const dynamicPrice = calculateDynamicSellingPrice(baseCost, userMargin);
       const dynamicDiscountPrice =
@@ -290,8 +290,8 @@ export function createPublicRouter(
             appliedProfitMargin: userMargin,
             sellingPrice: vDynamicPrice,
             discountPrice: vDynamicDiscount,
-            stock: Number(v.stock ?? 0),
-            active: Boolean(v.active),
+            stock: isSuratUser ? Number(v.stock ?? 0) : 999,
+            active: isSuratUser ? Boolean(v.active) : true,
           };
         });
 
@@ -303,6 +303,7 @@ export function createPublicRouter(
 
       return {
         ...publicBase,
+        inStock: effectiveInStock,
         appliedProfitMargin: userMargin,
         price: dynamicPrice,
         discountPrice: dynamicDiscountPrice,

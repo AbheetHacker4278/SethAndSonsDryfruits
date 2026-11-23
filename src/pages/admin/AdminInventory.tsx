@@ -1321,6 +1321,25 @@ export default function AdminInventory() {
                                       <div className="font-bold text-[#252923] tabular-nums">
                                         {p.stock} {p.unit}
                                       </div>
+                                      {/* Packet Stock Breakdown */}
+                                      {Array.isArray(p.packetsBreakdown) && p.packetsBreakdown.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1 mt-1 max-w-[240px]">
+                                          {p.packetsBreakdown.map((pb: any, idx: number) => (
+                                            <span
+                                              key={idx}
+                                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono leading-none border ${
+                                                pb.inStock
+                                                  ? 'bg-[#E7F3EE] text-[#183D32] border-[#B7DEC9]'
+                                                  : 'bg-[#FDEDEC] text-[#C65B50] border-[#F5B7B1]'
+                                              }`}
+                                              title={`${pb.label}: ${pb.count} packet(s) available`}
+                                            >
+                                              <span className="font-semibold">{pb.label}:</span>
+                                              <span>{pb.count} pk</span>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                       <div
                                         aria-hidden="true"
                                         className="w-16 h-1.5 rounded-full bg-[#ECE8DE] overflow-hidden mt-1"

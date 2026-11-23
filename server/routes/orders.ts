@@ -463,19 +463,21 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
           );
         }
 
-        if (currentProdStock < stockDeduction) {
-          console.warn('[ORDERS ROUTE] Insufficient stock:', prod.name, { currentProdStock, stockDeduction });
-          res.status(400).json({
-            error: `Insufficient stock for "${prod.name}". Only ${currentProdStock} ${prod.unit} available (requested: ${stockDeduction} ${prod.unit}).`,
-          });
-          return;
-        }
-        if (matchedVariant && Number(matchedVariant.stock || 0) < item.quantity) {
-          console.warn('[ORDERS ROUTE] Insufficient variant stock:', prod.name, matchedVariant.weightLabel, { stock: matchedVariant.stock, requested: item.quantity });
-          res.status(400).json({
-            error: `Pack "${matchedVariant.weightLabel}" for "${prod.name}" has only ${matchedVariant.stock} units remaining.`,
-          });
-          return;
+        if (isSurat) {
+          if (currentProdStock < stockDeduction) {
+            console.warn('[ORDERS ROUTE] Insufficient stock (Surat order):', prod.name, { currentProdStock, stockDeduction });
+            res.status(400).json({
+              error: `Insufficient stock for "${prod.name}". Only ${currentProdStock} ${prod.unit} available (requested: ${stockDeduction} ${prod.unit}).`,
+            });
+            return;
+          }
+          if (matchedVariant && Number(matchedVariant.stock || 0) < item.quantity) {
+            console.warn('[ORDERS ROUTE] Insufficient variant stock (Surat order):', prod.name, matchedVariant.weightLabel, { stock: matchedVariant.stock, requested: item.quantity });
+            res.status(400).json({
+              error: `Pack "${matchedVariant.weightLabel}" for "${prod.name}" has only ${matchedVariant.stock} units remaining.`,
+            });
+            return;
+          }
         }
 
         subtotal += lineSubtotal;

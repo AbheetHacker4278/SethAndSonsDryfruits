@@ -47,7 +47,7 @@ import {
   getVariantBaseCost,
   calculateDynamicSellingPrice,
 } from '../../utils/priceCalculator';
-import { calculateOrderShippingCharge, calculateCustomWeightPrice } from '../../../shared/catalogSeed';
+import { calculateOrderShippingCharge, calculateCustomWeightPrice, isSuratCity } from '../../../shared/catalogSeed';
 
 const COURIER_PARTNERS = [
   'Delhivery',
@@ -97,6 +97,9 @@ export default function AdminOrders() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submittingCreate, setSubmittingCreate] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [existingCustomers, setExistingCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [pricingTier, setPricingTier] = useState<'surat' | 'non_surat'>('surat');
 
   // Manual Order Form Fields
   const [orderSource, setOrderSource] = useState<'whatsapp' | 'phone' | 'direct' | 'instagram'>('whatsapp');
@@ -199,12 +202,97 @@ export default function AdminOrders() {
   const [reminderPreviewLoading, setReminderPreviewLoading] = useState(false);
   const [reminderPreviewDevice, setReminderPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
+  const getTierMargin = (tier: 'surat' | 'non_surat') => (tier === 'surat' ? 25 : 40);
+
+  const getProductTierPrice = (prod: any, tier: 'surat' | 'non_surat') => {
+    const margin = getTierMargin(tier);
+    const baseCost = getProductBaseCost(prod);
+    return calculateDynamicSellingPrice(baseCost, margin);
+  };
+
+  const getVariantTierPrice = (variant: any, tier: 'surat' | 'non_surat') => {
+    const margin = getTierMargin(tier);
+    const baseCost = getVariantBaseCost(variant);
+    return calculateDynamicSellingPrice(baseCost, margin);
+  };
+
+  const getCustomTierPrice = (prod: any, grams: number, tier: 'surat' | 'non_surat') => {
+    const margin = getTierMargin(tier);
+    const calc = calculateCustomWeightPrice(prod, grams, margin);
+    return calc.unitPrice;
+  };
+
+  const handlePricingTierChange = (newTier: 'surat' | 'non_surat') => {
+    setPricingTier(newTier);
+    const prod = catalogProducts.find(p => p.id === pickerProductId);
+    if (!prod) return;
+    if (pickerVariantId === 'custom') {
+      const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
+      setPickerUnitPrice(String(getCustomTierPrice(prod, g, newTier)));
+    } else if (pickerVariantId) {
+      const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
+      if (variant) {
+        setPickerUnitPrice(String(getVariantTierPrice(variant, newTier)));
+      } else {
+        setPickerUnitPrice(String(getProductTierPrice(prod, newTier)));
+      }
+    } else {
+      setPickerUnitPrice(String(getProductTierPrice(prod, newTier)));
+    }
+  };
+
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    if (!customerId) return;
+    const cust = existingCustomers.find(c => c.id === customerId);
+    if (!cust) return;
+    setCustomerName(cust.name || '');
+    setCustomerPhone(cust.phone || '');
+    setCustomerEmail(cust.email || '');
+    if (cust.address) {
+      setDeliveryAddress(cust.address.addressLine || '');
+      setCity(cust.address.city || '');
+      setState(cust.address.state || '');
+      setPincode(cust.address.pincode || '');
+      const isSurat = isSuratCity(cust.address.city);
+      handlePricingTierChange(isSurat ? 'surat' : 'non_surat');
+    }
+  };
+
   useEffect(() => {
-    fetchPublishedProducts().then(setCatalogProducts).catch(() => {});
+    apiRequest<{ products: any[] }>('/api/admin/erp/products')
+      .then(res => {
+        if (Array.isArray(res.products) && res.products.length > 0) {
+          setCatalogProducts(res.products);
+        } else {
+          fetchPublishedProducts().then(setCatalogProducts).catch(() => {});
+        }
+      })
+      .catch(() => {
+        fetchPublishedProducts().then(setCatalogProducts).catch(() => {});
+      });
   }, []);
+
+  useEffect(() => {
+    if (createModalOpen) {
+      apiRequest<{ customers: any[] }>('/api/admin/customers')
+        .then(res => setExistingCustomers(res.customers || []))
+        .catch(() => {});
+    }
+  }, [createModalOpen]);
+
+  useEffect(() => {
+    if (city && isSuratCity(city)) {
+      handlePricingTierChange('surat');
+    } else if (city && city.trim().length >= 3 && !isSuratCity(city)) {
+      handlePricingTierChange('non_surat');
+    }
+  }, [city]);
 
   const resetCreateForm = () => {
     setOrderSource('whatsapp');
+    setSelectedCustomerId('');
+    setPricingTier('surat');
     setCustomerName('');
     setCustomerPhone('');
     setCustomerEmail('');
@@ -239,10 +327,10 @@ export default function AdminOrders() {
     if (prod.weightVariants && prod.weightVariants.length > 0) {
       const firstVar = prod.weightVariants[0];
       setPickerVariantId(firstVar.id);
-      setPickerUnitPrice(String(firstVar.sellingPrice || prod.price));
+      setPickerUnitPrice(String(getVariantTierPrice(firstVar, pricingTier)));
     } else {
       setPickerVariantId('');
-      setPickerUnitPrice(String(prod.price));
+      setPickerUnitPrice(String(getProductTierPrice(prod, pricingTier)));
     }
   };
 
@@ -253,15 +341,14 @@ export default function AdminOrders() {
     if (varId === 'custom') {
       const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
       setPickerCustomGrams(String(g));
-      const calc = calculateCustomWeightPrice(prod, g);
-      setPickerUnitPrice(String(calc.unitPrice));
+      setPickerUnitPrice(String(getCustomTierPrice(prod, g, pricingTier)));
       return;
     }
     const variant = prod.weightVariants?.find((v: any) => v.id === varId);
     if (variant) {
-      setPickerUnitPrice(String(variant.sellingPrice || prod.price));
+      setPickerUnitPrice(String(getVariantTierPrice(variant, pricingTier)));
     } else {
-      setPickerUnitPrice(String(prod.price));
+      setPickerUnitPrice(String(getProductTierPrice(prod, pricingTier)));
     }
   };
 
@@ -271,8 +358,7 @@ export default function AdminOrders() {
     if (!prod) return;
     const g = Number(gramsStr);
     if (g > 0) {
-      const calc = calculateCustomWeightPrice(prod, g);
-      setPickerUnitPrice(String(calc.unitPrice));
+      setPickerUnitPrice(String(getCustomTierPrice(prod, g, pricingTier)));
     }
   };
 
@@ -1860,10 +1946,65 @@ export default function AdminOrders() {
 
             {/* 2. Customer Information */}
             <div className="p-3.5 rounded-xl bg-[#F8F6F0] border border-[#E9E4D9] space-y-2.5">
-              <div className="font-semibold text-[#183D32] flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-[#C8A96B]" />
-                <span>Customer & Delivery Details</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#E9E4D9]/70">
+                <div className="font-semibold text-[#183D32] flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-[#C8A96B]" />
+                  <span>Customer & Delivery Details</span>
+                </div>
+
+                {/* Pricing Tier Selector (Surat vs Non-Surat) */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-[#5C6058]">Pricing Tier:</span>
+                  <div className="inline-flex rounded-lg border border-[#DEC48C] p-0.5 bg-white shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => handlePricingTierChange('surat')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                        pricingTier === 'surat'
+                          ? 'bg-[#183D32] text-[#DFC471] shadow-xs'
+                          : 'text-[#5C6058] hover:text-[#183D32]'
+                      }`}
+                    >
+                      🏛️ Surat (25%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePricingTierChange('non_surat')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                        pricingTier === 'non_surat'
+                          ? 'bg-[#183D32] text-[#DFC471] shadow-xs'
+                          : 'text-[#5C6058] hover:text-[#183D32]'
+                      }`}
+                    >
+                      🚚 Non-Surat (40%)
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Existing Customer Selector */}
+              <div>
+                <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">
+                  Select Existing Patron (Optional)
+                </label>
+                <select
+                  value={selectedCustomerId}
+                  onChange={e => handleCustomerSelect(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9] text-xs font-medium text-[#183D32] focus:ring-1 focus:ring-[#183D32]"
+                >
+                  <option value="">-- Choose Existing Patron or Enter New Details Below --</option>
+                  {existingCustomers.map(c => {
+                    const cCity = c.address?.city || '';
+                    const isSurat = isSuratCity(cCity);
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.phone ? `(${c.phone})` : ''} {cCity ? `— ${cCity} ${isSurat ? '[Surat]' : '[Non-Surat]'}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Customer Name *</label>
@@ -1917,7 +2058,7 @@ export default function AdminOrders() {
                     required
                     value={city}
                     onChange={e => setCity(e.target.value)}
-                    placeholder="e.g. Jammu / Delhi"
+                    placeholder="e.g. Surat / Delhi / Jammu"
                     className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E9E4D9]"
                   />
                 </div>
@@ -1952,13 +2093,23 @@ export default function AdminOrders() {
                   <ShoppingBag className="w-3.5 h-3.5 text-[#C8A96B]" />
                   <span>Select Products from Catalog *</span>
                 </div>
-                <span className="text-[11px] text-[#888B83]">{orderItems.length} item(s) selected</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-[#8F6C2B] bg-[#FAF3E3] border border-[#DEC48C] px-2 py-0.5 rounded-md">
+                    {pricingTier === 'surat' ? 'Surat Pricing (25% Margin)' : 'Non-Surat Pricing (40% Margin)'}
+                  </span>
+                  <span className="text-[11px] text-[#888B83]">{orderItems.length} item(s) selected</span>
+                </div>
               </div>
 
               {/* Picker row */}
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-white p-3 rounded-xl border border-[#E9E4D9]">
                 <div className="sm:col-span-4">
-                  <label className="block text-[11px] font-medium text-[#5C6058] mb-0.5">Product</label>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="block text-[11px] font-medium text-[#5C6058]">Product</label>
+                    <span className="text-[10px] text-[#8F6C2B] font-semibold">
+                      {pricingTier === 'surat' ? '25% rate' : '40% rate'}
+                    </span>
+                  </div>
                   <select
                     value={pickerProductId}
                     onChange={e => handleProductSelect(e.target.value)}
@@ -1967,7 +2118,7 @@ export default function AdminOrders() {
                     <option value="">-- Choose from Catalog --</option>
                     {catalogProducts.map(p => (
                       <option key={p.id} value={p.id}>
-                        {p.name} (₹{p.price}/{p.unit})
+                        {p.name} (₹{getProductTierPrice(p, pricingTier)}/{p.unit})
                       </option>
                     ))}
                   </select>
@@ -1986,7 +2137,7 @@ export default function AdminOrders() {
                               handleVariantSelect(prod.weightVariants[0].id);
                             } else {
                               setPickerVariantId('');
-                              setPickerUnitPrice(String(prod?.price || ''));
+                              setPickerUnitPrice(String(getProductTierPrice(prod, pricingTier)));
                             }
                           } else {
                             handleVariantSelect('custom');
@@ -2053,18 +2204,13 @@ export default function AdminOrders() {
                         className="w-full px-2.5 py-1.5 rounded-lg bg-[#F8F6F0] border border-[#E9E4D9] text-xs"
                       >
                         {prod.weightVariants && prod.weightVariants.length > 0 ? (
-                          prod.weightVariants.map((v: any) => {
-                            const vCost = getVariantBaseCost(v);
-                            const p40 = v.sellingPrice || calculateDynamicSellingPrice(vCost, 40);
-                            const p25 = calculateDynamicSellingPrice(vCost, 25);
-                            return (
-                              <option key={v.id} value={v.id}>
-                                {v.weightLabel} — 40%: ₹{p40} | 25%: ₹{p25}
-                              </option>
-                            );
-                          })
+                          prod.weightVariants.map((v: any) => (
+                            <option key={v.id} value={v.id}>
+                              {v.weightLabel} — ₹{getVariantTierPrice(v, pricingTier)}
+                            </option>
+                          ))
                         ) : (
-                          <option value="">Standard ({prod.unit}) — ₹{prod.price}</option>
+                          <option value="">Standard ({prod.unit}) — ₹{getProductTierPrice(prod, pricingTier)}</option>
                         )}
                         <option value="custom">✨ Custom Weight (Enter Grams)...</option>
                       </select>

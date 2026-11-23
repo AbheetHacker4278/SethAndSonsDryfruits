@@ -159,7 +159,14 @@ export function getProductPackOptions(product: Pick<CatalogProduct, 'id' | 'sku'
       ? product.discountPrice
       : product.price;
   const baseSku = product.sku || product.id.toUpperCase();
-  const stockFallback = Math.max(5, Number(product.stock ?? 10));
+  const hasRawStock = typeof product.stock === 'number';
+  const pStock = hasRawStock ? Number(product.stock) : 10;
+  const getPackStock = (weightGrams: number, baseGrams: number = 1000) => {
+    if (!hasRawStock) return 10;
+    const ratio = Math.max(0.0001, weightGrams / baseGrams);
+    return Math.max(0, Math.floor(pStock / ratio));
+  };
+  const stockFallback = hasRawStock ? Math.max(0, Math.floor(pStock)) : 10;
 
   if (product.unit === 'gram') {
     const baseGrams = parseWeightGrams(product.weightLabel || '1g') || 1;
@@ -240,17 +247,17 @@ export function getProductPackOptions(product: Pick<CatalogProduct, 'id' | 'sku'
 
   if (product.variants && product.variants.includes('100g')) {
     return [
-      { id: `pack_${product.id}_100g`, productId: product.id, weightLabel: '100g', sku: `${baseSku}-100G`, sellingPrice: Math.round(baseSelling * 0.1), stock: stockFallback, active: true },
-      { id: `pack_${product.id}_250g`, productId: product.id, weightLabel: '250g', sku: `${baseSku}-250G`, sellingPrice: Math.round(baseSelling * 0.25), stock: stockFallback, active: true },
-      { id: `pack_${product.id}_500g`, productId: product.id, weightLabel: '500g', sku: `${baseSku}-500G`, sellingPrice: Math.round(baseSelling * 0.5), stock: stockFallback, active: true },
-      { id: `pack_${product.id}_1kg`, productId: product.id, weightLabel: '1kg', sku: `${baseSku}-1KG`, sellingPrice: Math.round(baseSelling), stock: stockFallback, active: true },
+      { id: `pack_${product.id}_100g`, productId: product.id, weightLabel: '100g', sku: `${baseSku}-100G`, sellingPrice: Math.round(baseSelling * 0.1), stock: getPackStock(100), active: true },
+      { id: `pack_${product.id}_250g`, productId: product.id, weightLabel: '250g', sku: `${baseSku}-250G`, sellingPrice: Math.round(baseSelling * 0.25), stock: getPackStock(250), active: true },
+      { id: `pack_${product.id}_500g`, productId: product.id, weightLabel: '500g', sku: `${baseSku}-500G`, sellingPrice: Math.round(baseSelling * 0.5), stock: getPackStock(500), active: true },
+      { id: `pack_${product.id}_1kg`, productId: product.id, weightLabel: '1kg', sku: `${baseSku}-1KG`, sellingPrice: Math.round(baseSelling), stock: getPackStock(1000), active: true },
     ];
   }
 
   return [
-    { id: `pack_${product.id}_250g`, productId: product.id, weightLabel: '250g', sku: `${baseSku}-250G`, sellingPrice: Math.round(baseSelling * 0.25), stock: stockFallback, active: true },
-    { id: `pack_${product.id}_500g`, productId: product.id, weightLabel: '500g', sku: `${baseSku}-500G`, sellingPrice: Math.round(baseSelling * 0.5), stock: stockFallback, active: true },
-    { id: `pack_${product.id}_1kg`, productId: product.id, weightLabel: '1kg', sku: `${baseSku}-1KG`, sellingPrice: Math.round(baseSelling), stock: stockFallback, active: true },
+    { id: `pack_${product.id}_250g`, productId: product.id, weightLabel: '250g', sku: `${baseSku}-250G`, sellingPrice: Math.round(baseSelling * 0.25), stock: getPackStock(250), active: true },
+    { id: `pack_${product.id}_500g`, productId: product.id, weightLabel: '500g', sku: `${baseSku}-500G`, sellingPrice: Math.round(baseSelling * 0.5), stock: getPackStock(500), active: true },
+    { id: `pack_${product.id}_1kg`, productId: product.id, weightLabel: '1kg', sku: `${baseSku}-1KG`, sellingPrice: Math.round(baseSelling), stock: getPackStock(1000), active: true },
   ];
 }
 

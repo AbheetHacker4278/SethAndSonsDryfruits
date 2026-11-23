@@ -93,12 +93,19 @@ export default function CartDrawer({
   onUpdateQuantity,
   onClearCart,
 }: CartDrawerProps) {
-  const { user } = useAuth();
+  const { user, isSurat: authIsSurat } = useAuth();
 
   const [submittedOrder, setSubmittedOrder] = useState<PersistedOrder | null>(null);
   const [checkoutError, setCheckoutError] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [resendVerificationMsg, setResendVerificationMsg] = useState('');
+  const [stockNotice, setStockNotice] = useState('');
+
+  useEffect(() => {
+    if (!stockNotice) return;
+    const timer = setTimeout(() => setStockNotice(''), 4500);
+    return () => clearTimeout(timer);
+  }, [stockNotice]);
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -207,6 +214,10 @@ export default function CartDrawer({
     return map;
   }, [products]);
 
+  const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
+  const isSurat = isSuratCity(effectiveShippingCity);
+  const isSuratCustomer = Boolean(user && (authIsSurat || isSurat || isSuratCity(user?.shippingAddress?.city)));
+
   // Active items in the cart
   const activeOrderItems = useMemo(() => {
     return Object.entries(cartItems)
@@ -222,6 +233,13 @@ export default function CartDrawer({
         const unitPrice = pack ? getEffectivePackPrice(pack) : product.price;
         const weightLabel = pack ? pack.weightLabel : null;
         const subtotal = Math.round(unitPrice * quantity);
+        const maxStock = isSuratCustomer
+          ? (pack && typeof pack.stock === 'number'
+              ? pack.stock
+              : (typeof product.stock === 'number' ? product.stock : 999))
+          : 999;
+        const isMaxReached = isSuratCustomer && quantity >= maxStock;
+
         return {
           cartKey,
           product,
@@ -231,10 +249,23 @@ export default function CartDrawer({
           unitPrice,
           quantity,
           subtotal,
+          maxStock,
+          isMaxReached,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [cartItems, products, packOptionsByProduct]);
+  }, [cartItems, products, packOptionsByProduct, isSuratCustomer]);
+
+  // Reconcile items exceeding available packet stock for Surat patrons
+  useEffect(() => {
+    if (!isSuratCustomer) return;
+    for (const it of activeOrderItems) {
+      if (it.quantity > it.maxStock) {
+        onUpdateQuantity(it.cartKey, Math.max(0, it.maxStock));
+        setStockNotice(`Adjusted ${it.product.name} (${it.weightLabel || ''}) to ${it.maxStock} packets (maximum available in stock).`);
+      }
+    }
+  }, [isSuratCustomer, activeOrderItems, onUpdateQuantity]);
 
   const bizRules = publicSettings?.business;
   const gstRatePct = typeof bizRules?.defaultGstRate === 'number' ? bizRules.defaultGstRate : 0;
@@ -242,9 +273,6 @@ export default function CartDrawer({
   const subtotal = activeOrderItems.reduce((sum, it) => sum + it.subtotal, 0);
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discountAmount, subtotal) : 0;
   const netAfterDiscount = Math.max(0, subtotal - discountAmount);
-
-  const effectiveShippingCity = (customer.city || user?.shippingAddress?.city || '').trim();
-  const isSurat = isSuratCity(effectiveShippingCity);
   const hasSavedAddress = Boolean(
     (customer.city && customer.pincode) ||
     (user?.shippingAddress?.city && user?.shippingAddress?.pincode) ||
@@ -446,6 +474,21 @@ export default function CartDrawer({
               <span className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold block mb-2">
                 Selected Products ({activeOrderItems.length})
               </span>
+              {stockNotice && (
+                <div className="p-3 mb-2 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>{stockNotice}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStockNotice('')}
+                    className="text-amber-400/80 hover:text-amber-200 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               {activeOrderItems.length === 0 ? (
                 <div className="p-5 text-center text-xs text-[#d5c4b4]/75 border border-dashed border-[#38281d] rounded-2xl">
                   Your bag is empty. Select a pack size from the catalog to proceed.
@@ -484,6 +527,16 @@ export default function CartDrawer({
                               {item.quantity} × {formatINR(item.unitPrice)}
                             </span>
                           </div>
+                          {isSuratCustomer && item.maxStock <= 0 && (
+                            <div className="text-[10px] text-rose-400 font-semibold mt-0.5">
+                              Out of stock (0 available)
+                            </div>
+                          )}
+                          {isSuratCustomer && item.maxStock > 0 && item.isMaxReached && (
+                            <div className="text-[10px] text-amber-400 font-semibold mt-0.5">
+                              Max available in stock ({item.maxStock} {item.maxStock === 1 ? 'pack' : 'packs'})
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -506,9 +559,20 @@ export default function CartDrawer({
                           </span>
                           <button
                             type="button"
+                            disabled={item.isMaxReached}
                             aria-label={`Increase quantity for ${item.product.name}`}
-                            onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
-                            className="w-6 h-6 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
+                            onClick={() => {
+                              if (item.isMaxReached) {
+                                setStockNotice(`Only ${item.maxStock} packet${item.maxStock === 1 ? '' : 's'} of ${item.weightLabel ? `${item.weightLabel} ` : ''}${item.product.name} available in stock.`);
+                                return;
+                              }
+                              onUpdateQuantity(item.cartKey, item.quantity + 1);
+                            }}
+                            className={`w-6 h-6 flex items-center justify-center ${
+                              item.isMaxReached
+                                ? 'text-[#dfc471]/30 cursor-not-allowed'
+                                : 'text-[#dfc471] hover:text-white cursor-pointer'
+                            }`}
                           >
                             <Plus className="w-3 h-3" />
                           </button>

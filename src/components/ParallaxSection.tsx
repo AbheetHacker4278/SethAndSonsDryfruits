@@ -89,10 +89,7 @@ export default function ParallaxSection({ onRequestPurchase }: ParallaxSectionPr
   const { products, user } = useAuth();
 
   const featured = useMemo(() => {
-    const baseCatalog = products && products.length > 0 ? products : PRODUCTS;
-    const catalog = !user
-      ? baseCatalog.filter(p => !GUEST_HIDDEN_PRODUCT_IDS.includes(p.id))
-      : baseCatalog;
+    const catalog = products && products.length > 0 ? products : PRODUCTS;
     const published = catalog.filter(p => !p.status || p.status === 'published');
     const sorted = [...published].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 

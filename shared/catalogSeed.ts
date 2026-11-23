@@ -30,6 +30,7 @@ export interface Product {
   discountPrice?: number | null;
   appliedProfitMargin?: number;
   stock?: number;
+  inStock?: boolean;
   unit: 'kg' | 'gram' | 'ml' | 'piece';
   weightLabel?: string;
   step: number;

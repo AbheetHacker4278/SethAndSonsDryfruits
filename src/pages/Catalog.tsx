@@ -55,6 +55,11 @@ import {
   RotateCcw,
   Eye,
   Package,
+  Ban,
+  Crown,
+  Maximize2,
+  Leaf,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -157,6 +162,14 @@ export default function Catalog({
   const navigate = useNavigate();
   const location = useLocation();
   const { user, products, categories: adminCategories, publicSettings, isSurat } = useAuth();
+  const isSuratUser = Boolean(user && (isSurat || isSuratCity(user?.shippingAddress?.city)));
+  const [stockLimitAlert, setStockLimitAlert] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!stockLimitAlert) return;
+    const timer = setTimeout(() => setStockLimitAlert(null), 3500);
+    return () => clearTimeout(timer);
+  }, [stockLimitAlert]);
 
   // Sidebar & Toolbar Filter States
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
@@ -197,6 +210,7 @@ export default function Catalog({
   const [detailActiveImgIndex, setDetailActiveImgIndex] = useState<number>(0);
   const [detailMediaTab, setDetailMediaTab] = useState<'photos' | 'video'>('photos');
   const [isDetailVideoMuted, setIsDetailVideoMuted] = useState<boolean>(true);
+  const [isDetailZoomed, setIsDetailZoomed] = useState<boolean>(false);
   const detailVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -219,9 +233,6 @@ export default function Catalog({
   useEffect(() => {
     if (!user) {
       setWishlistIds(new Set());
-      if (detailProduct && GUEST_HIDDEN_PRODUCT_IDS.includes(detailProduct.id)) {
-        setDetailProduct(null);
-      }
       return;
     }
 
@@ -454,14 +465,41 @@ export default function Catalog({
     const key = getPackDraftKey(productId, packId);
     setDraftPackCount(prev => {
       const current = prev[key] ?? (cartItems[key] > 0 ? cartItems[key] : 1);
-      const next = Math.max(1, current + delta);
+      let next = Math.max(1, current + delta);
+      if (isSuratUser) {
+        const prod = products.find(p => p.id === productId);
+        if (prod) {
+          const packs = packOptionsByProduct[prod.id] || getProductPackOptions(prod);
+          const pack = packs.find(v => v.id === packId);
+          const maxStock = pack && typeof pack.stock === 'number'
+            ? pack.stock
+            : (typeof prod.stock === 'number' ? prod.stock : 999);
+          if (maxStock <= 0) {
+            next = 1;
+            setStockLimitAlert(`Sorry, ${pack?.weightLabel || ''} pack is currently out of stock.`);
+          } else if (next > maxStock) {
+            next = maxStock;
+            setStockLimitAlert(`Only ${maxStock} packet${maxStock === 1 ? '' : 's'} of ${pack?.weightLabel || ''} available in stock.`);
+          }
+        }
+      }
       return { ...prev, [key]: next };
     });
   };
 
   const handleAddPackToCart = (product: CatalogProduct, pack: ProductWeightVariant) => {
     const key = getPackDraftKey(product.id, pack.id);
-    const qtyToAdd = getDraftQty(product.id, pack.id);
+    let qtyToAdd = getDraftQty(product.id, pack.id);
+    if (isSuratUser && typeof pack.stock === 'number') {
+      if (pack.stock <= 0) {
+        setStockLimitAlert(`Sorry, ${pack.weightLabel} pack is currently out of stock.`);
+        return;
+      }
+      if (qtyToAdd > pack.stock) {
+        qtyToAdd = pack.stock;
+        setStockLimitAlert(`Only ${pack.stock} packet${pack.stock === 1 ? '' : 's'} of ${pack.weightLabel} available in stock.`);
+      }
+    }
     onUpdateQuantity(key, qtyToAdd);
     setAddedAnimationKey(key);
     setTimeout(() => setAddedAnimationKey(null), 1600);
@@ -883,6 +921,15 @@ export default function Catalog({
     ? getSelectedPackForProduct(detailProduct)
     : null;
 
+  const isDetailOutOfStock = Boolean(
+    isSuratUser &&
+    detailProduct && (
+      !detailProduct.inStock ||
+      (typeof detailProduct.stock === 'number' && detailProduct.stock <= 0) ||
+      (typeof detailSelectedPack?.stock === 'number' && detailSelectedPack.stock <= 0)
+    )
+  );
+
   return (
     <div className="min-h-screen bg-[#0d0805] text-[#ede4dc] pt-20 sm:pt-28 pb-20 sm:pb-24">
       <a
@@ -1204,6 +1251,15 @@ export default function Catalog({
                   const inCartQty = cartItems[draftKey] || 0;
                   const isJustAdded = addedAnimationKey === draftKey;
                   const isWishlisted = wishlistIds.has(product.id);
+                  const maxAvailablePacks = typeof selectedPack.stock === 'number' ? selectedPack.stock : 999;
+                  const isPackAtMax = Boolean(isSuratUser && draftQty >= maxAvailablePacks);
+                  const isCardOutOfStock = Boolean(
+                    isSuratUser && (
+                      !product.inStock ||
+                      (typeof product.stock === 'number' && product.stock <= 0) ||
+                      (typeof selectedPack?.stock === 'number' && selectedPack.stock <= 0)
+                    )
+                  );
 
                   const openDetails = () => {
                     setDetailProduct(product);
@@ -1242,6 +1298,30 @@ export default function Catalog({
                             onClick={openDetails}
                             className="w-full h-full object-cover transform transition-transform duration-700 group-hover/img:scale-105 cursor-pointer"
                           />
+
+                          {/* Out of Stock Overlay */}
+                          {isCardOutOfStock && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center p-3 bg-black/45 backdrop-blur-[2px] pointer-events-none">
+                              <div className="px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl bg-[#0d0805]/90 border border-[#dfc471]/60 shadow-[0_8px_30px_rgba(0,0,0,0.9),0_0_20px_rgba(223,196,113,0.18)] backdrop-blur-md text-center max-w-[210px] w-full flex flex-col items-center">
+                                <div className="relative inline-flex items-center justify-center mb-1">
+                                  <svg className="w-8 h-8 text-[#dfc471]" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M24 7 L40 15 L24 23 L8 15 Z" />
+                                    <path d="M8 15 L8 33 L24 41 L24 23" />
+                                    <path d="M40 15 L40 33 L24 41" />
+                                    <path d="M24 15 L24 23" />
+                                    <circle cx="34" cy="34" r="8.5" className="fill-[#150d09] stroke-[#dfc471]" strokeWidth="2.5" />
+                                    <line x1="28" y1="28" x2="40" y2="40" className="stroke-[#dfc471]" strokeWidth="2.5" />
+                                  </svg>
+                                </div>
+                                <span className="font-serif text-base sm:text-lg font-semibold text-[#f9f6f2] tracking-tight">
+                                  Out of Stock
+                                </span>
+                                <span className="text-[10px] text-[#d5c4b4]/90 font-serif italic mt-0.5">
+                                  Currently unavailable
+                                </span>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="absolute top-3 left-3 z-20 pointer-events-none flex flex-wrap gap-1.5 max-w-[75%]">
                             <span className="text-[10px] tracking-wider uppercase font-medium bg-[#0d0805]/90 backdrop-blur-md text-[#dfc471] px-2.5 py-1 rounded-full border border-[#38281d]">
@@ -1348,10 +1428,14 @@ export default function Catalog({
                               </div>
                               <span
                                 className={`text-[11px] font-medium ${
-                                  product.inStock ? 'text-emerald-400' : 'text-amber-400'
+                                  isCardOutOfStock
+                                    ? 'text-rose-400 font-semibold'
+                                    : 'text-emerald-400'
                                 }`}
                               >
-                                {product.inStock ? '✓ In Stock' : 'Limited Stock'}
+                                {isCardOutOfStock
+                                  ? '• Out of Stock'
+                                  : '✓ In Stock'}
                               </span>
                             </div>
 
@@ -1397,70 +1481,101 @@ export default function Catalog({
                           </div>
 
                           {/* Pack Quantity Stepper & Add CTA */}
-                          <div className="pt-4 mt-4 border-t border-[#251a13]">
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="text-xs text-[#d5c4b4]">Packs:</span>
-                              <div className="inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-lg p-0.5">
-                                <button
-                                  type="button"
-                                  aria-label={`Decrease packs of ${product.name} (${selectedPack.weightLabel})`}
-                                  onClick={() =>
-                                    handleDraftPackCountChange(product.id, selectedPack.id, -1)
-                                  }
-                                  className="w-7 h-7 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className="w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums">
-                                  {draftQty} × {selectedPack.weightLabel}
-                                </span>
-                                <button
-                                  type="button"
-                                  aria-label={`Increase packs of ${product.name} (${selectedPack.weightLabel})`}
-                                  onClick={() =>
-                                    handleDraftPackCountChange(product.id, selectedPack.id, 1)
-                                  }
-                                  className="w-7 h-7 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
+                          <div className="pt-3.5 mt-3.5 border-t border-[#251a13] space-y-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs text-[#d5c4b4] shrink-0">Packs:</span>
+                                <div className="inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-lg p-0.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    aria-label={`Decrease packs of ${product.name} (${selectedPack.weightLabel})`}
+                                    onClick={() =>
+                                      handleDraftPackCountChange(product.id, selectedPack.id, -1)
+                                    }
+                                    className="w-7 h-7 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="w-14 sm:w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums px-0.5">
+                                    {draftQty} × {selectedPack.weightLabel}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={isCardOutOfStock || isPackAtMax}
+                                    aria-label={`Increase packs of ${product.name} (${selectedPack.weightLabel})`}
+                                    onClick={() => {
+                                      if (isPackAtMax) {
+                                        setStockLimitAlert(`Only ${maxAvailablePacks} packet${maxAvailablePacks === 1 ? '' : 's'} of ${selectedPack.weightLabel} available in stock.`);
+                                        return;
+                                      }
+                                      handleDraftPackCountChange(product.id, selectedPack.id, 1);
+                                    }}
+                                    className={`w-7 h-7 flex items-center justify-center ${
+                                      isCardOutOfStock || isPackAtMax
+                                        ? 'text-[#dfc471]/30 cursor-not-allowed'
+                                        : 'text-[#dfc471] hover:text-white cursor-pointer'
+                                    }`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex items-baseline gap-1.5 ml-auto">
+
+                              <div className="flex items-baseline gap-1.5 shrink-0 text-right">
                                 {cardHasValidDiscount && (
                                   <span className="text-[11px] line-through text-[#d5c4b4]/60 tabular-nums font-normal">
                                     {formatINR(Math.round(cardUnitMrp * draftQty))}
                                   </span>
                                 )}
-                                <span className="text-xs font-bold text-[#dfc471] tabular-nums">
+                                <span className="text-xs sm:text-sm font-bold text-[#dfc471] tabular-nums">
                                   = {formatINR(Math.round(packPrice * draftQty))}
                                 </span>
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleAddPackToCart(product, selectedPack);
-                              }}
-                              className={`w-full py-3 rounded-full text-xs font-semibold tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${
-                                isJustAdded
-                                  ? 'bg-emerald-600 text-white'
-                                  : inCartQty > 0
-                                  ? 'bg-[#251a13] text-[#dfc471] border border-[#dfc471]/60 hover:bg-[#dfc471] hover:text-[#0d0805]'
-                                  : 'bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-lg'
-                              }`}
-                            >
-                              {isJustAdded ? (
-                                <Check className="w-4 h-4" />
-                              ) : (
-                                <ShoppingBag className="w-4 h-4" />
-                              )}
-                              <span>
-                                {inCartQty > 0
-                                  ? `Update ${selectedPack.weightLabel} & Checkout`
-                                  : `Add ${selectedPack.weightLabel} Pack & Checkout`}
-                              </span>
-                            </button>
+                            {/* Stock Limit Notice for Surat Patrons */}
+                            {isPackAtMax && typeof selectedPack.stock === 'number' && selectedPack.stock > 0 && (
+                              <div className="flex items-center justify-between px-2 py-1 rounded-md bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-300 font-medium">
+                                <span>Max {selectedPack.stock} {selectedPack.stock === 1 ? 'pack' : 'packs'} available in stock</span>
+                                <span className="text-[10px] text-amber-400/80 uppercase font-semibold">Limit reached</span>
+                              </div>
+                            )}
+
+                            {isCardOutOfStock ? (
+                              <button
+                                type="button"
+                                disabled
+                                className="w-full py-3 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#18120d] text-[#888B83] border border-[#38281d] flex items-center justify-center gap-2 cursor-not-allowed shadow-none"
+                              >
+                                <Ban className="w-3.5 h-3.5 text-[#888B83]" />
+                                <span>Out of Stock</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleAddPackToCart(product, selectedPack);
+                                }}
+                                className={`w-full py-3 rounded-full text-xs font-semibold tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${
+                                  isJustAdded
+                                    ? 'bg-emerald-600 text-white'
+                                    : inCartQty > 0
+                                    ? 'bg-[#251a13] text-[#dfc471] border border-[#dfc471]/60 hover:bg-[#dfc471] hover:text-[#0d0805]'
+                                    : 'bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 shadow-lg'
+                                }`}
+                              >
+                                {isJustAdded ? (
+                                  <Check className="w-4 h-4" />
+                                ) : (
+                                  <ShoppingBag className="w-4 h-4" />
+                                )}
+                                <span>
+                                  {inCartQty > 0
+                                    ? `Update ${selectedPack.weightLabel} & Checkout`
+                                    : `Add ${selectedPack.weightLabel} Pack & Checkout`}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </article>
@@ -1564,8 +1679,8 @@ export default function Catalog({
                   )}
 
                   {detailMediaTab === 'photos' || !detailProduct.videoUrl ? (
-                    <div className="space-y-2.5">
-                      <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#1c120c] border border-[#38281d]">
+                    <div className="space-y-3">
+                      <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#1c120c] border border-[#38281d] group/modalImg">
                         <img
                           src={
                             detailProduct.image ||
@@ -1582,6 +1697,79 @@ export default function Catalog({
                           }}
                           className="w-full h-full object-cover"
                         />
+
+                        {/* Premium Quality Badge */}
+                        <div className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0d0805]/85 backdrop-blur-md border border-[#dfc471]/40 text-[#dfc471] text-xs font-medium shadow-lg pointer-events-none">
+                          <Crown className="w-3.5 h-3.5 text-[#dfc471]" />
+                          <span>Premium Quality</span>
+                        </div>
+
+                        {/* Wishlist Heart Toggle */}
+                        <button
+                          type="button"
+                          onClick={e => handleToggleWishlist(detailProduct.id, e)}
+                          aria-label={wishlistIds.has(detailProduct.id) ? `Remove ${detailProduct.name} from wishlist` : `Save ${detailProduct.name} to wishlist`}
+                          className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-[#0d0805]/85 backdrop-blur-md border border-[#dfc471]/40 flex items-center justify-center text-[#dfc471] hover:bg-[#dfc471] hover:text-[#0d0805] transition-all cursor-pointer shadow-lg"
+                        >
+                          <Heart className={`w-4 h-4 ${wishlistIds.has(detailProduct.id) ? 'fill-[#dfc471] text-[#dfc471]' : 'text-[#dfc471]'}`} />
+                        </button>
+
+                        {/* Out of Stock Luxury Glass Overlay */}
+                        {isDetailOutOfStock && (
+                          <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/55 backdrop-blur-[2px] pointer-events-none">
+                            <div className="px-6 py-5 rounded-2xl bg-[#0d0805]/92 border border-[#dfc471]/60 shadow-[0_12px_40px_rgba(0,0,0,0.95),0_0_25px_rgba(223,196,113,0.25)] backdrop-blur-md text-center max-w-[260px] w-full flex flex-col items-center">
+                              <div className="relative inline-flex items-center justify-center mb-2">
+                                <svg className="w-12 h-12 text-[#dfc471] drop-shadow-[0_2px_10px_rgba(223,196,113,0.3)]" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M24 7 L40 15 L24 23 L8 15 Z" />
+                                  <path d="M8 15 L8 33 L24 41 L24 23" />
+                                  <path d="M40 15 L40 33 L24 41" />
+                                  <path d="M24 15 L24 23" />
+                                  <circle cx="34" cy="34" r="8.5" className="fill-[#150d09] stroke-[#dfc471]" strokeWidth="2.5" />
+                                  <line x1="28" y1="28" x2="40" y2="40" className="stroke-[#dfc471]" strokeWidth="2.5" />
+                                </svg>
+                              </div>
+                              <span className="font-serif text-2xl font-bold text-[#f9f6f2] tracking-tight">
+                                Out of Stock
+                              </span>
+                              <span className="text-xs text-[#dfc471]/85 font-serif italic mt-1">
+                                — Currently unavailable —
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* + Zoom Button */}
+                        <button
+                          type="button"
+                          onClick={() => setIsDetailZoomed(true)}
+                          aria-label="Zoom product image"
+                          className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0d0805]/85 backdrop-blur-md border border-[#38281d] hover:border-[#dfc471]/60 text-xs text-[#ede4dc] transition-all cursor-pointer shadow-lg"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5 text-[#dfc471]" />
+                          <span>+ Zoom</span>
+                        </button>
+                      </div>
+
+                      {/* Trust Features Strip below Image */}
+                      <div className="grid grid-cols-3 gap-2 py-3 px-2 border border-[#38281d] bg-[#120a07] rounded-xl">
+                        <div className="flex items-center gap-1.5 text-center justify-center text-[#dfc471]/90">
+                          <Leaf className="w-4 h-4 text-[#dfc471] shrink-0" />
+                          <span className="text-[11px] leading-tight font-medium text-[#ede4dc]/90">
+                            100% Natural & Pure
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-center justify-center text-[#dfc471]/90 border-x border-[#38281d] px-1">
+                          <ShieldCheck className="w-4 h-4 text-[#dfc471] shrink-0" />
+                          <span className="text-[11px] leading-tight font-medium text-[#ede4dc]/90">
+                            No Preservatives
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-center justify-center text-[#dfc471]/90">
+                          <Sparkles className="w-4 h-4 text-[#dfc471] shrink-0" />
+                          <span className="text-[11px] leading-tight font-medium text-[#ede4dc]/90">
+                            Rich in Nutrition
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -1612,69 +1800,22 @@ export default function Catalog({
                 </div>
 
                 <div className="space-y-4">
-                  <div className="text-xs uppercase tracking-wider text-[#dfc471]">
+                  <div className="text-xs uppercase tracking-wider text-[#dfc471] font-semibold">
                     {detailProduct.grade} • {detailProduct.origin}
                   </div>
-                  <h2 id="detail-modal-title" className="font-serif text-3xl text-[#f9f6f2]">
+                  <h2 id="detail-modal-title" className="font-serif text-2xl sm:text-3xl text-[#f9f6f2] font-semibold">
                     {detailProduct.name}
                   </h2>
-                  <p className="text-sm text-[#d5c4b4]/90">{detailProduct.description}</p>
+                  <p className="text-sm text-[#d5c4b4]/90 leading-relaxed">{detailProduct.description}</p>
 
-                  {/* Pack Selection inside Modal */}
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="uppercase tracking-wider text-[#dfc471] font-semibold">
-                        Select Pack Weight
-                      </span>
-                      <span className="text-[11px] text-[#d5c4b4]/75">
-                        SKU: {detailSelectedPack.sku}
-                      </span>
-                    </div>
-                    <div
-                      className="grid grid-cols-3 gap-2"
-                      role="group"
-                      aria-label={`Select pack weight for ${detailProduct.name}`}
-                    >
-                      {detailPacks.map(pack => {
-                        const isSelected = pack.id === detailSelectedPack.id;
-                        const pPrice = getEffectivePackPrice(pack);
-                        return (
-                          <button
-                            key={pack.id}
-                            type="button"
-                            onClick={() =>
-                              setSelectedPackIdByProduct(prev => ({
-                                ...prev,
-                                [detailProduct.id]: pack.id,
-                              }))
-                            }
-                            aria-pressed={isSelected}
-                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471] ${
-                              isSelected
-                                ? 'bg-[#dfc471] text-[#0d0805] border-[#dfc471] shadow-md'
-                                : 'bg-[#1c120c] text-[#ede4dc] border-[#38281d] hover:border-[#dfc471]/60'
-                            }`}
-                          >
-                            <div className="text-xs font-bold">{pack.weightLabel}</div>
-                            <div
-                              className={`text-[11px] tabular-nums ${
-                                isSelected ? 'text-[#0d0805]/90' : 'text-[#dfc471]'
-                              }`}
-                            >
-                              {formatINR(pPrice)}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Active Pack Price + Qty Stepper */}
+                  {/* Active Pack Price + Discount + Stock Status + Stepper */}
                   {(() => {
                     const draftQty = getDraftQty(detailProduct.id, detailSelectedPack.id);
                     const effectiveUnitSellingPrice = getEffectivePackPrice(detailSelectedPack);
                     const isSuratCustomer = Boolean(!user || isSurat || isSuratCity(user?.shippingAddress?.city));
                     const defaultDiscountPercent = isSuratCustomer ? 25 : 40;
+                    const maxDetailStock = typeof detailSelectedPack.stock === 'number' ? detailSelectedPack.stock : 999;
+                    const isDetailPackAtMax = Boolean(isSuratUser && draftQty >= maxDetailStock);
 
                     let unitMrp: number;
                     let discountPercent: number;
@@ -1700,75 +1841,188 @@ export default function Catalog({
                     const hasValidDiscount = mrpTotal > currentTotal && discountPercent > 0;
 
                     return (
-                      <div className="p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[11px] text-[#d5c4b4]/75 block mb-1">
-                            Selected: {detailSelectedPack.weightLabel} Pack
+                      <div className="space-y-4">
+                        {/* Price & Stock Row */}
+                        <div className="flex items-baseline flex-wrap gap-2.5 pt-1">
+                          <span className="font-bold text-2xl sm:text-3xl text-[#dfc471] tabular-nums">
+                            {formatINR(effectiveUnitSellingPrice)}
                           </span>
-                          <div className="flex items-baseline flex-wrap gap-2.5">
-                            <span className="font-bold text-2xl sm:text-3xl text-[#dfc471] tabular-nums">
-                              {formatINR(currentTotal)}
+                          {hasValidDiscount && (
+                            <>
+                              <span className="text-sm sm:text-base text-[#d5c4b4]/60 line-through tabular-nums font-normal">
+                                {formatINR(unitMrp)}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-[#dfc471]/15 text-[#dfc471] border border-[#dfc471]/30">
+                                {discountPercent}% OFF
+                              </span>
+                            </>
+                          )}
+                          <span className="text-[#888B83]/60 px-0.5">|</span>
+                          <span
+                            className={`text-xs font-semibold flex items-center gap-1.5 ${
+                              isDetailOutOfStock ? 'text-rose-400' : 'text-emerald-400'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isDetailOutOfStock ? 'bg-rose-400' : 'bg-emerald-400'}`} />
+                            {isDetailOutOfStock ? '• Out of Stock' : '• In Stock'}
+                          </span>
+                        </div>
+
+                        {/* SELECT VARIANT */}
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="uppercase tracking-wider text-[#dfc471] font-semibold text-xs">
+                              Select Variant
                             </span>
-                            {hasValidDiscount && (
-                              <>
-                                <span className="text-sm sm:text-base text-[#d5c4b4]/60 line-through tabular-nums font-normal">
-                                  {formatINR(mrpTotal)}
+                            <span className="text-[11px] text-[#d5c4b4]/75">
+                              SKU: {detailSelectedPack.sku}
+                            </span>
+                          </div>
+                          <div
+                            className="grid grid-cols-3 gap-2"
+                            role="group"
+                            aria-label={`Select pack weight for ${detailProduct.name}`}
+                          >
+                            {detailPacks.map(pack => {
+                              const isSelected = pack.id === detailSelectedPack.id;
+                              const pPrice = getEffectivePackPrice(pack);
+                              const isPackOut = Boolean(
+                                isSuratUser &&
+                                typeof pack.stock === 'number' &&
+                                pack.stock <= 0
+                              );
+                              return (
+                                <button
+                                  key={pack.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedPackIdByProduct(prev => ({
+                                      ...prev,
+                                      [detailProduct.id]: pack.id,
+                                    }))
+                                  }
+                                  aria-pressed={isSelected}
+                                  className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-[#dfc471] ${
+                                    isSelected
+                                      ? 'bg-[#dfc471] text-[#0d0805] border-[#dfc471] shadow-md font-bold'
+                                      : 'bg-[#1c120c] text-[#ede4dc] border-[#38281d] hover:border-[#dfc471]/60'
+                                  } ${isPackOut ? 'opacity-65' : ''}`}
+                                >
+                                  <div className="text-xs font-bold flex items-center justify-center gap-1">
+                                    <span>{pack.weightLabel}</span>
+                                    {isPackOut && (
+                                      <span className="text-[9px] text-rose-400 font-normal">(Out)</span>
+                                    )}
+                                  </div>
+                                  <div
+                                    className={`text-[11px] tabular-nums ${
+                                      isSelected ? 'text-[#0d0805]/90' : 'text-[#dfc471]'
+                                    }`}
+                                  >
+                                    {formatINR(pPrice)}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* QUANTITY */}
+                        <div className="space-y-2 pt-1">
+                          <span className="uppercase tracking-wider text-[#dfc471] font-semibold text-xs block">
+                            Quantity
+                          </span>
+                          <div className="p-3 sm:p-4 rounded-2xl bg-[#1c120c] border border-[#38281d] space-y-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className={`inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-xl p-1 shrink-0 ${isDetailOutOfStock ? 'opacity-50' : ''}`}>
+                                <button
+                                  type="button"
+                                  disabled={isDetailOutOfStock}
+                                  aria-label="Decrease pack quantity"
+                                  onClick={() =>
+                                    !isDetailOutOfStock &&
+                                    handleDraftPackCountChange(
+                                      detailProduct.id,
+                                      detailSelectedPack.id,
+                                      -1
+                                    )
+                                  }
+                                  className="w-8 h-8 flex items-center justify-center text-[#d5c4b4] hover:text-white disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums">
+                                  {draftQty} pack{draftQty > 1 ? 's' : ''}
                                 </span>
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-[#dfc471]/15 text-[#dfc471] border border-[#dfc471]/30">
-                                  {discountPercent}% OFF
+                                <button
+                                  type="button"
+                                  disabled={isDetailOutOfStock || isDetailPackAtMax}
+                                  aria-label="Increase pack quantity"
+                                  onClick={() => {
+                                    if (isDetailPackAtMax) {
+                                      setStockLimitAlert(`Only ${maxDetailStock} packet${maxDetailStock === 1 ? '' : 's'} of ${detailSelectedPack.weightLabel} available in stock.`);
+                                      return;
+                                    }
+                                    !isDetailOutOfStock &&
+                                    handleDraftPackCountChange(
+                                      detailProduct.id,
+                                      detailSelectedPack.id,
+                                      1
+                                    );
+                                  }}
+                                  className={`w-8 h-8 flex items-center justify-center ${
+                                    isDetailOutOfStock || isDetailPackAtMax
+                                      ? 'text-[#dfc471]/30 cursor-not-allowed'
+                                      : 'text-[#dfc471] hover:text-white cursor-pointer'
+                                  }`}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="text-xs text-[#d5c4b4]/75 mr-1.5">Total :</span>
+                                <span className="font-bold text-lg sm:text-xl text-[#dfc471] tabular-nums">
+                                  {formatINR(currentTotal)}
                                 </span>
-                              </>
+                              </div>
+                            </div>
+
+                            {/* Stock Limit Notice for Surat Patrons */}
+                            {isDetailPackAtMax && typeof detailSelectedPack.stock === 'number' && detailSelectedPack.stock > 0 && (
+                              <div className="flex items-center justify-between px-2.5 py-1 rounded-md bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-300 font-medium">
+                                <span>Max {detailSelectedPack.stock} {detailSelectedPack.stock === 1 ? 'pack' : 'packs'} available in stock</span>
+                                <span className="text-[10px] text-amber-400/80 uppercase font-semibold">Limit reached</span>
+                              </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="inline-flex items-center bg-[#251a13] border border-[#38281d] rounded-xl p-1">
+                        {/* Action CTA */}
+                        {isDetailOutOfStock ? (
                           <button
                             type="button"
-                            aria-label="Decrease pack quantity"
-                            onClick={() =>
-                              handleDraftPackCountChange(
-                                detailProduct.id,
-                                detailSelectedPack.id,
-                                -1
-                              )
-                            }
-                            className="w-8 h-8 flex items-center justify-center text-[#d5c4b4] hover:text-white cursor-pointer"
+                            disabled
+                            className="w-full py-3.5 sm:py-4 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#18120d] text-[#888B83] border border-[#38281d] flex items-center justify-center gap-2 cursor-not-allowed shadow-none"
                           >
-                            <Minus className="w-3.5 h-3.5" />
+                            <Ban className="w-4 h-4 text-[#888B83]" />
+                            <span>Out of Stock</span>
                           </button>
-                          <span className="w-16 text-center text-xs font-semibold text-[#f9f6f2] tabular-nums">
-                            {draftQty} pack{draftQty > 1 ? 's' : ''}
-                          </span>
+                        ) : (
                           <button
                             type="button"
-                            aria-label="Increase pack quantity"
-                            onClick={() =>
-                              handleDraftPackCountChange(
-                                detailProduct.id,
-                                detailSelectedPack.id,
-                                1
-                              )
-                            }
-                            className="w-8 h-8 flex items-center justify-center text-[#dfc471] hover:text-white cursor-pointer"
+                            onClick={() => {
+                              handleAddPackToCart(detailProduct, detailSelectedPack);
+                              setDetailProduct(null);
+                            }}
+                            className="w-full py-3.5 sm:py-4 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wider bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 cursor-pointer shadow-lg transition-all"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            Add {detailSelectedPack.weightLabel} Pack to Bag
                           </button>
-                        </div>
+                        )}
                       </div>
                     );
                   })()}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleAddPackToCart(detailProduct, detailSelectedPack);
-                      setDetailProduct(null);
-                    }}
-                    className="w-full py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-gradient-to-r from-[#b99225] via-[#dfc471] to-[#b99225] text-[#0d0805] hover:brightness-110 cursor-pointer"
-                  >
-                    Add {detailSelectedPack.weightLabel} Pack to Bag
-                  </button>
                 </div>
               </div>
 
@@ -1803,6 +2057,34 @@ export default function Catalog({
                 </div>
               )}
             </div>
+
+            {/* High-res Image Zoom Modal */}
+            {isDetailZoomed && (
+              <div
+                className="fixed inset-0 z-[60] bg-black/92 backdrop-blur-md flex items-center justify-center p-4"
+                onClick={() => setIsDetailZoomed(false)}
+              >
+                <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    aria-label="Close zoom preview"
+                    onClick={() => setIsDetailZoomed(false)}
+                    className="absolute -top-12 right-0 p-2 text-white hover:text-[#dfc471] cursor-pointer"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <img
+                    src={
+                      detailProduct.image ||
+                      (detailProduct.gallery && detailProduct.gallery[0]) ||
+                      DEFAULT_FALLBACK_IMG
+                    }
+                    alt={detailProduct.name}
+                    className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-[#dfc471]/40 shadow-2xl"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1824,6 +2106,13 @@ export default function Catalog({
               {formatINR(subtotal)} →
             </span>
           </button>
+        </div>
+      )}
+      {/* Floating Stock Limit Alert Toast */}
+      {stockLimitAlert && (
+        <div className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[#1c120c]/95 border border-[#dfc471] text-amber-200 shadow-2xl text-xs sm:text-sm font-medium flex items-center gap-2 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
+          <AlertCircle className="w-4 h-4 text-[#dfc471] shrink-0" />
+          <span>{stockLimitAlert}</span>
         </div>
       )}
     </div>

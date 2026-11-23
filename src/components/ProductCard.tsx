@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 import { formatINR } from '../utils/priceCalculator';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Sparkles, Ban } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface ProductCardProps {
   product: Product;
@@ -31,6 +32,12 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
       setImageError(true);
     }
   };
+
+  const { user, isSurat } = useAuth();
+  const isSuratUser = Boolean(user && isSurat);
+  const isOutOfStock = Boolean(
+    isSuratUser && (product.inStock === false || (typeof product.stock === 'number' && product.stock <= 0))
+  );
 
   return (
     <article
@@ -64,6 +71,30 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             <Sparkles className="w-8 h-8 text-[#dfc471] mb-2" />
             <span className="font-serif text-lg text-[#ede4dc]">{product.name}</span>
             <span className="text-xs text-[#d5c4b4]/60 mt-1">{product.grade}</span>
+          </div>
+        )}
+
+        {/* Out of Stock Overlay */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center p-3 bg-black/45 backdrop-blur-[2px]">
+            <div className="px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl bg-[#0d0805]/90 border border-[#dfc471]/60 shadow-[0_8px_30px_rgba(0,0,0,0.9),0_0_20px_rgba(223,196,113,0.18)] backdrop-blur-md text-center max-w-[210px] w-full flex flex-col items-center">
+              <div className="relative inline-flex items-center justify-center mb-1">
+                <svg className="w-8 h-8 text-[#dfc471]" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M24 7 L40 15 L24 23 L8 15 Z" />
+                  <path d="M8 15 L8 33 L24 41 L24 23" />
+                  <path d="M40 15 L40 33 L24 41" />
+                  <path d="M24 15 L24 23" />
+                  <circle cx="34" cy="34" r="8.5" className="fill-[#150d09] stroke-[#dfc471]" strokeWidth="2.5" />
+                  <line x1="28" y1="28" x2="40" y2="40" className="stroke-[#dfc471]" strokeWidth="2.5" />
+                </svg>
+              </div>
+              <span className="font-serif text-base font-semibold text-[#f9f6f2] tracking-tight">
+                Out of Stock
+              </span>
+              <span className="text-[10px] text-[#d5c4b4]/90 font-serif italic mt-0.5">
+                Currently unavailable
+              </span>
+            </div>
           </div>
         )}
 
@@ -116,8 +147,11 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
         {/* Price & Action Module */}
         <div className="mt-5 pt-4 sm:mt-6 sm:pt-5 border-t border-[#38281d]/80 flex items-center justify-between gap-3 sm:gap-4">
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-[#d5c4b4]/60 font-sans">
-              Price / {product.unit}
+            <div className="text-[11px] uppercase tracking-wider text-[#d5c4b4]/60 font-sans flex items-center gap-2">
+              <span>Price / {product.unit}</span>
+              {isOutOfStock && (
+                <span className="text-rose-400 font-semibold">• Out of Stock</span>
+              )}
             </div>
             <div className="font-sans font-bold text-lg sm:text-xl text-[#f9f6f2] tabular-nums tracking-tight">
               {formatINR(product.price)}{' '}
@@ -127,13 +161,24 @@ export default function ProductCard({ product, onRequestPurchase, index }: Produ
             </div>
           </div>
 
-          <button
-            onClick={() => onRequestPurchase(product.id)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#dfc471]/30 hover:border-transparent transition-all duration-300 cursor-pointer shadow-md group-hover:shadow-[#dfc471]/20 whitespace-nowrap shrink-0"
-          >
-            <span>Request<span className="hidden sm:inline"> to Purchase</span></span>
-            <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </button>
+          {isOutOfStock ? (
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#18120d] text-[#888B83] border border-[#38281d] cursor-not-allowed whitespace-nowrap shrink-0 shadow-none"
+            >
+              <Ban className="w-3.5 h-3.5 text-[#888B83]" />
+              <span>Out of Stock</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onRequestPurchase(product.id)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#251a13] hover:bg-[#dfc471] text-[#ede4dc] hover:text-[#0d0805] border border-[#dfc471]/30 hover:border-transparent transition-all duration-300 cursor-pointer shadow-md group-hover:shadow-[#dfc471]/20 whitespace-nowrap shrink-0"
+            >
+              <span>Request<span className="hidden sm:inline"> to Purchase</span></span>
+              <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </button>
+          )}
         </div>
       </div>
     </article>

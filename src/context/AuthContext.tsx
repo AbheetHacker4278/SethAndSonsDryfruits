@@ -87,12 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const products = useMemo(() => {
-    const list = adjustProductListForMargin(rawProducts, profitMargin);
-    if (!user) {
-      return list.filter(p => !GUEST_HIDDEN_PRODUCT_IDS.includes(p.id));
-    }
-    return list;
-  }, [rawProducts, profitMargin, user]);
+    return adjustProductListForMargin(rawProducts, profitMargin);
+  }, [rawProducts, profitMargin]);
 
   const applyBrowserBranding = useCallback((settings: PublicSettingsPayload | null) => {
     if (typeof document === 'undefined' || !settings?.website) return;

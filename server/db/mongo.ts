@@ -1359,7 +1359,7 @@ export async function syncProductVariantsStock(
   if (newProductStock <= 0) {
     await db.models.ProductVariant.updateMany(
       { productId },
-      { $set: { stock: 0, active: false, updatedAt: now } }
+      { $set: { stock: 0, updatedAt: now } }
     );
     return;
   }
@@ -1367,18 +1367,10 @@ export async function syncProductVariantsStock(
   for (const v of variants) {
     const packUnits = Math.max(0.0001, getVariantStockUnits(String(v.weightLabel || '1kg'), prodUnit));
     const maxPackable = Math.max(0, Math.floor(newProductStock / packUnits));
-    const currentVarStock = Number(v.stock || 0);
-
-    let nextStock: number;
-    if (currentVarStock <= 0) {
-      nextStock = Math.min(maxPackable, Math.max(1, Math.round(maxPackable / 2)));
-    } else {
-      nextStock = Math.min(currentVarStock, maxPackable);
-    }
 
     await db.models.ProductVariant.updateOne(
       { id: v.id },
-      { $set: { stock: nextStock, active: nextStock > 0, updatedAt: now } }
+      { $set: { stock: maxPackable, updatedAt: now } }
     );
   }
 }

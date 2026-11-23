@@ -4,7 +4,19 @@ import Navbar from './components/Navbar';
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import { GUEST_HIDDEN_PRODUCT_IDS } from './data/products';
+import { isSuratCity } from './data/products';
+import { getProductPackOptions } from './utils/priceCalculator';
+
+function parseCartKey(cartKey: string): { productId: string; variantId: string | null } {
+  const sepIdx = cartKey.indexOf('::');
+  if (sepIdx === -1) {
+    return { productId: cartKey, variantId: null };
+  }
+  return {
+    productId: cartKey.slice(0, sepIdx),
+    variantId: cartKey.slice(sepIdx + 2) || null,
+  };
+}
 
 // Route-level code splitting: secondary storefront pages
 const Catalog = lazy(() => import('./pages/Catalog'));
@@ -175,7 +187,8 @@ function AdminRoute({
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { products, user } = useAuth();
+  const { products, user, isSurat } = useAuth();
+  const isSuratUser = Boolean(user && (isSurat || isSuratCity(user?.shippingAddress?.city)));
 
   const [cartItems, setCartItems] = useState<Record<string, number>>(() => {
     try {
@@ -186,24 +199,33 @@ function AppRoutes() {
     }
   });
 
-  // Purge any guest-restricted products from active cart when not logged in
+  // Reconcile active cart for Surat patrons against live variant inventory
   useEffect(() => {
-    if (!user) {
-      setCartItems(prev => {
-        let changed = false;
-        const next = { ...prev };
-        for (const id of GUEST_HIDDEN_PRODUCT_IDS) {
-          for (const key of Object.keys(next)) {
-            if (key === id || key.startsWith(`${id}:`)) {
-              delete next[key];
-              changed = true;
-            }
-          }
+    if (!isSuratUser || !products || products.length === 0) return;
+    setCartItems(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [cartKey, qty] of Object.entries(next)) {
+        const { productId, variantId } = parseCartKey(cartKey);
+        const prod = products.find(p => p.id === productId);
+        if (!prod) continue;
+        const packs = getProductPackOptions(prod);
+        const pack = variantId ? packs.find(v => v.id === variantId) : null;
+        const maxStock = pack && typeof pack.stock === 'number'
+          ? pack.stock
+          : (typeof prod.stock === 'number' ? prod.stock : 999);
+
+        if (maxStock <= 0) {
+          delete next[cartKey];
+          changed = true;
+        } else if (qty > maxStock) {
+          next[cartKey] = maxStock;
+          changed = true;
         }
-        return changed ? next : prev;
-      });
-    }
-  }, [user]);
+      }
+      return changed ? next : prev;
+    });
+  }, [isSuratUser, products]);
 
   useEffect(() => {
     try {
@@ -221,10 +243,21 @@ function AppRoutes() {
 
   const handleRequestPurchase = (productId?: string) => {
     if (productId) {
-      setCartItems(prev => ({
-        ...prev,
-        [productId]: Math.max(1, prev[productId] || 1),
-      }));
+      setCartItems(prev => {
+        let qty = Math.max(1, prev[productId] || 1);
+        if (isSuratUser) {
+          const prod = products.find(p => p.id === productId);
+          if (prod) {
+            const maxStock = typeof prod.stock === 'number' ? prod.stock : 999;
+            if (maxStock <= 0) return prev;
+            if (qty > maxStock) qty = maxStock;
+          }
+        }
+        return {
+          ...prev,
+          [productId]: qty,
+        };
+      });
     }
     navigate('/catalog');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -235,9 +268,32 @@ function AppRoutes() {
       const next = { ...prev };
       if (quantity <= 0) {
         delete next[cartKey];
-      } else {
-        next[cartKey] = quantity;
+        return next;
       }
+
+      let finalQty = quantity;
+      // Strictly enforce packet inventory limit only for customers from Surat
+      if (isSuratUser) {
+        const { productId, variantId } = parseCartKey(cartKey);
+        const prod = products.find(p => p.id === productId);
+        if (prod) {
+          const packs = getProductPackOptions(prod);
+          const pack = variantId ? packs.find(v => v.id === variantId) : null;
+          const maxStock = pack && typeof pack.stock === 'number'
+            ? pack.stock
+            : (typeof prod.stock === 'number' ? prod.stock : 999);
+
+          if (maxStock <= 0) {
+            delete next[cartKey];
+            return next;
+          }
+          if (finalQty > maxStock) {
+            finalQty = maxStock;
+          }
+        }
+      }
+
+      next[cartKey] = finalQty;
       return next;
     });
   };

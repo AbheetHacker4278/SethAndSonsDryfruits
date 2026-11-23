@@ -1236,7 +1236,13 @@ export function createAdminErpRouter(
   // =============================================
   // 2. PRODUCTS, VARIANTS & CATEGORIES CRUD
   // =============================================
-  router.get('/erp/products', requirePermission('products'), async (req, res) => {
+  router.get('/erp/products', (req, res, next) => {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('orders')) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Access denied. Missing products or orders permission.' });
+    }
+  }, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
     const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId.trim() : '';
     const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
@@ -1659,7 +1665,7 @@ export function createAdminErpRouter(
   router.get('/inventory/overview', requirePermission('inventory'), async (_req, res) => {
     await checkAndEmitExpiryNotifications(db);
 
-    const [rawProducts, batchDocs, txDocs, suppliers, categoryDocs] = await Promise.all([
+    const [rawProducts, batchDocs, txDocs, suppliers, categoryDocs, variantDocs] = await Promise.all([
       db.models.Product.find(
         {},
         {
@@ -1688,9 +1694,17 @@ export function createAdminErpRouter(
       db.models.Category.find({}, { id: 1, name: 1, displayOrder: 1, _id: 0 })
         .sort({ displayOrder: 1 })
         .lean(),
+      db.models.ProductVariant.find({}, { _id: 0 }).lean(),
     ]);
 
     const catMap = new Map(categoryDocs.map(c => [c.id, c.name]));
+    const variantMap = new Map<string, typeof variantDocs>();
+    for (const v of variantDocs) {
+      const arr = variantMap.get(v.productId) || [];
+      arr.push(v);
+      variantMap.set(v.productId, arr);
+    }
+
     const products = rawProducts.map(p => {
       const baseUnitsPerPack =
         p.unit === 'ml'
@@ -1701,10 +1715,40 @@ export function createAdminErpRouter(
       const itemValuation = Math.round(
         (Number(p.stock || 0) / baseUnitsPerPack) * Number(p.purchasePrice || 0)
       );
+
+      const pVariants = variantMap.get(p.id) || [];
+      const stockVal = Number(p.stock || 0);
+
+      let packetsBreakdown: Array<{ label: string; count: number; inStock: boolean }>;
+      if (pVariants.length > 0) {
+        packetsBreakdown = pVariants
+          .sort((a, b) => (parseWeightGrams(String(a.weightLabel)) ?? 0) - (parseWeightGrams(String(b.weightLabel)) ?? 0))
+          .map(v => {
+            const packUnits = Math.max(0.0001, getVariantStockUnits(String(v.weightLabel || '1kg'), (p.unit || 'kg') as any));
+            const count = Math.max(0, Math.floor(stockVal / packUnits));
+            return {
+              label: String(v.weightLabel),
+              count,
+              inStock: count > 0,
+            };
+          });
+      } else if (p.unit === 'kg') {
+        packetsBreakdown = [
+          { label: '1kg', count: Math.max(0, Math.floor(stockVal / 1)), inStock: stockVal >= 1 },
+          { label: '0.5kg', count: Math.max(0, Math.floor(stockVal / 0.5)), inStock: stockVal >= 0.5 },
+          { label: '0.250kg', count: Math.max(0, Math.floor(stockVal / 0.25)), inStock: stockVal >= 0.25 },
+        ];
+      } else {
+        packetsBreakdown = [
+          { label: p.weightLabel || `1 ${p.unit}`, count: stockVal > 0 ? stockVal : 0, inStock: stockVal > 0 },
+        ];
+      }
+
       return {
         ...p,
         categoryName: p.categoryId ? catMap.get(p.categoryId) || 'Other Products' : 'Other Products',
         valuation: itemValuation,
+        packetsBreakdown,
       };
     });
 
@@ -3158,7 +3202,13 @@ export function createAdminErpRouter(
   // =============================================
   // 5. CUSTOMER MANAGEMENT
   // =============================================
-  router.get('/customers', requirePermission('customers'), async (req, res) => {
+  router.get('/customers', (req, res, next) => {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('customers') || req.user?.permissions?.includes('orders')) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Access denied. Missing customers or orders permission.' });
+    }
+  }, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
     const segment = typeof req.query.segment === 'string' ? req.query.segment : 'all';
     const customerType = typeof req.query.customerType === 'string' ? req.query.customerType : 'registered';
@@ -3172,20 +3222,43 @@ export function createAdminErpRouter(
       custFilter.isOneTime = true;
     }
 
-    const [rows, orders] = await Promise.all([
+    const [rows, orders, addresses] = await Promise.all([
       db.models.Customer.find(custFilter, { passwordHash: 0, _id: 0 })
         .sort({ createdAt: -1 })
         .lean(),
-      db.models.Order.find({}, { customerId: 1, status: 1, totalAmount: 1, createdAt: 1, _id: 0 }).lean(),
+      db.models.Order.find({}, { customerId: 1, status: 1, totalAmount: 1, createdAt: 1, shippingAddress: 1, _id: 0 }).sort({ createdAt: -1 }).lean(),
+      db.models.CustomerAddress.find({}, { _id: 0 }).sort({ isDefault: -1, updatedAt: -1 }).lean(),
     ]);
 
     const statsMap = new Map<string, { totalOrders: number; totalSpent: number; lastOrderAt: string | null }>();
+    const addressMap = new Map<string, { addressLine: string; city: string; state: string; pincode: string }>();
+
     for (const o of orders) {
       const cur = statsMap.get(o.customerId) || { totalOrders: 0, totalSpent: 0, lastOrderAt: null };
       if (o.status !== 'cancelled') cur.totalOrders += 1;
       if (o.status !== 'cancelled' && o.status !== 'returned') cur.totalSpent += Number(o.totalAmount || 0);
       if (!cur.lastOrderAt || o.createdAt > cur.lastOrderAt) cur.lastOrderAt = o.createdAt;
       statsMap.set(o.customerId, cur);
+
+      if (o.customerId && o.shippingAddress && !addressMap.has(o.customerId)) {
+        addressMap.set(o.customerId, {
+          addressLine: (o.shippingAddress as any).address || (o.shippingAddress as any).street || '',
+          city: (o.shippingAddress as any).city || '',
+          state: (o.shippingAddress as any).state || '',
+          pincode: (o.shippingAddress as any).pincode || '',
+        });
+      }
+    }
+
+    for (const a of addresses) {
+      if (a.customerId && (!addressMap.has(a.customerId) || a.isDefault)) {
+        addressMap.set(a.customerId, {
+          addressLine: a.addressLine || `${a.houseFlat || ''} ${a.streetArea || ''}`.trim(),
+          city: a.city || '',
+          state: a.state || '',
+          pincode: a.pincode || '',
+        });
+      }
     }
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -3194,6 +3267,7 @@ export function createAdminErpRouter(
     const filtered = rows
       .map(r => {
         const st = statsMap.get(r.id) || { totalOrders: 0, totalSpent: 0, lastOrderAt: null };
+        const addr = addressMap.get(r.id) || null;
         return {
           id: String(r.id),
           name: String(r.name),
@@ -3211,6 +3285,7 @@ export function createAdminErpRouter(
           source: String(r.source || 'web'),
           totalOrders: st.totalOrders,
           totalSpent: st.totalSpent,
+          address: addr,
         };
       })
       .filter(c => {

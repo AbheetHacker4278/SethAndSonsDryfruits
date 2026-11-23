@@ -15,13 +15,10 @@ export default function HarvestVideoShowcase({
 }: HarvestVideoShowcaseProps) {
   const { products, user } = useAuth();
   const catalog = products && products.length > 0 ? products : PRODUCTS;
-  // Only products with active video show in this carousel (hiding guest-restricted items for unauthenticated users)
+  // All products with active video show in this carousel for both guests and authenticated users
   const videoProducts = useMemo(() => {
-    return catalog.filter(p => {
-      if (!user && GUEST_HIDDEN_PRODUCT_IDS.includes(p.id)) return false;
-      return !!p.videoUrl && !!p.videoDetails;
-    });
-  }, [catalog, user]);
+    return catalog.filter(p => !!p.videoUrl && !!p.videoDetails);
+  }, [catalog]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
