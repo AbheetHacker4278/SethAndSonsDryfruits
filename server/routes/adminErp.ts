@@ -1237,10 +1237,10 @@ export function createAdminErpRouter(
   // 2. PRODUCTS, VARIANTS & CATEGORIES CRUD
   // =============================================
   router.get('/erp/products', (req, res, next) => {
-    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('orders')) {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('orders') || req.user?.permissions?.includes('expenses')) {
       next();
     } else {
-      res.status(403).json({ error: 'Access denied. Missing products or orders permission.' });
+      res.status(403).json({ error: 'Access denied. Missing products, orders, or expenses permission.' });
     }
   }, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
@@ -1581,7 +1581,13 @@ export function createAdminErpRouter(
   });
 
   // Categories CRUD
-  router.get('/categories', requirePermission('categories'), async (_req, res) => {
+  router.get('/categories', (req, res, next) => {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('categories') || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('expenses')) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Access denied. Missing categories permission.' });
+    }
+  }, async (_req, res) => {
     const [cats, products] = await Promise.all([
       db.models.Category.find({}, { _id: 0 }).sort({ displayOrder: 1, name: 1 }).lean(),
       db.models.Product.find({}, { categoryId: 1, _id: 0 }).lean(),
@@ -4879,6 +4885,8 @@ export function createAdminErpRouter(
         'Maintenance',
         'Marketing',
         'Miscellaneous',
+        'Sampling',
+        'Product Sampling',
       ]),
       title: z.string().trim().min(2),
       amount: z.number().positive(),
@@ -4887,6 +4895,43 @@ export function createAdminErpRouter(
       paymentMode: z.string().optional().default('Bank Transfer'),
       receiptUrl: z.string().optional().nullable(),
       notes: z.string().optional().default(''),
+      productId: z.string().optional().nullable(),
+      productName: z.string().optional().nullable(),
+      categoryId: z.string().optional().nullable(),
+      categoryName: z.string().optional().nullable(),
+      sampleWeight: z.number().optional().nullable(),
+      sampleUnit: z.string().optional().nullable(),
+      sampleGrams: z.number().optional().nullable(),
+      costPerKg: z.number().optional().nullable(),
+      recipientName: z.string().optional().nullable(),
+      companyName: z.string().optional().nullable(),
+      miscExpenseAmount: z.number().optional().nullable().default(0),
+      miscExpenseNote: z.string().optional().default(''),
+      miscExpenses: z
+        .array(
+          z.object({
+            amount: z.number().optional().default(0),
+            note: z.string().optional().default(''),
+          })
+        )
+        .optional()
+        .default([]),
+      samplingItems: z
+        .array(
+          z.object({
+            productId: z.string().optional().nullable(),
+            productName: z.string().optional().nullable(),
+            categoryId: z.string().optional().nullable(),
+            categoryName: z.string().optional().nullable(),
+            sampleWeight: z.number().optional().nullable(),
+            sampleUnit: z.string().optional().nullable(),
+            sampleGrams: z.number().optional().nullable(),
+            costPerKg: z.number().optional().nullable(),
+            itemCost: z.number().optional().nullable(),
+          })
+        )
+        .optional()
+        .default([]),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -4894,19 +4939,63 @@ export function createAdminErpRouter(
       return;
     }
     const d = parsed.data;
+
+    if (d.category === 'Sampling' || d.category === 'Product Sampling') {
+      const rec = (d.recipientName || '').trim();
+      const comp = (d.companyName || '').trim();
+      if (!rec && !comp && !d.vendor.trim()) {
+        res.status(400).json({ error: 'Please provide either the Recipient Name or Company Name for the product sample.' });
+        return;
+      }
+    }
+
     const id = `exp_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const vendorFormatted = (d.category === 'Sampling' || d.category === 'Product Sampling')
+      ? [d.recipientName?.trim(), d.companyName?.trim() ? `(${d.companyName.trim()})` : ''].filter(Boolean).join(' ') || d.vendor || 'Owner Sample'
+      : d.vendor;
+
+    const firstSamplingItem = d.samplingItems?.[0];
+    const derivedProductName =
+      d.productName ||
+      (d.samplingItems && d.samplingItems.length > 0
+        ? d.samplingItems
+            .map(i => i.productName)
+            .filter(Boolean)
+            .join(', ')
+        : null);
+    const derivedSampleGrams =
+      typeof d.sampleGrams === 'number'
+        ? d.sampleGrams
+        : d.samplingItems && d.samplingItems.length > 0
+          ? d.samplingItems.reduce((acc, i) => acc + (Number(i.sampleGrams) || 0), 0)
+          : null;
+
     await db.models.Expense.create({
       id,
       category: d.category,
       title: d.title,
       amount: d.amount,
       expenseDate: d.expenseDate,
-      vendor: d.vendor,
+      vendor: vendorFormatted,
       paymentMode: d.paymentMode,
       receiptUrl: d.receiptUrl || null,
       notes: d.notes,
       createdBy: req.user!.email,
+      productId: d.productId || firstSamplingItem?.productId || null,
+      productName: derivedProductName,
+      categoryId: d.categoryId || firstSamplingItem?.categoryId || null,
+      categoryName: d.categoryName || firstSamplingItem?.categoryName || null,
+      sampleWeight: typeof d.sampleWeight === 'number' ? d.sampleWeight : (firstSamplingItem?.sampleWeight ?? null),
+      sampleUnit: d.sampleUnit || firstSamplingItem?.sampleUnit || null,
+      sampleGrams: derivedSampleGrams,
+      costPerKg: typeof d.costPerKg === 'number' ? d.costPerKg : (firstSamplingItem?.costPerKg ?? null),
+      recipientName: d.recipientName || null,
+      companyName: d.companyName || null,
+      miscExpenseAmount: typeof d.miscExpenseAmount === 'number' ? d.miscExpenseAmount : 0,
+      miscExpenseNote: d.miscExpenseNote || '',
+      miscExpenses: d.miscExpenses || [],
+      samplingItems: d.samplingItems || [],
       createdAt: now,
       updatedAt: now,
     });
@@ -4925,6 +5014,26 @@ export function createAdminErpRouter(
 
   router.put('/expenses/:id', requirePermission('expenses'), async (req, res) => {
     const b = req.body || {};
+    const vendorFormatted = (b.category === 'Sampling' || b.category === 'Product Sampling')
+      ? [b.recipientName?.trim(), b.companyName?.trim() ? `(${b.companyName.trim()})` : ''].filter(Boolean).join(' ') || b.vendor || 'Owner Sample'
+      : (b.vendor || '');
+
+    const firstSamplingItem = Array.isArray(b.samplingItems) ? b.samplingItems[0] : null;
+    const derivedProductName =
+      b.productName ||
+      (Array.isArray(b.samplingItems) && b.samplingItems.length > 0
+        ? b.samplingItems
+            .map((i: any) => i.productName)
+            .filter(Boolean)
+            .join(', ')
+        : null);
+    const derivedSampleGrams =
+      typeof b.sampleGrams === 'number'
+        ? Number(b.sampleGrams)
+        : Array.isArray(b.samplingItems) && b.samplingItems.length > 0
+          ? b.samplingItems.reduce((acc: number, i: any) => acc + (Number(i.sampleGrams) || 0), 0)
+          : null;
+
     await db.models.Expense.updateOne(
       { id: req.params.id },
       {
@@ -4933,10 +5042,24 @@ export function createAdminErpRouter(
           title: b.title,
           amount: Number(b.amount),
           expenseDate: b.expenseDate,
-          vendor: b.vendor || '',
+          vendor: vendorFormatted,
           paymentMode: b.paymentMode || 'Bank Transfer',
           receiptUrl: b.receiptUrl || null,
           notes: b.notes || '',
+          productId: b.productId || firstSamplingItem?.productId || null,
+          productName: derivedProductName,
+          categoryId: b.categoryId || firstSamplingItem?.categoryId || null,
+          categoryName: b.categoryName || firstSamplingItem?.categoryName || null,
+          sampleWeight: typeof b.sampleWeight === 'number' ? Number(b.sampleWeight) : (firstSamplingItem?.sampleWeight ?? null),
+          sampleUnit: b.sampleUnit || firstSamplingItem?.sampleUnit || null,
+          sampleGrams: derivedSampleGrams,
+          costPerKg: typeof b.costPerKg === 'number' ? Number(b.costPerKg) : (firstSamplingItem?.costPerKg ?? null),
+          recipientName: b.recipientName || null,
+          companyName: b.companyName || null,
+          miscExpenseAmount: typeof b.miscExpenseAmount === 'number' ? Number(b.miscExpenseAmount) : 0,
+          miscExpenseNote: b.miscExpenseNote || '',
+          ...(Array.isArray(b.miscExpenses) ? { miscExpenses: b.miscExpenses } : {}),
+          ...(Array.isArray(b.samplingItems) ? { samplingItems: b.samplingItems } : {}),
           updatedAt: new Date().toISOString(),
         },
       }

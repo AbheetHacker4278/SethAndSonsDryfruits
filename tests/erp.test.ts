@@ -659,6 +659,107 @@ describe('Seth And Sons DryFruits ERP — RBAC, Catalog, Inventory, Purchases, R
     expect(s.estimatedGrossProfit).toBeCloseTo(s.netSales - s.cogs, 2);
     expect(s.estimatedNetProfit).toBeCloseTo(s.estimatedGrossProfit - s.operatingExpenses, 2);
 
+    // Record Owner Product Sampling expense with custom grams, recipient name & company
+    const invalidSampleRes = await adminAgent
+      .post('/api/admin/expenses')
+      .set('x-csrf-token', adminCsrf)
+      .send({
+        category: 'Sampling',
+        title: 'Product Sampling — California Badam (250g)',
+        amount: 200,
+        expenseDate: '2026-11-12',
+      });
+    expect(invalidSampleRes.status).toBe(400);
+    expect(invalidSampleRes.body.error).toMatch(/Recipient Name or Company Name/i);
+
+    const samplingRes = await adminAgent
+      .post('/api/admin/expenses')
+      .set('x-csrf-token', adminCsrf)
+      .send({
+        category: 'Sampling',
+        title: 'Product Sampling — California Badam Giri (250g)',
+        amount: 200,
+        expenseDate: '2026-11-12',
+        productId: 'badam-california-giri',
+        productName: 'California Badam Giri (Almond Kernels)',
+        categoryId: 'cat_almonds',
+        categoryName: 'Almonds',
+        sampleWeight: 250,
+        sampleUnit: 'g',
+        sampleGrams: 250,
+        costPerKg: 800,
+        recipientName: 'Rajesh Patel',
+        companyName: 'Ambika Traders',
+        notes: 'Owner provided 250g sample for corporate gift inquiry',
+        paymentMode: 'Owner Sampling',
+      });
+    expect(samplingRes.status).toBe(201);
+
+    const expListRes = await adminAgent.get('/api/admin/expenses?category=Sampling');
+    expect(expListRes.status).toBe(200);
+    const recordedSample = expListRes.body.expenses.find((e: any) => e.id === samplingRes.body.id);
+    expect(recordedSample).toBeDefined();
+    expect(recordedSample.category).toBe('Sampling');
+    expect(recordedSample.amount).toBe(200);
+    expect(recordedSample.vendor).toBe('Rajesh Patel (Ambika Traders)');
+    expect(recordedSample.recipientName).toBe('Rajesh Patel');
+    expect(recordedSample.companyName).toBe('Ambika Traders');
+    expect(recordedSample.sampleGrams).toBe(250);
+
+    // Record Multi-Product Sampling with Miscellaneous Expense: 1g Almonds + 2g Pista + ₹50 Courier to Rajesh
+    const multiSamplingRes = await adminAgent
+      .post('/api/admin/expenses')
+      .set('x-csrf-token', adminCsrf)
+      .send({
+        category: 'Sampling',
+        title: 'Product Sampling — California Badam (1g), Salted Pista (2g) + Misc (Courier)',
+        amount: 53.5,
+        expenseDate: '2026-11-24',
+        recipientName: 'Rajesh',
+        companyName: 'Ambika Traders',
+        notes: 'Owner gave 1 gm of Almonds, 2 gms of pista to Rajesh',
+        paymentMode: 'Owner Sampling',
+        miscExpenseAmount: 50,
+        miscExpenseNote: 'Express courier delivery pouch',
+        samplingItems: [
+          {
+            productId: 'badam-california-giri',
+            productName: 'California Badam Giri (Almond Kernels)',
+            categoryId: 'cat_almonds',
+            categoryName: 'Almonds',
+            sampleWeight: 1,
+            sampleUnit: 'g',
+            sampleGrams: 1,
+            costPerKg: 800,
+            itemCost: 0.8,
+          },
+          {
+            productId: 'pista-roasted-salted',
+            productName: 'Roasted Salted Pistachios',
+            categoryId: 'cat_pista',
+            categoryName: 'Pistachios',
+            sampleWeight: 2,
+            sampleUnit: 'g',
+            sampleGrams: 2,
+            costPerKg: 1350,
+            itemCost: 2.7,
+          },
+        ],
+      });
+    expect(multiSamplingRes.status).toBe(201);
+
+    const multiListRes = await adminAgent.get('/api/admin/expenses?category=Sampling');
+    const recordedMultiSample = multiListRes.body.expenses.find((e: any) => e.id === multiSamplingRes.body.id);
+    expect(recordedMultiSample).toBeDefined();
+    expect(recordedMultiSample.amount).toBe(53.5);
+    expect(recordedMultiSample.miscExpenseAmount).toBe(50);
+    expect(recordedMultiSample.miscExpenseNote).toBe('Express courier delivery pouch');
+    expect(recordedMultiSample.samplingItems).toHaveLength(2);
+    expect(recordedMultiSample.samplingItems[0].sampleWeight).toBe(1);
+    expect(recordedMultiSample.samplingItems[1].sampleWeight).toBe(2);
+    expect(recordedMultiSample.sampleGrams).toBe(3);
+    expect(recordedMultiSample.vendor).toBe('Rajesh (Ambika Traders)');
+
     // Coupon CRUD
     const cpnCreate = await adminAgent
       .post('/api/admin/coupons')
