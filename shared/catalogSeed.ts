@@ -344,12 +344,58 @@ export function getVariantBaseCost(variant: { purchasePrice?: number; sellingPri
 }
 
 /**
- * Calculate dynamic selling price by applying profit margin to base cost price
+ * Universal Dry Fruits Product Selling Price Formula:
+ * Step 1: Calculate shipping cost: ₹60 × (Product Weight in grams / 1000)
+ * Step 2: Calculate total cost: Purchase Price + Shipping Cost
+ * Step 3: Calculate profit addition: Total Cost × 0.25 (target 25% markup)
+ * Step 4: Calculate final selling price: Total Cost × 1.25
+ *
+ * Equivalent formula:
+ * Selling Price = (Purchase Price + (60 × Weight in grams / 1000)) × (1 + margin / 100)
  */
-export function calculateDynamicSellingPrice(baseCost: number, marginPercent: number): number {
-  const safeCost = Math.max(0, Number(baseCost) || 0);
-  const multiplier = 1 + marginPercent / 100;
-  return Math.round(safeCost * multiplier);
+export function calculateUniversalSellingPrice(
+  purchasePrice: number,
+  weightInGrams: number,
+  marginPercent: number = 25
+): number {
+  const safePurchase = Math.max(0, Number(purchasePrice) || 0);
+  const safeWeight = Math.max(0, Number(weightInGrams) || 0);
+  const safeMargin = typeof marginPercent === 'number' && marginPercent >= 0 ? marginPercent : 25;
+
+  // Step 1: Calculate shipping cost proportionally: ₹60/kg
+  const shippingCost = (60 * safeWeight) / 1000;
+
+  // Step 2: Calculate total cost: Purchase Price + Shipping Cost
+  const totalCost = safePurchase + shippingCost;
+
+  // Step 3 & 4: Calculate final selling price with markup multiplier
+  const markupMultiplier = 1 + safeMargin / 100;
+  const sellingPrice = totalCost * markupMultiplier;
+
+  // Maintain two decimal places using accurate arithmetic
+  return Number((Math.round(sellingPrice * 100) / 100).toFixed(2));
+}
+
+export const calculateProductSellingPrice = calculateUniversalSellingPrice;
+
+/**
+ * Calculate dynamic selling price by applying universal dry fruits pricing formula
+ */
+export function calculateDynamicSellingPrice(
+  baseCost: number,
+  marginPercent: number = 25,
+  weightInGrams?: number | string | null
+): number {
+  let grams = 0;
+  if (typeof weightInGrams === 'number' && weightInGrams > 0) {
+    grams = weightInGrams;
+  } else if (typeof weightInGrams === 'string' && weightInGrams.trim()) {
+    grams = parseWeightGrams(weightInGrams) || 0;
+  }
+
+  // If specific weight is provided, use it; otherwise default to 1000g (1kg standard dry fruit pack)
+  const effectiveWeight = grams > 0 ? grams : 1000;
+  return calculateUniversalSellingPrice(baseCost, effectiveWeight, marginPercent);
 }
 
 /**
@@ -361,6 +407,7 @@ export function calculateCustomWeightPrice(
     price: number;
     purchasePrice?: number;
     unit?: string;
+    weightLabel?: string;
     appliedProfitMargin?: number;
     weightVariants?: Array<{
       id: string;
@@ -381,54 +428,22 @@ export function calculateCustomWeightPrice(
 } {
   const safeGrams = Math.max(1, Number(grams) || 0);
   const baseUnit = product.unit || 'kg';
+  const baseWeightGrams = baseUnit === 'gram'
+    ? (parseWeightGrams(product.weightLabel || '1g') || 1)
+    : (parseWeightGrams(product.weightLabel || '1kg') || 1000);
 
-  let sellingPerGram = 0;
-  let costPerGram = 0;
+  const productBaseCost = getProductBaseCost(product as any);
+  const costPerGram = productBaseCost / baseWeightGrams;
+  const baseCost = Number((costPerGram * safeGrams).toFixed(2));
 
-  if (baseUnit === 'gram') {
-    const g1Var = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 1);
-    if (g1Var && Number(g1Var.sellingPrice) > 0) {
-      sellingPerGram = Number(g1Var.sellingPrice);
-      costPerGram = getVariantBaseCost(g1Var);
-    } else {
-      sellingPerGram = Number(product.price);
-      costPerGram = getProductBaseCost(product as any);
-    }
-  } else {
-    const kg1Var = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 1000);
-    const halfKgVar = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 500);
-    const qtrKgVar = product.weightVariants?.find(v => parseWeightGrams(v.weightLabel) === 250);
-
-    if (kg1Var && Number(kg1Var.sellingPrice) > 0) {
-      sellingPerGram = Number(kg1Var.sellingPrice) / 1000;
-      costPerGram = getVariantBaseCost(kg1Var) / 1000;
-    } else if (halfKgVar && Number(halfKgVar.sellingPrice) > 0) {
-      sellingPerGram = Number(halfKgVar.sellingPrice) / 500;
-      costPerGram = getVariantBaseCost(halfKgVar) / 500;
-    } else if (qtrKgVar && Number(qtrKgVar.sellingPrice) > 0) {
-      sellingPerGram = Number(qtrKgVar.sellingPrice) / 250;
-      costPerGram = getVariantBaseCost(qtrKgVar) / 250;
-    } else {
-      sellingPerGram = Number(product.price) / 1000;
-      costPerGram = getProductBaseCost(product as any) / 1000;
-    }
-  }
-
-  const baseCost = Math.round(costPerGram * safeGrams);
-  let unitPrice = Math.round(sellingPerGram * safeGrams);
-
-  if (typeof marginPercent === 'number' && marginPercent > 0) {
-    unitPrice = calculateDynamicSellingPrice(baseCost, marginPercent);
-  }
-
-  const perKgRate = Math.round(sellingPerGram * 1000);
+  const unitPrice = calculateUniversalSellingPrice(baseCost, safeGrams, marginPercent ?? 25);
+  const perKgRate = calculateUniversalSellingPrice(productBaseCost, 1000, marginPercent ?? 25);
   const weightLabel = safeGrams >= 1000 && safeGrams % 100 === 0
     ? `${(safeGrams / 1000).toFixed(safeGrams % 1000 === 0 ? 0 : 2)}kg (${safeGrams}g)`
     : `${safeGrams}g`;
 
-  const formula = baseUnit === 'gram'
-    ? `₹${sellingPerGram}/g × ${safeGrams}g = ₹${unitPrice}`
-    : `₹${perKgRate}/kg × ${safeGrams}g = ₹${unitPrice}`;
+  const shipping = ((60 * safeGrams) / 1000).toFixed(2);
+  const formula = `(₹${baseCost} + ₹${shipping} shipping) × 1.25 = ₹${unitPrice.toFixed(2)}`;
 
   return {
     unitPrice,

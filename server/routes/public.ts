@@ -261,10 +261,11 @@ export function createPublicRouter(
       const base = parseProductRow(r);
       const effectiveInStock = isSuratUser ? Boolean(r.inStock && Number(r.stock ?? 0) > 0) : true;
       const baseCost = getProductBaseCost(base);
-      const dynamicPrice = calculateDynamicSellingPrice(baseCost, userMargin);
+      const prodWeight = parseWeightGrams(base.weightLabel || (base.unit === 'gram' ? '1g' : '1kg')) || (base.unit === 'gram' ? 1 : 1000);
+      const dynamicPrice = calculateDynamicSellingPrice(baseCost, userMargin, prodWeight);
       const dynamicDiscountPrice =
         base.discountPrice && base.discountPrice > 0
-          ? calculateDynamicSellingPrice(Math.round(base.discountPrice / 1.40), userMargin)
+          ? calculateDynamicSellingPrice(Math.round(base.discountPrice / 1.40), userMargin, prodWeight)
           : null;
 
       const weightVariants = variantsAll
@@ -276,11 +277,15 @@ export function createPublicRouter(
           return Number(a.sellingPrice || 0) - Number(b.sellingPrice || 0);
         })
         .map(v => {
-          const vBaseCost = getVariantBaseCost(v as any);
-          const vDynamicPrice = calculateDynamicSellingPrice(vBaseCost, userMargin);
+          const vWeight = parseWeightGrams(String(v.weightLabel)) || 1000;
+          let vBaseCost = getVariantBaseCost(v as any);
+          if ((!vBaseCost || vBaseCost <= 0) && baseCost > 0) {
+            vBaseCost = Number(((baseCost / prodWeight) * vWeight).toFixed(2));
+          }
+          const vDynamicPrice = calculateDynamicSellingPrice(vBaseCost, userMargin, vWeight);
           const vDynamicDiscount =
             v.discountPrice && Number(v.discountPrice) > 0
-              ? calculateDynamicSellingPrice(Math.round(Number(v.discountPrice) / 1.40), userMargin)
+              ? calculateDynamicSellingPrice(Math.round(Number(v.discountPrice) / 1.40), userMargin, vWeight)
               : null;
           return {
             id: String(v.id),

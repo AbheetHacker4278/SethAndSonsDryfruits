@@ -2571,8 +2571,8 @@ export function createAdminErpRouter(
       res.status(404).json({ error: 'Order not found.' });
       return;
     }
-    if (order.status === 'cancelled' || order.status === 'returned') {
-      res.status(400).json({ error: `Cannot edit a ${order.status} order.` });
+    if (order.status === 'cancelled' || order.status === 'returned' || order.status === 'delivered' || order.status === 'completed') {
+      res.status(400).json({ error: `Cannot edit an existing completed (${order.status}) order. Historical order data and revenue are locked.` });
       return;
     }
 

@@ -22,6 +22,8 @@ import {
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
+  calculateUniversalSellingPrice,
+  calculateProductSellingPrice,
 } from '../data/products';
 
 export {
@@ -44,6 +46,8 @@ export {
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
+  calculateUniversalSellingPrice,
+  calculateProductSellingPrice,
 };
 
 /**
@@ -58,22 +62,27 @@ export function adjustProductPricingForMargin<T extends CatalogProduct | Product
     return product;
   }
 
+  const prodWeight = parseWeightGrams(product.weightLabel || (product.unit === 'gram' ? '1g' : '1kg')) || (product.unit === 'gram' ? 1 : 1000);
   const baseCost = getProductBaseCost(product);
-  const adjustedPrice = calculateDynamicSellingPrice(baseCost, marginPercent);
+  const adjustedPrice = calculateProductSellingPrice(baseCost, prodWeight, marginPercent);
   const sourceMargin = typeof product.appliedProfitMargin === 'number' && product.appliedProfitMargin > 0
     ? product.appliedProfitMargin
     : 40;
   const discountMultiplier = 1 + sourceMargin / 100;
   const adjustedDiscount =
     product.discountPrice && product.discountPrice > 0
-      ? calculateDynamicSellingPrice(Math.round(product.discountPrice / discountMultiplier), marginPercent)
+      ? calculateProductSellingPrice(Math.round(product.discountPrice / discountMultiplier), prodWeight, marginPercent)
       : null;
 
   const adjustedVariants = product.weightVariants?.map(v => {
     if (v.appliedProfitMargin === marginPercent) {
       return v;
     }
-    const vBaseCost = getVariantBaseCost(v);
+    const vWeight = parseWeightGrams(v.weightLabel) || 1000;
+    let vBaseCost = getVariantBaseCost(v);
+    if ((!vBaseCost || vBaseCost <= 0) && baseCost > 0) {
+      vBaseCost = Number(((baseCost / prodWeight) * vWeight).toFixed(2));
+    }
     const vSourceMargin = typeof v.appliedProfitMargin === 'number' && v.appliedProfitMargin > 0
       ? v.appliedProfitMargin
       : sourceMargin;
@@ -81,10 +90,10 @@ export function adjustProductPricingForMargin<T extends CatalogProduct | Product
     return {
       ...v,
       appliedProfitMargin: marginPercent,
-      sellingPrice: calculateDynamicSellingPrice(vBaseCost, marginPercent),
+      sellingPrice: calculateProductSellingPrice(vBaseCost, vWeight, marginPercent),
       discountPrice:
         v.discountPrice && v.discountPrice > 0
-          ? calculateDynamicSellingPrice(Math.round(v.discountPrice / vDiscountMultiplier), marginPercent)
+          ? calculateProductSellingPrice(Math.round(v.discountPrice / vDiscountMultiplier), vWeight, marginPercent)
           : null,
     };
   });
@@ -112,12 +121,14 @@ export function adjustProductListForMargin<T extends CatalogProduct | Product>(
  * Format currency in Indian Rupee format with ₹ symbol
  */
 export function formatINR(amount: number): string {
+  const num = Number(amount) || 0;
+  const hasDecimals = num % 1 !== 0;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(amount);
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+  }).format(num);
 }
 
 /**
@@ -267,23 +278,22 @@ export function getProductPackOptions(product: Pick<CatalogProduct, 'id' | 'sku'
  */
 export function calculateKgMarginTiers(
   costPerKg: number,
-  marginPercent: number = 40,
+  marginPercent: number = 25,
   baseSku: string = 'AS-PROD',
   defaultStock: number = 20
 ): CalculatedWeightTier[] {
-  const safeCost = Math.max(0, Math.round(Number(costPerKg) || 0));
-  const mult = 1 + marginPercent / 100;
+  const safeCost = Math.max(0, Number(costPerKg) || 0);
   const cleanSku = (baseSku || 'AS-PROD')
     .trim()
     .replace(/-(?:250G|500G|1KG|1000G|\d+G)$/i, '');
 
-  const cost250g = Math.round(safeCost * 0.25);
-  const cost500g = Math.round(safeCost * 0.5);
+  const cost250g = Number((safeCost * 0.25).toFixed(2));
+  const cost500g = Number((safeCost * 0.5).toFixed(2));
   const cost1kg = safeCost;
 
-  const sell250g = Math.round(cost250g * mult);
-  const sell500g = Math.round(cost500g * mult);
-  const sell1kg = Math.round(cost1kg * mult);
+  const sell250g = calculateProductSellingPrice(cost250g, 250, marginPercent);
+  const sell500g = calculateProductSellingPrice(cost500g, 500, marginPercent);
+  const sell1kg = calculateProductSellingPrice(cost1kg, 1000, marginPercent);
 
   return [
     {

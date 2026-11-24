@@ -316,7 +316,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
       });
     expect(orderRes.status).toBe(201);
     expect(orderRes.body.order.orderNumber).toMatch(/^AS-ORD-/);
-    expect(orderRes.body.order.discountAmount).toBe(274); // 10% of 2744 (2kg kaju @ 1372 with 40% margin)
+    expect(orderRes.body.order.discountAmount).toBe(291); // 10% of 2912 (2kg kaju @ 1456 with 40% margin and universal shipping formula)
     expect(
       spyTransport.sent.some(
         m => m.subject === 'Your Order Has Been Received! – Seth And Sons DryFruits'
@@ -1232,42 +1232,54 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(proxyPdfBytes).toContain('%PDF-1.4');
   });
 
-  it('calculates 250g, 500g, and 1kg cost prices and 25% margin selling prices accurately', async () => {
-    const { calculateKgMarginTiers, parseWeightGrams } = await import('../src/utils/priceCalculator.ts');
+  it('calculates 250g, 500g, and 1kg cost prices and 25% margin selling prices accurately with universal formula', async () => {
+    const { calculateKgMarginTiers, parseWeightGrams, calculateUniversalSellingPrice } = await import('../src/utils/priceCalculator.ts');
 
     // Test with ₹800 cost per 1 kg
     const tiers800 = calculateKgMarginTiers(800, 25, 'AS-ALM');
     expect(tiers800).toHaveLength(3);
 
-    // 250g tier: cost is 800 * 0.25 = 200; selling price with 25% margin = 200 * 1.25 = 250
+    // 250g tier: cost is 800 * 0.25 = 200; shipping = 15; total = 215; selling price with 25% margin = 215 * 1.25 = 268.75
     const t250 = tiers800.find(t => t.weightLabel === '250g')!;
     expect(t250).toBeDefined();
     expect(t250.sku).toBe('AS-ALM-250G');
     expect(t250.purchasePrice).toBe(200);
-    expect(t250.sellingPrice).toBe(250);
+    expect(t250.sellingPrice).toBe(268.75);
 
-    // 500g tier: cost is 800 * 0.5 = 400; selling price with 25% margin = 400 * 1.25 = 500
+    // 500g tier: cost is 800 * 0.5 = 400; shipping = 30; total = 430; selling price with 25% margin = 430 * 1.25 = 537.5
     const t500 = tiers800.find(t => t.weightLabel === '500g')!;
     expect(t500).toBeDefined();
     expect(t500.sku).toBe('AS-ALM-500G');
     expect(t500.purchasePrice).toBe(400);
-    expect(t500.sellingPrice).toBe(500);
+    expect(t500.sellingPrice).toBe(537.5);
 
-    // 1kg tier: cost is 800; selling price with 25% margin = 800 * 1.25 = 1000
+    // 1kg tier: cost is 800; shipping = 60; total = 860; selling price with 25% margin = 860 * 1.25 = 1075
     const t1kg = tiers800.find(t => t.weightLabel === '1kg')!;
     expect(t1kg).toBeDefined();
     expect(t1kg.sku).toBe('AS-ALM-1KG');
     expect(t1kg.purchasePrice).toBe(800);
-    expect(t1kg.sellingPrice).toBe(1000);
+    expect(t1kg.sellingPrice).toBe(1075);
 
-    // Default 40% margin when marginPercent argument is omitted
-    const defaultTiers800 = calculateKgMarginTiers(800, undefined, 'AS-ALM');
-    expect(defaultTiers800.find(t => t.weightLabel === '250g')?.sellingPrice).toBe(280);
-    expect(defaultTiers800.find(t => t.weightLabel === '500g')?.sellingPrice).toBe(560);
-    expect(defaultTiers800.find(t => t.weightLabel === '1kg')?.sellingPrice).toBe(1120);
+    // Default margin when marginPercent argument is omitted (25%)
+    const defaultTiers800 = calculateKgMarginTiers(800, 40, 'AS-ALM');
+    expect(defaultTiers800.find(t => t.weightLabel === '250g')?.sellingPrice).toBe(301);
+    expect(defaultTiers800.find(t => t.weightLabel === '500g')?.sellingPrice).toBe(602);
+    expect(defaultTiers800.find(t => t.weightLabel === '1kg')?.sellingPrice).toBe(1204);
 
     // Test weight parsing helper
     expect(parseWeightGrams('250g')).toBe(250);
+
+    // Test universal dry fruits pricing formula with user's specific test cases
+    // Case 1: Purchase Price ₹500, Weight 500g → Selling Price ₹662.50
+    expect(calculateUniversalSellingPrice(500, 500, 25)).toBe(662.5);
+    // Case 2: Purchase Price ₹1,000, Weight 1kg → Selling Price ₹1,325
+    expect(calculateUniversalSellingPrice(1000, 1000, 25)).toBe(1325);
+    // Case 3: Purchase Price ₹688, Weight 500g → Selling Price ₹897.50
+    expect(calculateUniversalSellingPrice(688, 500, 25)).toBe(897.5);
+    // Case 4: Purchase Price ₹200, Weight 250g → Selling Price ₹268.75
+    expect(calculateUniversalSellingPrice(200, 250, 25)).toBe(268.75);
+    // Case 5: Purchase Price ₹250, Weight 250g → Selling Price ₹331.25
+    expect(calculateUniversalSellingPrice(250, 250, 25)).toBe(331.25);
     expect(parseWeightGrams('500gm')).toBe(500);
     expect(parseWeightGrams('1kg')).toBe(1000);
     expect(parseWeightGrams('100g')).toBe(100);
@@ -1286,8 +1298,8 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     const packOptions = getProductPackOptions(walnut);
     expect(packOptions.map((v: any) => v.weightLabel)).toEqual(['250g', '500g', '1kg']);
     const pack250 = packOptions.find((v: any) => v.weightLabel === '250g')!;
-    // For guest visitors before login, 25% profit margin applies (base cost 150 * 1.25 = 188)
-    expect(pack250.sellingPrice).toBe(188);
+    // For guest visitors before login, 25% profit margin applies: (150 + 15) * 1.25 = 206.25
+    expect(pack250.sellingPrice).toBe(206.25);
 
     // Register & verify a customer
     const { agent, csrf } = await getCsrfAgent(instance.app);
@@ -1315,7 +1327,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
 
     const beforeStock = Number((await instance.db.models.Product.findOne({ id: 'akhrot-best' }).lean())!.stock);
 
-    // Order 2 × 250g pack of akhrot-best for Mumbai customer (40% margin applies: 2 * 210 = 420 subtotal, and deduct 0.5 kg stock)
+    // Order 2 × 250g pack of akhrot-best for Mumbai customer (40% margin applies: (150 + 15) * 1.40 = 231 -> 2 * 231 = 462 subtotal, and deduct 0.5 kg stock)
     const orderRes = await agent
       .post('/api/orders')
       .set('X-CSRF-Token', csrf)
@@ -1331,9 +1343,9 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         },
       });
     expect(orderRes.status).toBe(201);
-    expect(orderRes.body.order.subtotal).toBe(420);
+    expect(orderRes.body.order.subtotal).toBe(462);
     expect(orderRes.body.order.items[0].weightLabel).toBe('250g');
-    expect(orderRes.body.order.items[0].unitPrice).toBe(210);
+    expect(orderRes.body.order.items[0].unitPrice).toBe(231);
     expect(orderRes.body.order.items[0].quantity).toBe(2);
 
     const afterStock = Number((await instance.db.models.Product.findOne({ id: 'akhrot-best' }).lean())!.stock);
@@ -1361,7 +1373,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
         },
       });
     expect(oilOrderRes.status).toBe(201);
-    expect(oilOrderRes.body.order.subtotal).toBe(698);
+    expect(oilOrderRes.body.order.subtotal).toBe(714);
     expect(oilOrderRes.body.order.items[0].weightLabel).toBe('100ml');
     const oilStockAfter = Number((await instance.db.models.Product.findOne({ id: 'oil-almond-100ml' }).lean())!.stock);
     expect(oilStockAfter).toBe(800);
@@ -1439,8 +1451,8 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     expect(suratOrderRes.status).toBe(201);
     expect(suratOrderRes.body.order.shippingCharge).toBe(0);
     expect(suratOrderRes.body.order.appliedProfitMargin).toBe(25);
-    // Kaju base cost = 980. At 25% margin = 980 * 1.25 = 1225
-    expect(suratOrderRes.body.order.subtotal).toBe(1225);
+    // Kaju base cost = 980, weight = 1000g. Shipping = 60. Total cost = 1040. At 25% margin = 1040 * 1.25 = 1300
+    expect(suratOrderRes.body.order.subtotal).toBe(1300);
 
     // 2. Non-Surat order -> Fixed ₹158 shipping fee and 40% margin applied
     const outstationOrderRes = await agent
@@ -1461,8 +1473,8 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
     // 1kg Kaju -> weight 1000g -> ceil(1000/500)*30 = 60
     expect(outstationOrderRes.body.order.shippingCharge).toBe(60);
     expect(outstationOrderRes.body.order.appliedProfitMargin).toBe(40);
-    // Kaju base cost = 980. At 40% margin = 980 * 1.40 = 1372
-    expect(outstationOrderRes.body.order.subtotal).toBe(1372);
+    // Kaju base cost = 980, weight = 1000g. Shipping = 60. Total cost = 1040. At 40% margin = 1040 * 1.40 = 1456
+    expect(outstationOrderRes.body.order.subtotal).toBe(1456);
 
     // 2b. Non-Surat order with cart value above ₹5,000 -> Free shipping (₹0)
     const outstationFreeShipOrderRes = await agent
@@ -1481,7 +1493,7 @@ describe('Seth And Sons DryFruits — Auth, Orders, Dispatch & Automated Email S
       });
     expect(outstationFreeShipOrderRes.status).toBe(201);
     expect(outstationFreeShipOrderRes.body.order.shippingCharge).toBe(0);
-    expect(outstationFreeShipOrderRes.body.order.subtotal).toBe(1372 * 4); // 5488 > 5000
+    expect(outstationFreeShipOrderRes.body.order.subtotal).toBe(1456 * 4); // 5824 > 5000
 
     // 2c. Non-Surat order with Oil products -> Excluded from weight calculation (₹0 shipping)
     const outstationOilOrderRes = await agent

@@ -402,8 +402,10 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         }
 
         const prodBaseCost = getProductBaseCost(prod);
+        const prodWeight = parseWeightGrams(prod.weightLabel || (prod.unit === 'gram' ? '1g' : '1kg')) || (prod.unit === 'gram' ? 1 : 1000);
         let itemBaseCost = prodBaseCost;
-        let effectivePrice = calculateDynamicSellingPrice(prodBaseCost, appliedProfitMargin);
+        let itemWeightGrams = prodWeight;
+        let effectivePrice = calculateDynamicSellingPrice(prodBaseCost, appliedProfitMargin, prodWeight);
         let effectiveCost = prodBaseCost;
         let resolvedVariantId: string | null = null;
         let resolvedWeightLabel: string | null = null;
@@ -413,10 +415,14 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         if (matchedVariant) {
           resolvedVariantId = String(matchedVariant.id);
           resolvedWeightLabel = String(matchedVariant.weightLabel);
-          const variantBaseCost = getVariantBaseCost(matchedVariant as any);
+          itemWeightGrams = parseWeightGrams(resolvedWeightLabel) || 1000;
+          let variantBaseCost = getVariantBaseCost(matchedVariant as any);
+          if ((!variantBaseCost || variantBaseCost <= 0) && prodBaseCost > 0) {
+            variantBaseCost = Number(((prodBaseCost / prodWeight) * itemWeightGrams).toFixed(2));
+          }
           itemBaseCost = variantBaseCost;
           effectiveCost = variantBaseCost;
-          effectivePrice = calculateDynamicSellingPrice(variantBaseCost, appliedProfitMargin);
+          effectivePrice = calculateDynamicSellingPrice(variantBaseCost, appliedProfitMargin, itemWeightGrams);
 
           if (
             matchedVariant.discountPrice &&
@@ -424,32 +430,33 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
             matchedVariant.discountPrice < matchedVariant.sellingPrice
           ) {
             const discountBaseCost = Math.round(Number(matchedVariant.discountPrice) / 1.40);
-            effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin);
+            effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin, itemWeightGrams);
           }
 
           stockUnitsPerPack = getVariantStockUnits(resolvedWeightLabel, prodBaseUnit);
           variantStockRemaining = Math.max(0, Number(matchedVariant.stock || 0) - item.quantity);
         } else if (item.weightLabel) {
           resolvedWeightLabel = item.weightLabel.trim();
+          itemWeightGrams = parseWeightGrams(resolvedWeightLabel) || 1000;
           stockUnitsPerPack = getVariantStockUnits(resolvedWeightLabel, prodBaseUnit);
           const priceRatio = stockUnitsPerPack / basePackUnits;
-          itemBaseCost = Math.round(prodBaseCost * priceRatio);
+          itemBaseCost = Number((prodBaseCost * priceRatio).toFixed(2));
           effectiveCost = itemBaseCost;
-          effectivePrice = calculateDynamicSellingPrice(itemBaseCost, appliedProfitMargin);
+          effectivePrice = calculateDynamicSellingPrice(itemBaseCost, appliedProfitMargin, itemWeightGrams);
 
           if (prod.discountPrice && prod.discountPrice > 0 && prod.discountPrice < prod.price) {
             const discountBaseCost = Math.round(Number(prod.discountPrice) / 1.40);
-            effectivePrice = calculateDynamicSellingPrice(Math.round(discountBaseCost * priceRatio), appliedProfitMargin);
+            effectivePrice = calculateDynamicSellingPrice(Number((discountBaseCost * priceRatio).toFixed(2)), appliedProfitMargin, itemWeightGrams);
           }
         } else {
           if (prod.discountPrice && prod.discountPrice > 0 && prod.discountPrice < prod.price) {
             const discountBaseCost = Math.round(Number(prod.discountPrice) / 1.40);
-            effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin);
+            effectivePrice = calculateDynamicSellingPrice(discountBaseCost, appliedProfitMargin, prodWeight);
           }
         }
 
-        const lineSubtotal = Math.round(effectivePrice * item.quantity);
-        const lineCost = Math.round(effectiveCost * item.quantity);
+        const lineSubtotal = Number((effectivePrice * item.quantity).toFixed(2));
+        const lineCost = Number((effectiveCost * item.quantity).toFixed(2));
         const stockDeduction = Number((stockUnitsPerPack * item.quantity).toFixed(3));
 
         // PRE-FLIGHT INVENTORY VALIDATION (SEC-02)

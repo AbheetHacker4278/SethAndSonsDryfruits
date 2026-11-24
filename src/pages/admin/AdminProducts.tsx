@@ -512,9 +512,10 @@ export default function AdminProducts() {
                         <td className="py-3 pr-3">{p.categoryName}</td>
                         <td className="py-3 pr-3">
                           {(() => {
+                            const prodWeight = parseWeightGrams(p.weightLabel || (p.unit === 'gram' ? '1g' : '1kg')) || (p.unit === 'gram' ? 1 : 1000);
                             const baseCost = getProductBaseCost(p);
-                            const price40 = p.price ? Number(p.price) : calculateDynamicSellingPrice(baseCost, 40);
-                            const price25 = calculateDynamicSellingPrice(baseCost, 25);
+                            const price40 = p.price ? Number(p.price) : calculateDynamicSellingPrice(baseCost, 40, prodWeight);
+                            const price25 = calculateDynamicSellingPrice(baseCost, 25, prodWeight);
                             const unitSuffix = formatPriceUnitSuffix(p);
 
                             return (
@@ -1082,9 +1083,10 @@ export default function AdminProducts() {
           title={viewProduct?.name || 'Product Details'}
         >
           {viewProduct && (() => {
+            const prodWeight = parseWeightGrams(viewProduct.weightLabel || (viewProduct.unit === 'gram' ? '1g' : '1kg')) || (viewProduct.unit === 'gram' ? 1 : 1000);
             const baseCost = getProductBaseCost(viewProduct);
-            const price40 = viewProduct.price ? Number(viewProduct.price) : calculateDynamicSellingPrice(baseCost, 40);
-            const price25 = calculateDynamicSellingPrice(baseCost, 25);
+            const price40 = viewProduct.price ? Number(viewProduct.price) : calculateDynamicSellingPrice(baseCost, 40, prodWeight);
+            const price25 = calculateDynamicSellingPrice(baseCost, 25, prodWeight);
             const unitSuffix = formatPriceUnitSuffix(viewProduct);
 
             return (
@@ -1124,9 +1126,13 @@ export default function AdminProducts() {
                       <div>Profit Spread</div>
                     </div>
                     {viewProduct.weightVariants.map((v: any, idx: number) => {
-                      const vCost = getVariantBaseCost(v);
-                      const vPrice40 = v.sellingPrice ? Number(v.sellingPrice) : calculateDynamicSellingPrice(vCost, 40);
-                      const vPrice25 = calculateDynamicSellingPrice(vCost, 25);
+                      const vWeight = parseWeightGrams(v.weightLabel) || 1000;
+                      let vCost = getVariantBaseCost(v);
+                      if ((!vCost || vCost <= 0) && baseCost > 0) {
+                        vCost = Number(((baseCost / prodWeight) * vWeight).toFixed(2));
+                      }
+                      const vPrice40 = v.sellingPrice ? Number(v.sellingPrice) : calculateDynamicSellingPrice(vCost, 40, vWeight);
+                      const vPrice25 = calculateDynamicSellingPrice(vCost, 25, vWeight);
                       return (
                         <div key={idx} className="grid grid-cols-5 gap-2 text-[11px] py-1.5 border-b border-[#E9E4D9]/40 items-center">
                           <div className="font-semibold text-[#183D32]">{v.weightLabel}</div>

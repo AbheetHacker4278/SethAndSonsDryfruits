@@ -46,6 +46,7 @@ import {
   getProductBaseCost,
   getVariantBaseCost,
   calculateDynamicSellingPrice,
+  parseWeightGrams,
 } from '../../utils/priceCalculator';
 import { calculateOrderShippingCharge, calculateCustomWeightPrice, isSuratCity } from '../../../shared/catalogSeed';
 
@@ -207,13 +208,15 @@ export default function AdminOrders() {
   const getProductTierPrice = (prod: any, tier: 'surat' | 'non_surat') => {
     const margin = getTierMargin(tier);
     const baseCost = getProductBaseCost(prod);
-    return calculateDynamicSellingPrice(baseCost, margin);
+    const weight = parseWeightGrams(prod.weightLabel || (prod.unit === 'gram' ? '1g' : '1kg')) || (prod.unit === 'gram' ? 1 : 1000);
+    return calculateDynamicSellingPrice(baseCost, margin, weight);
   };
 
   const getVariantTierPrice = (variant: any, tier: 'surat' | 'non_surat') => {
     const margin = getTierMargin(tier);
     const baseCost = getVariantBaseCost(variant);
-    return calculateDynamicSellingPrice(baseCost, margin);
+    const weight = parseWeightGrams(variant.weightLabel) || 1000;
+    return calculateDynamicSellingPrice(baseCost, margin, weight);
   };
 
   const getCustomTierPrice = (prod: any, grams: number, tier: 'surat' | 'non_surat') => {
@@ -1374,14 +1377,16 @@ export default function AdminOrders() {
                 {/* Action Pills */}
                 {isSelectedManual ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openEditManualModal(selectedOrder)}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white hover:bg-[#245746] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-[#C8A96B]" />
-                      <span>Edit Manual Order</span>
-                    </button>
+                    {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'completed' && selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'returned' && (
+                      <button
+                        type="button"
+                        onClick={() => openEditManualModal(selectedOrder)}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#183D32] text-white hover:bg-[#245746] transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Edit Manual Order</span>
+                      </button>
+                    )}
                     {!['cancelled', 'returned'].includes(selectedOrder.status) && (
                       <button
                         type="button"
@@ -2237,8 +2242,8 @@ export default function AdminOrders() {
                       const g = Math.max(1, Number(pickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
                       const calc = calculateCustomWeightPrice(prod, g);
                       const cost = calc.baseCost;
-                      const p40 = calculateDynamicSellingPrice(cost, 40);
-                      const p25 = calculateDynamicSellingPrice(cost, 25);
+                      const p40 = calculateDynamicSellingPrice(cost, 40, g);
+                      const p25 = calculateDynamicSellingPrice(cost, 25, g);
                       return (
                         <div className="space-y-1 mt-1">
                           <div className="text-[10px] text-[#245746] font-medium truncate" title={calc.formula}>
@@ -2268,8 +2273,9 @@ export default function AdminOrders() {
 
                     const variant = prod.weightVariants?.find((v: any) => v.id === pickerVariantId);
                     const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
-                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
-                    const p25 = calculateDynamicSellingPrice(cost, 25);
+                    const vWeight = variant ? (parseWeightGrams(variant.weightLabel) || 1000) : (parseWeightGrams(prod.weightLabel || (prod.unit === 'gram' ? '1g' : '1kg')) || (prod.unit === 'gram' ? 1 : 1000));
+                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40, vWeight);
+                    const p25 = calculateDynamicSellingPrice(cost, 25, vWeight);
                     return (
                       <div className="flex items-center gap-1.5 mt-1 text-[10px]">
                         <button
@@ -2865,8 +2871,8 @@ export default function AdminOrders() {
                       const g = Math.max(1, Number(editPickerCustomGrams) || (prod.unit === 'gram' ? 10 : 350));
                       const calc = calculateCustomWeightPrice(prod, g);
                       const cost = calc.baseCost;
-                      const p40 = calculateDynamicSellingPrice(cost, 40);
-                      const p25 = calculateDynamicSellingPrice(cost, 25);
+                      const p40 = calculateDynamicSellingPrice(cost, 40, g);
+                      const p25 = calculateDynamicSellingPrice(cost, 25, g);
                       return (
                         <div className="space-y-1 mt-1">
                           <div className="text-[10px] text-[#245746] font-medium truncate" title={calc.formula}>
@@ -2896,8 +2902,9 @@ export default function AdminOrders() {
 
                     const variant = prod.weightVariants?.find(v => v.id === editPickerVariantId);
                     const cost = variant ? getVariantBaseCost(variant) : getProductBaseCost(prod);
-                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40);
-                    const p25 = calculateDynamicSellingPrice(cost, 25);
+                    const vWeight = variant ? (parseWeightGrams(variant.weightLabel) || 1000) : (parseWeightGrams(prod.weightLabel || (prod.unit === 'gram' ? '1g' : '1kg')) || (prod.unit === 'gram' ? 1 : 1000));
+                    const p40 = variant?.sellingPrice ? Number(variant.sellingPrice) : calculateDynamicSellingPrice(cost, 40, vWeight);
+                    const p25 = calculateDynamicSellingPrice(cost, 25, vWeight);
                     return (
                       <div className="flex items-center gap-1.5 mt-1 text-[10px]">
                         <button
