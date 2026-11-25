@@ -16,7 +16,7 @@
     "test": "vitest run --no-file-parallelism"
   },
   "dependencies": {
-    "@embedpdf/viewer-react": "^3.1.0",
+    "@embedpdf/viewer-react": "3.1.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
