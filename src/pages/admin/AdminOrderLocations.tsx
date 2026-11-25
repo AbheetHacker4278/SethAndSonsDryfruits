@@ -18,19 +18,17 @@ import {
   Sparkles,
 } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
   Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
-  CartesianGrid,
 } from 'recharts';
 import AdminLayout from '../../components/AdminLayout';
 import { AdminCard, EmptyState, LoadingSkeleton, ToastBanner } from '../../components/admin/AdminUI';
+import InteractiveOrderLocationMap, {
+  MapFocusTarget,
+} from '../../components/admin/InteractiveOrderLocationMap';
 import { apiRequest, ApiError } from '../../services/api';
 import { formatINR } from '../../utils/priceCalculator';
 
@@ -90,6 +88,8 @@ export default function AdminOrderLocations() {
   const [summary, setSummary] = useState<LocationSummary | null>(null);
   const [states, setStates] = useState<StateStat[]>([]);
   const [cities, setCities] = useState<CityStat[]>([]);
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [focusedLocation, setFocusedLocation] = useState<MapFocusTarget | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -154,24 +154,6 @@ export default function AdminOrderLocations() {
       sortBy === 'orders' ? b.orderCount - a.orderCount : b.totalRevenue - a.totalRevenue
     );
   }, [cities, searchQuery, sortBy]);
-
-  // Top 10 States for Chart
-  const stateChartData = useMemo(() => {
-    return states.slice(0, 8).map(s => ({
-      name: s.state,
-      orders: s.orderCount,
-      revenue: s.totalRevenue,
-    }));
-  }, [states]);
-
-  // Top 8 Cities for Chart
-  const cityChartData = useMemo(() => {
-    return cities.slice(0, 8).map(c => ({
-      name: c.city,
-      orders: c.orderCount,
-      revenue: c.totalRevenue,
-    }));
-  }, [cities]);
 
   // Surat vs Other Cities Hub Distribution
   const hubDistribution = useMemo(() => {
@@ -414,57 +396,22 @@ export default function AdminOrderLocations() {
               </AdminCard>
             </div>
 
-            {/* Visual Analytics Charts */}
+            {/* Interactive World & Indian States Map + Hub Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Chart 1: Top States by Order Count */}
-              <AdminCard className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[#183D32]">Top States by Customer Orders</h3>
-                    <p className="text-xs text-[#888B83]">States with the highest order frequency and volume.</p>
-                  </div>
-                  <span className="text-xs text-[#C8A96B] font-semibold bg-[#FAF3E3] px-2.5 py-1 rounded-full border border-[#E8D5A7]">
-                    Top {stateChartData.length} States
-                  </span>
-                </div>
-
-                {stateChartData.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-[#888B83]">No state orders recorded yet.</div>
-                ) : (
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stateChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E9E4D9" />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fill: '#5C6058', fontSize: 11 }}
-                          angle={-15}
-                          textAnchor="end"
-                          interval={0}
-                        />
-                        <YAxis tick={{ fill: '#5C6058', fontSize: 11 }} allowDecimals={false} />
-                        <Tooltip
-                          formatter={(value: any, name: any) => [
-                            name === 'revenue' ? formatINR(Number(value)) : `${value} Orders`,
-                            name === 'revenue' ? 'Revenue' : 'Order Count',
-                          ]}
-                          contentStyle={{
-                            backgroundColor: '#183D32',
-                            color: '#F8F6F0',
-                            borderRadius: '12px',
-                            border: '1px solid #C8A96B',
-                            fontSize: '12px',
-                          }}
-                        />
-                        <Bar dataKey="orders" fill="#183D32" radius={[6, 6, 0, 0]} name="Orders" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+              {/* Interactive World Map including Indian States */}
+              <AdminCard className={mapExpanded ? 'lg:col-span-3' : 'lg:col-span-2'}>
+                <InteractiveOrderLocationMap
+                  states={states}
+                  cities={cities}
+                  summary={summary}
+                  focusedLocation={focusedLocation}
+                  isExpanded={mapExpanded}
+                  onToggleExpand={() => setMapExpanded(v => !v)}
+                />
               </AdminCard>
 
               {/* Chart 2: Regional Hub Distribution (Surat vs Other Cities) */}
-              <AdminCard>
+              <AdminCard className={mapExpanded ? 'lg:col-span-3' : ''}>
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-[#183D32]">Hub Distribution</h3>
                   <p className="text-xs text-[#888B83]">Surat Free Shipping vs Interstate Orders.</p>
@@ -629,7 +576,12 @@ export default function AdminOrderLocations() {
                           return (
                             <tr
                               key={st.state}
-                              className={`hover:bg-[#FAF8F3] transition-colors ${
+                              onClick={() => {
+                                setFocusedLocation({ type: 'state', name: st.state, ts: Date.now() });
+                                window.scrollTo({ top: 180, behavior: 'smooth' });
+                              }}
+                              title={`Click to locate ${st.state} on the interactive map`}
+                              className={`hover:bg-[#FAF8F3] transition-colors cursor-pointer ${
                                 idx === 0 ? 'bg-[#FAF3E3]/20 font-medium' : ''
                               }`}
                             >
@@ -737,7 +689,17 @@ export default function AdminOrderLocations() {
                           return (
                             <tr
                               key={`${ct.city}-${ct.state}`}
-                              className={`hover:bg-[#FAF8F3] transition-colors ${
+                              onClick={() => {
+                                setFocusedLocation({
+                                  type: 'city',
+                                  name: ct.city,
+                                  state: ct.state,
+                                  ts: Date.now(),
+                                });
+                                window.scrollTo({ top: 180, behavior: 'smooth' });
+                              }}
+                              title={`Click to locate ${ct.city} on the interactive map`}
+                              className={`hover:bg-[#FAF8F3] transition-colors cursor-pointer ${
                                 idx === 0 ? 'bg-[#FAF3E3]/20 font-medium' : ''
                               }`}
                             >
