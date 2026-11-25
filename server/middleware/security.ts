@@ -203,7 +203,6 @@ export function createSecurityHeaders(config?: AppConfig) {
 
     const styleSrc = [
       "'self'",
-      `'nonce-${nonce}'`,
       "'unsafe-inline'",
       'https://fonts.googleapis.com',
     ].join(' ');
@@ -213,7 +212,7 @@ export function createSecurityHeaders(config?: AppConfig) {
       `script-src ${scriptSrc}`,
       `style-src ${styleSrc}`,
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.razorpay.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.razorpay.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://server.arcgisonline.com",
       "media-src 'self' data: blob: https://res.cloudinary.com",
       "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://res.cloudinary.com https://accounts.google.com",
       "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com",
