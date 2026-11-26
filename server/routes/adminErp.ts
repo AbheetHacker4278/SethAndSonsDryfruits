@@ -1237,10 +1237,10 @@ export function createAdminErpRouter(
   // 2. PRODUCTS, VARIANTS & CATEGORIES CRUD
   // =============================================
   router.get('/erp/products', (req, res, next) => {
-    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('orders') || req.user?.permissions?.includes('expenses')) {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('orders') || req.user?.permissions?.includes('expenses') || req.user?.permissions?.includes('purchases')) {
       next();
     } else {
-      res.status(403).json({ error: 'Access denied. Missing products, orders, or expenses permission.' });
+      res.status(403).json({ error: 'Access denied. Missing products, orders, expenses, or purchases permission.' });
     }
   }, async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
@@ -1582,7 +1582,7 @@ export function createAdminErpRouter(
 
   // Categories CRUD
   router.get('/categories', (req, res, next) => {
-    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('categories') || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('expenses')) {
+    if (req.user?.adminRole === 'super_admin' || req.user?.permissions?.includes('categories') || req.user?.permissions?.includes('products') || req.user?.permissions?.includes('expenses') || req.user?.permissions?.includes('purchases')) {
       next();
     } else {
       res.status(403).json({ error: 'Access denied. Missing categories permission.' });

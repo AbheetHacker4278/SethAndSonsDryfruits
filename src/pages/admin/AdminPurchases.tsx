@@ -31,6 +31,7 @@ import { apiRequest, ApiError, apiUpload } from '../../services/api';
 import { formatINR } from '../../utils/priceCalculator';
 
 interface PurchaseLineDraft {
+  categoryId?: string;
   productId: string;
   quantity: number;
   purchasePrice: number;
@@ -39,10 +40,14 @@ interface PurchaseLineDraft {
   expiryDate: string;
 }
 
+const getProductCategoryKey = (p?: any): string =>
+  String(p?.categoryId || p?.category || '').trim();
+
 export default function AdminPurchases() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
@@ -78,14 +83,16 @@ export default function AdminPurchases() {
   const load = async () => {
     setLoading(true);
     try {
-      const [poRes, supRes, prodRes] = await Promise.all([
+      const [poRes, supRes, prodRes, catRes] = await Promise.all([
         apiRequest<{ purchases: any[] }>('/api/admin/purchases'),
         apiRequest<{ suppliers: any[] }>('/api/admin/suppliers'),
         apiRequest<{ products: any[] }>('/api/admin/erp/products'),
+        apiRequest<{ categories: any[] }>('/api/admin/categories').catch(() => ({ categories: [] })),
       ]);
       setPurchases(poRes.purchases || []);
       setSuppliers(supRes.suppliers || []);
       setProducts(prodRes.products || []);
+      setCategories(catRes.categories || []);
       if (!supplierId && supRes.suppliers?.length) setSupplierId(supRes.suppliers[0].id);
     } catch (err) {
       setToast({
@@ -106,6 +113,39 @@ export default function AdminPurchases() {
   }, [searchQuery, statusFilter, paymentFilter]);
 
   const productMap = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+
+  const availableCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    const byId = new Map<string, { id: string; name: string; count: number }>();
+
+    for (const p of products) {
+      const key = getProductCategoryKey(p);
+      if (!key) continue;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+
+    for (const c of categories) {
+      const key = String(c?.id || '').trim();
+      if (!key) continue;
+      byId.set(key, {
+        id: key,
+        name: String(c?.name || key),
+        count: counts.get(key) || 0,
+      });
+    }
+
+    for (const p of products) {
+      const key = getProductCategoryKey(p);
+      if (!key || byId.has(key)) continue;
+      byId.set(key, {
+        id: key,
+        name: String(p?.categoryName || p?.category || key),
+        count: counts.get(key) || 0,
+      });
+    }
+
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, products]);
 
   const zeroOrLowProducts = useMemo(() => {
     return products
@@ -166,10 +206,29 @@ export default function AdminPurchases() {
     };
   }, [lineItems, additionalExpenses]);
 
+  const applyProductToLine = (
+    line: PurchaseLineDraft,
+    prod?: any,
+    categoryOverride?: string
+  ): PurchaseLineDraft => {
+    const prodCat = getProductCategoryKey(prod);
+    return {
+      ...line,
+      categoryId: categoryOverride !== undefined ? categoryOverride : prodCat,
+      productId: prod?.id || '',
+      purchasePrice: prod
+        ? Math.max(1, Number(prod?.purchasePrice || line.purchasePrice || 500))
+        : line.purchasePrice,
+      gstRate: prod ? Number(prod?.gstRate ?? 5) : line.gstRate,
+      quantity: prod?.unit === 'gram' || prod?.unit === 'ml' ? 250 : line.quantity,
+    };
+  };
+
   const makeDefaultLineForProduct = (prod?: any): PurchaseLineDraft => {
     const target = prod || products[0];
     const defaultQty = target?.unit === 'gram' || target?.unit === 'ml' ? 250 : 10;
     return {
+      categoryId: getProductCategoryKey(target),
       productId: target?.id || '',
       quantity: defaultQty,
       purchasePrice: Math.max(1, Number(target?.purchasePrice || 500)),
@@ -211,6 +270,7 @@ export default function AdminPurchases() {
     setLineItems(
       Array.isArray(po.items) && po.items.length > 0
         ? po.items.map((it: any) => ({
+            categoryId: getProductCategoryKey(productMap.get(it.productId)),
             productId: it.productId,
             quantity: Number(it.quantity || 1),
             purchasePrice: Number(it.purchasePrice || 1),
@@ -237,6 +297,7 @@ export default function AdminPurchases() {
     setLineItems(
       Array.isArray(po.items) && po.items.length > 0
         ? po.items.map((it: any) => ({
+            categoryId: getProductCategoryKey(productMap.get(it.productId)),
             productId: it.productId,
             quantity: Number(it.quantity || 1),
             purchasePrice: Number(it.purchasePrice || 1),
@@ -268,18 +329,32 @@ export default function AdminPurchases() {
     }
   };
 
+  const handleCategoryLineChange = (index: number, newCategoryId: string) => {
+    setLineItems(arr =>
+      arr.map((x, idx) => {
+        if (idx !== index) return x;
+        if (!newCategoryId) {
+          const fallbackProd = productMap.get(x.productId) || products[0];
+          return x.productId
+            ? { ...x, categoryId: '' }
+            : applyProductToLine(x, fallbackProd, '');
+        }
+        const matching = products.filter(p => getProductCategoryKey(p) === newCategoryId);
+        const currentProd = productMap.get(x.productId);
+        if (currentProd && getProductCategoryKey(currentProd) === newCategoryId) {
+          return { ...x, categoryId: newCategoryId };
+        }
+        return applyProductToLine(x, matching[0], newCategoryId);
+      })
+    );
+  };
+
   const handleProductLineChange = (index: number, newProdId: string) => {
     const prod = productMap.get(newProdId);
     setLineItems(arr =>
       arr.map((x, idx) =>
         idx === index
-          ? {
-              ...x,
-              productId: newProdId,
-              purchasePrice: Math.max(1, Number(prod?.purchasePrice || x.purchasePrice || 500)),
-              gstRate: Number(prod?.gstRate ?? 5),
-              quantity: prod?.unit === 'gram' || prod?.unit === 'ml' ? 250 : x.quantity,
-            }
+          ? applyProductToLine(x, prod, x.categoryId === '' ? '' : getProductCategoryKey(prod))
           : x
       )
     );
@@ -289,6 +364,10 @@ export default function AdminPurchases() {
     e.preventDefault();
     if (!supplierId) {
       setToast({ type: 'err', text: 'Please select or create a supplier first.' });
+      return;
+    }
+    if (lineItems.some(li => !li.productId)) {
+      setToast({ type: 'err', text: 'Please select a valid product for every line item.' });
       return;
     }
     setSaving(true);
@@ -302,7 +381,7 @@ export default function AdminPurchases() {
       receiveImmediately,
       invoiceFile: invoiceFile || null,
       notes: notes.trim(),
-      items: lineItems.map(li => ({
+      items: lineItems.map(({ categoryId: _categoryId, ...li }) => ({
         ...li,
         quantity: Number(li.quantity),
         purchasePrice: Number(li.purchasePrice),
@@ -842,6 +921,13 @@ export default function AdminPurchases() {
               <div className="space-y-3">
                 {lineItems.map((li, i) => {
                   const selectedProd = productMap.get(li.productId);
+                  const activeCatId =
+                    li.categoryId !== undefined ? li.categoryId : getProductCategoryKey(selectedProd);
+                  const filteredLineProducts = activeCatId
+                    ? products.filter(p => getProductCategoryKey(p) === activeCatId)
+                    : products;
+                  const activeCatLabel =
+                    availableCategories.find(c => c.id === activeCatId)?.name || '';
                   const unitName = selectedProd?.unit || 'kg';
                   const lineSub = Math.round(Number(li.quantity || 0) * Number(li.purchasePrice || 0));
                   const lineGst = Math.round(lineSub * (Number(li.gstRate || 0) / 100));
@@ -853,9 +939,28 @@ export default function AdminPurchases() {
                       className="p-3 rounded-xl bg-white border border-[#E2DDD2] space-y-2.5"
                     >
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
-                        <div className="sm:col-span-4">
+                        <div className="sm:col-span-5">
+                          <label htmlFor={`li-cat-${i}`} className="block font-medium text-[#252923] mb-1">
+                            Product Category
+                          </label>
+                          <select
+                            id={`li-cat-${i}`}
+                            value={activeCatId}
+                            onChange={e => handleCategoryLineChange(i, e.target.value)}
+                            className="w-full px-2.5 py-2 rounded-lg bg-[#F8F6F0] border border-[#D8D1C3] text-[#252923] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
+                          >
+                            <option value="">All Categories ({products.length})</option>
+                            {availableCategories.map(cat => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.name} ({cat.count})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-7">
                           <label htmlFor={`li-prod-${i}`} className="block font-medium text-[#252923] mb-1">
-                            Product *
+                            {activeCatLabel ? `${activeCatLabel} Product *` : 'Product *'}
                           </label>
                           <select
                             id={`li-prod-${i}`}
@@ -863,15 +968,21 @@ export default function AdminPurchases() {
                             onChange={e => handleProductLineChange(i, e.target.value)}
                             className="w-full px-2.5 py-2 rounded-lg bg-[#F8F6F0] border border-[#D8D1C3] text-[#252923] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
                           >
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.name} ({p.stock} {p.unit})
-                              </option>
-                            ))}
+                            {filteredLineProducts.length === 0 ? (
+                              <option value="">No products in this category</option>
+                            ) : (
+                              filteredLineProducts.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} ({p.stock} {p.unit})
+                                </option>
+                              ))
+                            )}
                           </select>
                         </div>
+                      </div>
 
-                        <div className="sm:col-span-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                        <div className="sm:col-span-3">
                           <label htmlFor={`li-qty-${i}`} className="block font-medium text-[#252923] mb-1">
                             Qty ({unitName}) *
                           </label>
@@ -893,7 +1004,7 @@ export default function AdminPurchases() {
                           />
                         </div>
 
-                        <div className="sm:col-span-2">
+                        <div className="sm:col-span-3">
                           <label htmlFor={`li-rate-${i}`} className="block font-medium text-[#252923] mb-1">
                             Cost Rate (₹) *
                           </label>
@@ -914,7 +1025,7 @@ export default function AdminPurchases() {
                           />
                         </div>
 
-                        <div className="sm:col-span-1">
+                        <div className="sm:col-span-2">
                           <label htmlFor={`li-gst-${i}`} className="block font-medium text-[#252923] mb-1">
                             GST %
                           </label>
@@ -935,7 +1046,7 @@ export default function AdminPurchases() {
                           />
                         </div>
 
-                        <div className="sm:col-span-3 flex items-center justify-between gap-2 pb-1">
+                        <div className="sm:col-span-4 flex items-center justify-between gap-2 pb-1">
                           <div>
                             <div className="text-[10px] uppercase text-[#5C6058]">Line Total</div>
                             <div className="font-bold text-sm text-[#183D32] tabular-nums">
