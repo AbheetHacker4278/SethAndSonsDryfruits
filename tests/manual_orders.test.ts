@@ -283,4 +283,152 @@ describe('Admin Manual Orders (WhatsApp / Phone) & Invoice Generation', () => {
     const stockAfterEdit = await instance.db.models.Product.findOne({ id: 'kaju' }).lean();
     expect(Number(stockAfterEdit!.stock)).toBe(Math.max(0, initialStock - 3));
   });
+
+  it('consolidates multiple pending orders per customer into one email and supports Edit/Update/Hide/Delete of Direct Payment Instructions', async () => {
+    const { agent, csrf } = await getAgentWithCsrf(instance.app);
+    const loginRes = await loginAdminViaOtp(agent, csrf, spyTransport.sent);
+    expect(loginRes.status).toBe(200);
+    const csrfAfter = extractCookieValue(loginRes.headers['set-cookie'], 'as_csrf') || csrf;
+
+    // 1. Create two separate unpaid/pending orders for the same customer
+    const ord1Res = await agent
+      .post('/api/admin/orders')
+      .set('x-csrf-token', csrfAfter)
+      .send({
+        orderSource: 'direct',
+        customerName: 'Kinjal Shah',
+        customerPhone: '9725394956',
+        customerEmail: 'kinjal.shah@example.com',
+        deliveryAddress: '401 Solaris Bay View, Piplod',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        items: [{ productId: 'kaju', quantity: 1, unitPrice: 688 }],
+        paymentMethod: 'upi',
+        paymentStatus: 'pending',
+        shippingCharge: 0,
+        discountAmount: 0,
+      });
+    expect(ord1Res.status).toBe(201);
+
+    const ord2Res = await agent
+      .post('/api/admin/orders')
+      .set('x-csrf-token', csrfAfter)
+      .send({
+        orderSource: 'whatsapp',
+        customerName: 'Kinjal Shah',
+        customerPhone: '9725394956',
+        customerEmail: 'kinjal.shah@example.com',
+        deliveryAddress: '401 Solaris Bay View, Piplod',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        items: [{ productId: 'badam-california-giri', quantity: 2, unitPrice: 725 }],
+        paymentMethod: 'upi',
+        paymentStatus: 'pending',
+        shippingCharge: 0,
+        discountAmount: 0,
+      });
+    expect(ord2Res.status).toBe(201);
+
+    const ordNum1 = ord1Res.body.order.orderNumber;
+    const ordNum2 = ord2Res.body.order.orderNumber;
+    // Expected combined outstanding: 688 + 1450 = 2138
+    const expectedCombined = 688 + 1450;
+
+    // 2. Get default Direct Payment Instructions
+    const getInstrRes = await agent.get('/api/admin/payment-instructions');
+    expect(getInstrRes.status).toBe(200);
+    expect(getInstrRes.body.instructions.enabled).toBe(true);
+    expect(getInstrRes.body.instructions.upiId).toBe('aseth9588-1@okhdfcbank');
+
+    // 3. Edit & Update Direct Payment Instructions
+    const putInstrRes = await agent
+      .put('/api/admin/payment-instructions')
+      .set('x-csrf-token', csrfAfter)
+      .send({
+        enabled: true,
+        heading: 'Updated UPI Settlement Details',
+        upiId: 'sethsons.reserve@okicici',
+        beneficiary: 'Seth And Sons Reserve LLP',
+        extraDetails: 'Bank Transfer: HDFC A/C 50200012345678',
+      });
+    expect(putInstrRes.status).toBe(200);
+    expect(putInstrRes.body.instructions.upiId).toBe('sethsons.reserve@okicici');
+
+    // 4. Consolidated preview includes BOTH orders, items, quantities, combined total, and updated payment instructions
+    const previewRes = await agent
+      .post('/api/admin/orders/preview-payment-reminder')
+      .set('x-csrf-token', csrfAfter)
+      .send({ orderNumbers: [ordNum1, ordNum2] });
+    expect(previewRes.status).toBe(200);
+    expect(previewRes.body.orderCount).toBe(2);
+    expect(previewRes.body.totalAmount).toBe(expectedCombined);
+    expect(previewRes.body.html).toContain(ordNum1);
+    expect(previewRes.body.html).toContain(ordNum2);
+    expect(previewRes.body.html).toContain('Qty: 1');
+    expect(previewRes.body.html).toContain('Qty: 2');
+    expect(previewRes.body.html).toContain('2,138');
+    expect(previewRes.body.html).toContain('Updated UPI Settlement Details');
+    expect(previewRes.body.html).toContain('sethsons.reserve@okicici');
+    expect(previewRes.body.html).toContain('HDFC A/C 50200012345678');
+
+    // 5. Hide Direct Payment Instructions for preview
+    const hiddenPreviewRes = await agent
+      .post('/api/admin/orders/preview-payment-reminder')
+      .set('x-csrf-token', csrfAfter)
+      .send({
+        orderNumbers: [ordNum1, ordNum2],
+        directPaymentInstructions: { enabled: false },
+      });
+    expect(hiddenPreviewRes.status).toBe(200);
+    expect(hiddenPreviewRes.body.html).toContain(ordNum1);
+    expect(hiddenPreviewRes.body.html).toContain(ordNum2);
+    expect(hiddenPreviewRes.body.html).not.toContain('sethsons.reserve@okicici');
+    expect(hiddenPreviewRes.body.html).not.toContain('Updated UPI Settlement Details');
+
+    // 6. Dispatch batch payment reminders -> MUST send only 1 consolidated email to Kinjal Shah
+    const sentBefore = spyTransport.sent.length;
+    const sendRes = await agent
+      .post('/api/admin/orders/send-payment-reminders')
+      .set('x-csrf-token', csrfAfter)
+      .send({
+        orderNumbers: [ordNum1, ordNum2],
+        customerOverrides: [
+          {
+            customerKey: 'email:kinjal.shah@example.com',
+            instructions: { enabled: false },
+          },
+        ],
+      });
+    expect(sendRes.status).toBe(200);
+    expect(sendRes.body.dispatchedCount).toBe(1);
+    expect(sendRes.body.customerCount).toBe(1);
+    expect(sendRes.body.orderCount).toBe(2);
+
+    const newEmails = spyTransport.sent.slice(sentBefore).filter(m => m.to === 'kinjal.shah@example.com');
+    expect(newEmails).toHaveLength(1);
+    expect(newEmails[0].subject).toContain('2 Pending Orders');
+    expect(newEmails[0].html).toContain(ordNum1);
+    expect(newEmails[0].html).toContain(ordNum2);
+    expect(newEmails[0].html).toContain('2,138');
+    // Hidden for this customer via customerOverrides
+    expect(newEmails[0].html).not.toContain('sethsons.reserve@okicici');
+
+    // 7. Delete Direct Payment Instructions
+    const delInstrRes = await agent
+      .delete('/api/admin/payment-instructions')
+      .set('x-csrf-token', csrfAfter);
+    expect(delInstrRes.status).toBe(200);
+    expect(delInstrRes.body.instructions.deleted).toBe(true);
+    expect(delInstrRes.body.instructions.enabled).toBe(false);
+
+    const afterDeletePreview = await agent
+      .post('/api/admin/orders/preview-payment-reminder')
+      .set('x-csrf-token', csrfAfter)
+      .send({ orderNumbers: [ordNum1] });
+    expect(afterDeletePreview.status).toBe(200);
+    expect(afterDeletePreview.body.html).not.toContain('Direct Payment Instructions');
+    expect(afterDeletePreview.body.html).not.toContain('aseth9588-1@okhdfcbank');
+  });
 });

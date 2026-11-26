@@ -2843,156 +2843,402 @@ export function createAdminErpRouter(
   }
 
   // =============================================
-  // 4B. UNPAID PAYMENT REQUEST REMINDERS
+  // 4B. UNPAID PAYMENT REQUEST REMINDERS & DIRECT PAYMENT INSTRUCTIONS
   // =============================================
-  async function buildPaymentReminderEmail(order: any, baseUrl: string) {
-    const orderNumber = String(order.orderNumber);
-    const items = await db.models.OrderItem.find({ orderId: order.id }).lean();
+  interface DirectPaymentInstructionsConfig {
+    enabled: boolean;
+    deleted: boolean;
+    heading: string;
+    introTemplate: string;
+    methodLabel: string;
+    upiId: string;
+    beneficiary: string;
+    footerNote: string;
+    extraDetails: string;
+    updatedAt?: string;
+  }
+
+  const DEFAULT_DIRECT_PAYMENT_INSTRUCTIONS: DirectPaymentInstructionsConfig = {
+    enabled: true,
+    deleted: false,
+    heading: 'Direct Payment Instructions',
+    introTemplate: 'To settle your invoice balance of {amount}, please complete payment via UPI:',
+    methodLabel: 'Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)',
+    upiId: 'aseth9588-1@okhdfcbank',
+    beneficiary: 'Seth And Sons DryFruits',
+    footerNote:
+      'Once completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at +91 6356038361 for instant ledger clearance.',
+    extraDetails: '',
+  };
+
+  async function getDirectPaymentInstructions(): Promise<DirectPaymentInstructionsConfig> {
+    const row = await db.models.SiteSetting.findOne({ key: 'direct_payment_instructions' }).lean();
+    if (row?.value && typeof row.value === 'object') {
+      const v = row.value as Record<string, any>;
+      return {
+        ...DEFAULT_DIRECT_PAYMENT_INSTRUCTIONS,
+        ...v,
+        deleted: Boolean(v.deleted),
+        enabled: v.deleted ? false : typeof v.enabled === 'boolean' ? v.enabled : true,
+      };
+    }
+    return { ...DEFAULT_DIRECT_PAYMENT_INSTRUCTIONS };
+  }
+
+  function mergePaymentInstructions(
+    base: DirectPaymentInstructionsConfig,
+    override?: Partial<DirectPaymentInstructionsConfig> | null
+  ): DirectPaymentInstructionsConfig {
+    if (!override || typeof override !== 'object') return base;
+    const deleted = typeof override.deleted === 'boolean' ? override.deleted : base.deleted;
+    const enabled = deleted
+      ? false
+      : typeof override.enabled === 'boolean'
+        ? override.enabled
+        : base.enabled;
+    return {
+      ...base,
+      ...override,
+      deleted,
+      enabled,
+    };
+  }
+
+  async function resolveOrderCustomer(order: any): Promise<{ key: string; email: string; name: string }> {
     const cSnap = (order.customerSnapshot as any) || {};
     const dAddr = (order.deliveryAddress as any) || {};
-
     let customerEmail = normalizeEmail(cSnap.email || dAddr.email || '');
-    let customerName = (cSnap.name || dAddr.fullName || 'Valued Patron').trim();
+    let customerName = String(cSnap.name || dAddr.fullName || '').trim();
 
-    if (!customerEmail && order.customerId) {
+    if ((!customerEmail || !customerName) && order.customerId) {
       const cust = await db.models.Customer.findOne({ id: order.customerId }).lean();
-      if (cust && cust.email) {
-        customerEmail = cust.email;
-        if (cust.name) customerName = cust.name;
+      if (cust) {
+        if (!customerEmail && cust.email) customerEmail = normalizeEmail(cust.email);
+        if (!customerName && cust.name) customerName = String(cust.name).trim();
       }
     }
 
-    const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+    const key = customerEmail
+      ? `email:${customerEmail}`
+      : order.customerId
+        ? `id:${String(order.customerId)}`
+        : `order:${String(order.orderNumber)}`;
+
+    return {
+      key,
+      email: customerEmail,
+      name: customerName || 'Valued Patron',
+    };
+  }
+
+  function renderDirectPaymentBlock(
+    cfg: DirectPaymentInstructionsConfig,
+    totalStr: string
+  ): { html: string; text: string } {
+    if (!cfg.enabled || cfg.deleted) {
+      return { html: '', text: '' };
+    }
+
+    const heading = (cfg.heading || '').trim() || 'Direct Payment Instructions';
+    const introResolved = (cfg.introTemplate || 'To settle your invoice balance of {amount}, please complete payment via UPI:')
+      .replace(/\{amount\}/gi, totalStr);
+    const methodLabel = (cfg.methodLabel || '').trim();
+    const upiId = (cfg.upiId || '').trim();
+    const beneficiary = (cfg.beneficiary || '').trim();
+    const footerNote = (cfg.footerNote || '').trim();
+    const extraDetails = (cfg.extraDetails || '').trim();
+
+    const html = `
+      <!-- Direct Payment Modes -->
+      <div style="margin:24px 0;padding:20px;background-color:#FAF8F5;border:1px solid #D9C48C;border-radius:12px;">
+        <div style="font-size:12px;font-weight:bold;color:#064e3b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          ${escapeHtml(heading)}
+        </div>
+        ${
+          introResolved
+            ? `<div style="font-size:13px;line-height:20px;color:#27332D;margin-bottom:12px;">${escapeHtml(introResolved).replace(escapeHtml(totalStr), `<strong>${escapeHtml(totalStr)}</strong>`)}</div>`
+            : ''
+        }
+        ${
+          methodLabel || upiId || beneficiary
+            ? `<div style="padding:12px 16px;background-color:#ffffff;border:1px solid #E9E4D9;border-radius:8px;margin-bottom:12px;">
+                ${methodLabel ? `<div style="font-size:11px;color:#888B83;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(methodLabel)}</div>` : ''}
+                ${upiId ? `<div style="font-family:monospace;font-size:16px;font-weight:bold;color:#064e3b;margin:4px 0;">${escapeHtml(upiId)}</div>` : ''}
+                ${beneficiary ? `<div style="font-size:11px;color:#5C6058;">Beneficiary: ${escapeHtml(beneficiary)}</div>` : ''}
+              </div>`
+            : ''
+        }
+        ${
+          extraDetails
+            ? `<div style="font-size:12px;color:#183D32;background-color:#ffffff;padding:10px 12px;border-left:3px solid #C8A96B;border-radius:4px;margin-bottom:12px;line-height:18px;">${escapeHtml(extraDetails).replace(/\n/g, '<br/>')}</div>`
+            : ''
+        }
+        ${
+          footerNote
+            ? `<div style="font-size:12px;color:#5C6058;line-height:18px;">${escapeHtml(footerNote).replace(/\n/g, '<br/>')}</div>`
+            : ''
+        }
+      </div>
+    `;
+
+    const textParts = [
+      `${heading.toUpperCase()}:`,
+      introResolved,
+      upiId ? `${methodLabel ? `${methodLabel}: ` : ''}${upiId}` : '',
+      beneficiary ? `Beneficiary: ${beneficiary}` : '',
+      extraDetails,
+      footerNote,
+    ].filter(Boolean);
+
+    return {
+      html,
+      text: `\n${textParts.join('\n')}\n`,
+    };
+  }
+
+  async function buildConsolidatedPaymentReminderEmail(
+    ordersInput: any | any[],
+    _baseUrl: string,
+    overrideInstructions?: Partial<DirectPaymentInstructionsConfig> | null
+  ) {
+    const orders = (Array.isArray(ordersInput) ? ordersInput : [ordersInput]).filter(Boolean);
+    const primaryOrder = orders[0];
+    const isConsolidated = orders.length > 1;
+    const customer = await resolveOrderCustomer(primaryOrder);
+
+    const orderIds = orders.map(o => o.id);
+    const allItems = await db.models.OrderItem.find({ orderId: { $in: orderIds } }).lean();
+    const itemsByOrderId = new Map<string, any[]>();
+    for (const it of allItems) {
+      const key = String(it.orderId);
+      const list = itemsByOrderId.get(key) || [];
+      list.push(it);
+      itemsByOrderId.set(key, list);
+    }
+
+    const savedInstructions = await getDirectPaymentInstructions();
+    const effectiveInstructions = mergePaymentInstructions(savedInstructions, overrideInstructions);
+    const brandLogoUrl = await getBrandLogoUrl();
+
+    const grandTotalAmount = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const totalStr = `₹${Math.round(grandTotalAmount).toLocaleString('en-IN')}`;
+    const orderNumbers = orders.map(o => String(o.orderNumber));
+
+    let totalItemsCount = 0;
+    const textOrderBlocks: string[] = [];
+
+    const ordersHtml = orders
+      .map(ord => {
+        const ordNum = String(ord.orderNumber);
+        const ordItems = itemsByOrderId.get(String(ord.id)) || [];
+        totalItemsCount += ordItems.length;
+
+        const formattedOrdDate = new Date(ord.createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+
+        const ordTotalStr = `₹${Math.round(Number(ord.totalAmount || 0)).toLocaleString('en-IN')}`;
+        const ordSubtotalStr = `₹${Math.round(Number(ord.subtotal || ord.totalAmount || 0)).toLocaleString('en-IN')}`;
+        const ordShippingStr =
+          Number(ord.shippingCharge || 0) > 0
+            ? `₹${Math.round(Number(ord.shippingCharge)).toLocaleString('en-IN')}`
+            : 'FREE';
+        const ordDiscountStr =
+          Number(ord.discountAmount || 0) > 0
+            ? `₹${Math.round(Number(ord.discountAmount)).toLocaleString('en-IN')}`
+            : '';
+
+        const itemsRowsHtml = ordItems
+          .map(it => {
+            const unitPriceStr = `₹${Math.round(Number(it.unitPrice || 0)).toLocaleString('en-IN')}`;
+            const subtotalItemStr = `₹${Math.round(Number(it.subtotal || 0)).toLocaleString('en-IN')}`;
+            const weightLabel = it.weightLabel || `${it.quantity} ${it.unit || 'unit'}`;
+            return `
+              <tr style="border-bottom:1px solid #E9E4D9;background-color:#ffffff;">
+                <td style="padding:10px 12px;color:#183D32;vertical-align:middle;">
+                  <div style="font-weight:600;color:#183D32;font-size:13px;">${escapeHtml(it.productName)}</div>
+                  ${it.category ? `<div style="font-size:11px;color:#888B83;margin-top:2px;">Category: ${escapeHtml(it.category)}</div>` : ''}
+                </td>
+                <td style="padding:10px 12px;text-align:center;color:#4A5951;font-size:12px;vertical-align:middle;">
+                  <span style="font-weight:700;color:#183D32;">Qty: ${Number(it.quantity || 1)}</span>
+                  <span style="color:#5C6058;"> &bull; ${escapeHtml(weightLabel)}</span>
+                  <div style="font-size:11px;color:#888B83;margin-top:2px;">(${Number(it.quantity || 1)} &times; ${unitPriceStr})</div>
+                </td>
+                <td style="padding:10px 12px;text-align:right;color:#183D32;font-weight:bold;font-size:13px;vertical-align:middle;">
+                  ${subtotalItemStr}
+                </td>
+              </tr>
+            `;
+          })
+          .join('');
+
+        const textItems = ordItems
+          .map(it => `  - ${it.productName} | Qty: ${it.quantity} (${it.weightLabel || it.unit || 'unit'}) | ₹${Math.round(Number(it.subtotal || 0))}`)
+          .join('\n');
+        textOrderBlocks.push(
+          `Order #${ordNum} (${formattedOrdDate}) — Due: ${ordTotalStr}\n${textItems || '  - Standard order items'}`
+        );
+
+        return `
+          <!-- Order Block #${escapeHtml(ordNum)} -->
+          <div style="margin:18px 0;border:1px solid #D9C48C;border-radius:10px;overflow:hidden;">
+            <div style="padding:12px 16px;background-color:#FDFBF7;border-bottom:1px solid #E9E4D9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <div style="font-size:13px;font-weight:bold;color:#183D32;">
+                      Order #${escapeHtml(ordNum)}
+                    </div>
+                    <div style="font-size:11px;color:#888B83;margin-top:2px;">
+                      Placed: ${formattedOrdDate} &bull; ${ordItems.length} ${ordItems.length === 1 ? 'Item' : 'Items'}
+                    </div>
+                  </td>
+                  <td style="vertical-align:middle;text-align:right;">
+                    <span style="display:inline-block;padding:3px 9px;background-color:#FFF4E5;border:1px solid #FFE2B8;border-radius:20px;color:#B25E09;font-weight:bold;font-size:11px;">
+                      ${escapeHtml(ord.paymentMethod || 'Invoice / COD')} (UNPAID)
+                    </span>
+                    <div style="font-size:14px;font-weight:bold;color:#064e3b;margin-top:4px;">
+                      ${ordTotalStr}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background-color:#064e3b;color:#dfc471;text-align:left;">
+                  <th style="padding:9px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;">Product Details</th>
+                  <th style="padding:9px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:center;">Qty Purchased</th>
+                  <th style="padding:9px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:right;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsRowsHtml}
+              </tbody>
+              <tfoot>
+                <tr style="background-color:#FAF8F5;border-top:1px solid #E9E4D9;">
+                  <td colspan="2" style="padding:7px 12px;text-align:right;color:#5C6058;font-size:12px;">Subtotal:</td>
+                  <td style="padding:7px 12px;text-align:right;color:#183D32;font-size:12px;font-weight:600;">${ordSubtotalStr}</td>
+                </tr>
+                ${
+                  Number(ord.shippingCharge || 0) > 0
+                    ? `<tr style="background-color:#FAF8F5;">
+                        <td colspan="2" style="padding:4px 12px;text-align:right;color:#5C6058;font-size:12px;">Shipping &amp; Handling:</td>
+                        <td style="padding:4px 12px;text-align:right;color:#183D32;font-size:12px;">+${ordShippingStr}</td>
+                      </tr>`
+                    : ''
+                }
+                ${
+                  Number(ord.discountAmount || 0) > 0
+                    ? `<tr style="background-color:#FAF8F5;">
+                        <td colspan="2" style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">Exclusive Privilege Discount:</td>
+                        <td style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">-${ordDiscountStr}</td>
+                      </tr>`
+                    : ''
+                }
+                <tr style="background-color:#F5EEDC;border-top:1px solid #C8A96B;">
+                  <td colspan="2" style="padding:10px 12px;text-align:right;color:#183D32;font-weight:bold;font-size:12px;text-transform:uppercase;">Order Pending Amount:</td>
+                  <td style="padding:10px 12px;text-align:right;color:#064e3b;font-weight:bold;font-size:14px;">${ordTotalStr}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      })
+      .join('');
+
+    const formattedPrimaryDate = new Date(primaryOrder.createdAt).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
 
-    const totalStr = `₹${Math.round(order.totalAmount).toLocaleString('en-IN')}`;
-    const subtotalStr = `₹${Math.round(order.subtotal || order.totalAmount).toLocaleString('en-IN')}`;
-    const shippingStr = order.shippingCharge > 0 ? `₹${Math.round(order.shippingCharge).toLocaleString('en-IN')}` : 'FREE';
-    const discountStr = order.discountAmount > 0 ? `₹${Math.round(order.discountAmount).toLocaleString('en-IN')}` : '';
+    const summaryCardHtml = isConsolidated
+      ? `
+        <div style="margin:20px 0;padding:18px 20px;background-color:#F5EEDC;border:2px solid #C8A96B;border-radius:12px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+            <tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:11px;text-transform:uppercase;color:#8F6C2B;font-weight:bold;letter-spacing:1px;">
+                  Consolidated Statement &bull; ${orders.length} Pending Orders
+                </div>
+                <div style="font-size:13px;color:#183D32;margin-top:4px;font-weight:600;">
+                  Orders: ${orderNumbers.map(n => `#${escapeHtml(n)}`).join(', ')}
+                </div>
+              </td>
+              <td style="vertical-align:middle;text-align:right;">
+                <div style="font-size:11px;text-transform:uppercase;color:#8F6C2B;font-weight:bold;letter-spacing:1px;">
+                  Total Outstanding Due
+                </div>
+                <div style="font-size:22px;font-weight:bold;color:#064e3b;margin-top:2px;">
+                  ${totalStr}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+      : '';
 
-    const brandLogoUrl = await getBrandLogoUrl();
+    const grandTotalBannerHtml = isConsolidated
+      ? `
+        <div style="margin:20px 0;padding:16px 20px;background-color:#064e3b;border:2px solid #C8A96B;border-radius:12px;color:#ffffff;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
+            <tr>
+              <td style="vertical-align:middle;">
+                <div style="font-size:11px;text-transform:uppercase;color:#dfc471;font-weight:bold;letter-spacing:1px;">
+                  Combined Balance Across ${orders.length} Pending Orders
+                </div>
+                <div style="font-size:13px;color:#F8F6F0;margin-top:2px;">
+                  ${totalItemsCount} total product line(s) awaiting settlement
+                </div>
+              </td>
+              <td style="vertical-align:middle;text-align:right;">
+                <div style="font-size:20px;font-weight:bold;color:#dfc471;">
+                  ${totalStr}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+      : '';
 
-    const itemsRowsHtml = items.map(it => {
-      const unitPriceStr = `₹${Math.round(it.unitPrice).toLocaleString('en-IN')}`;
-      const subtotalItemStr = `₹${Math.round(it.subtotal).toLocaleString('en-IN')}`;
-      const weightLabel = it.weightLabel || `${it.quantity} ${it.unit || 'unit'}`;
-      return `
-        <tr style="border-bottom:1px solid #E9E4D9;background-color:#ffffff;">
-          <td style="padding:12px;color:#183D32;vertical-align:middle;">
-            <div style="font-weight:600;color:#183D32;font-size:13px;">${escapeHtml(it.productName)}</div>
-            ${it.category ? `<div style="font-size:11px;color:#888B83;margin-top:2px;">Category: ${escapeHtml(it.category)}</div>` : ''}
-          </td>
-          <td style="padding:12px;text-align:center;color:#4A5951;font-size:12px;vertical-align:middle;">
-            <span style="font-weight:600;color:#183D32;">${escapeHtml(weightLabel)}</span>
-            <div style="font-size:11px;color:#888B83;margin-top:2px;">(${it.quantity} × ${unitPriceStr})</div>
-          </td>
-          <td style="padding:12px;text-align:right;color:#183D32;font-weight:bold;font-size:13px;vertical-align:middle;">
-            ${subtotalItemStr}
-          </td>
-        </tr>
-      `;
-    }).join('');
+    const directPaymentBlock = renderDirectPaymentBlock(effectiveInstructions, totalStr);
+
+    const introParagraph = isConsolidated
+      ? `This is a consolidated payment summary for your <strong>${orders.length} pending orders</strong> (${orderNumbers.map(n => `#${escapeHtml(n)}`).join(', ')}), with a combined outstanding balance of <strong>${totalStr}</strong>.`
+      : `This is a courteous reminder regarding your recent harvest reservation <strong>#${escapeHtml(String(primaryOrder.orderNumber))}</strong> placed on <strong>${formattedPrimaryDate}</strong>, for which payment remains outstanding.`;
 
     const bodyHtml = `
       <div style="margin-bottom:20px;">
         <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;color:#183D32;font-weight:600;">
-          Namaste ${escapeHtml(customerName)},
+          Namaste ${escapeHtml(customer.name)},
         </p>
         <p style="margin:0 0 16px 0;font-size:14px;line-height:24px;color:#27332D;">
           We hope you are savoring your selections from <strong>Seth And Sons DryFruits</strong>.
         </p>
         <p style="margin:0 0 20px 0;font-size:14px;line-height:24px;color:#27332D;">
-          This is a courteous reminder regarding your recent harvest reservation <strong>#${escapeHtml(orderNumber)}</strong> placed on <strong>${formattedDate}</strong>, for which payment remains outstanding.
+          ${introParagraph}
         </p>
       </div>
 
-      <!-- Order & Payment Status Badge Card -->
-      <div style="margin:20px 0;padding:16px 20px;background-color:#FDFBF7;border:1px solid #C8A96B;border-radius:12px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">
-          <tr>
-            <td style="vertical-align:middle;">
-              <div style="font-size:11px;text-transform:uppercase;color:#8F6C2B;font-weight:bold;letter-spacing:1px;">
-                Order Reference
-              </div>
-              <div style="font-size:16px;font-weight:bold;color:#183D32;margin-top:2px;">
-                #${escapeHtml(orderNumber)}
-              </div>
-            </td>
-            <td style="vertical-align:middle;text-align:right;">
-              <div style="font-size:11px;text-transform:uppercase;color:#888B83;font-weight:bold;letter-spacing:1px;">
-                Payment Method &amp; Status
-              </div>
-              <div style="display:inline-block;margin-top:4px;padding:4px 10px;background-color:#FFF4E5;border:1px solid #FFE2B8;border-radius:20px;color:#B25E09;font-weight:bold;font-size:12px;">
-                ${escapeHtml(order.paymentMethod || 'Invoice / COD')} (UNPAID)
-              </div>
-            </td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Itemized Breakdown Table -->
-      <div style="margin:24px 0;">
-        <div style="font-size:12px;font-weight:700;color:#183D32;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-          Reserved Harvest Items (${items.length})
-        </div>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #E9E4D9;border-radius:8px;overflow:hidden;">
-          <thead>
-            <tr style="background-color:#064e3b;color:#dfc471;text-align:left;">
-              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;">Item Description</th>
-              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:center;">Qty / Pack</th>
-              <th style="padding:10px 12px;font-weight:600;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;text-align:right;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsRowsHtml}
-          </tbody>
-          <tfoot>
-            <tr style="background-color:#FAF8F5;border-top:1px solid #E9E4D9;">
-              <td colspan="2" style="padding:8px 12px;text-align:right;color:#5C6058;font-size:12px;">Subtotal:</td>
-              <td style="padding:8px 12px;text-align:right;color:#183D32;font-size:12px;font-weight:600;">${subtotalStr}</td>
-            </tr>
-            ${order.shippingCharge > 0 ? `
-            <tr style="background-color:#FAF8F5;">
-              <td colspan="2" style="padding:4px 12px;text-align:right;color:#5C6058;font-size:12px;">Shipping &amp; Handling:</td>
-              <td style="padding:4px 12px;text-align:right;color:#183D32;font-size:12px;">+${shippingStr}</td>
-            </tr>` : ''}
-            ${order.discountAmount > 0 ? `
-            <tr style="background-color:#FAF8F5;">
-              <td colspan="2" style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">Exclusive Privilege Discount:</td>
-              <td style="padding:4px 12px;text-align:right;color:#2E7D32;font-size:12px;">-${discountStr}</td>
-            </tr>` : ''}
-            <tr style="background-color:#F5EEDC;border-top:2px solid #C8A96B;">
-              <td colspan="2" style="padding:12px;text-align:right;color:#183D32;font-weight:bold;font-size:13px;letter-spacing:0.5px;text-transform:uppercase;">TOTAL AMOUNT DUE:</td>
-              <td style="padding:12px;text-align:right;color:#064e3b;font-weight:bold;font-size:16px;">${totalStr}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <!-- Direct Payment Modes -->
-      <div style="margin:24px 0;padding:20px;background-color:#FAF8F5;border:1px solid #D9C48C;border-radius:12px;">
-        <div style="font-size:12px;font-weight:bold;color:#064e3b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-          Direct Payment Instructions
-        </div>
-        <div style="font-size:13px;line-height:20px;color:#27332D;margin-bottom:12px;">
-          To settle your invoice balance of <strong>${totalStr}</strong>, please complete payment via UPI:
-        </div>
-        <div style="padding:12px 16px;background-color:#ffffff;border:1px solid #E9E4D9;border-radius:8px;margin-bottom:12px;">
-          <div style="font-size:11px;color:#888B83;text-transform:uppercase;letter-spacing:0.5px;">Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)</div>
-          <div style="font-family:monospace;font-size:16px;font-weight:bold;color:#064e3b;margin:4px 0;">aseth9588-1@okhdfcbank</div>
-          <div style="font-size:11px;color:#5C6058;">Beneficiary: Seth And Sons DryFruits</div>
-        </div>
-        <div style="font-size:12px;color:#5C6058;line-height:18px;">
-          Once completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at <strong>+91 6356038361</strong> for instant ledger clearance.
-        </div>
-      </div>
+      ${summaryCardHtml}
+      ${ordersHtml}
+      ${grandTotalBannerHtml}
+      ${directPaymentBlock.html}
     `;
 
-    const subject = `Payment Request: Order #${orderNumber} (${totalStr}) - Seth And Sons DryFruits`;
-    const preheader = `Kindly complete the outstanding balance of ${totalStr} for your harvest reservation #${orderNumber}.`;
+    const subject = isConsolidated
+      ? `Payment Request: ${orders.length} Pending Orders (${totalStr} Outstanding) - Seth And Sons DryFruits`
+      : `Payment Request: Order #${String(primaryOrder.orderNumber)} (${totalStr}) - Seth And Sons DryFruits`;
+
+    const preheader = isConsolidated
+      ? `Consolidated statement for ${orders.length} pending orders totaling ${totalStr}.`
+      : `Kindly complete the outstanding balance of ${totalStr} for your harvest reservation #${String(primaryOrder.orderNumber)}.`;
 
     const html = wrapInBrandEmailLayout({
       brandLogoUrl,
@@ -3002,58 +3248,191 @@ export function createAdminErpRouter(
       bodyHtml,
     });
 
-    const textItems = items.map(it => `- ${it.productName} (${it.weightLabel || it.quantity}): ₹${it.subtotal}`).join('\n');
-    const text = `Namaste ${customerName},\n\nThis is a payment reminder for your order #${orderNumber} placed on ${formattedDate}.\n\nItems Reserved:\n${textItems}\n\nTotal Amount Due: ${totalStr}\nPayment Method: ${order.paymentMethod || 'Concierge Invoice / COD'}\n\nPlease transfer ${totalStr} to UPI ID: aseth9588-1@okhdfcbank\n\nOnce completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at +91 6356038361 for instant ledger clearance.\n\nThank you for choosing Seth And Sons DryFruits.\nSupport: ${BRAND_CONFIG.supportEmail}`;
+    const text = `Namaste ${customer.name},\n\n${
+      isConsolidated
+        ? `This is a consolidated payment reminder for your ${orders.length} pending orders.`
+        : `This is a payment reminder for your order #${String(primaryOrder.orderNumber)} placed on ${formattedPrimaryDate}.`
+    }\n\n${textOrderBlocks.join('\n\n')}\n\nTOTAL OUTSTANDING AMOUNT DUE: ${totalStr}${directPaymentBlock.text}\nThank you for choosing Seth And Sons DryFruits.\nSupport: ${BRAND_CONFIG.supportEmail}`;
 
     return {
-      customerName,
-      customerEmail,
+      customerKey: customer.key,
+      customerName: customer.name,
+      customerEmail: customer.email,
       subject,
       html,
       text,
-      orderNumber,
-      totalAmount: order.totalAmount,
+      orderNumber: String(primaryOrder.orderNumber),
+      orderNumbers,
+      orderCount: orders.length,
+      totalAmount: grandTotalAmount,
       totalStr,
-      itemsCount: items.length,
-      date: formattedDate,
+      itemsCount: totalItemsCount,
+      date: formattedPrimaryDate,
+      directPaymentInstructionsUsed: effectiveInstructions,
     };
   }
 
-  router.post('/orders/preview-payment-reminder', requirePermission('orders'), async (req, res) => {
-    const orderNumber = String(req.body?.orderNumber || '').trim();
-    if (!orderNumber) {
-      res.status(400).json({ error: 'orderNumber is required.' });
+  // Backward-compatible single-order wrapper
+  async function buildPaymentReminderEmail(
+    order: any,
+    baseUrl: string,
+    overrideInstructions?: Partial<DirectPaymentInstructionsConfig> | null
+  ) {
+    return buildConsolidatedPaymentReminderEmail([order], baseUrl, overrideInstructions);
+  }
+
+  router.get('/payment-instructions', requirePermission('orders'), async (_req, res) => {
+    const instructions = await getDirectPaymentInstructions();
+    res.json({ instructions });
+  });
+
+  router.put('/payment-instructions', requirePermission('orders'), async (req, res) => {
+    const schema = z.object({
+      enabled: z.boolean().optional().default(true),
+      heading: z.string().trim().min(1).max(120).optional(),
+      introTemplate: z.string().trim().max(400).optional(),
+      methodLabel: z.string().trim().max(150).optional(),
+      upiId: z.string().trim().max(120).optional(),
+      beneficiary: z.string().trim().max(150).optional(),
+      footerNote: z.string().trim().max(600).optional(),
+      extraDetails: z.string().trim().max(600).optional(),
+    });
+    const parsed = schema.safeParse(req.body || {});
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid payment instructions.' });
       return;
     }
 
-    const order = await db.models.Order.findOne({
-      $or: [{ orderNumber }, { id: orderNumber }]
-    }).lean();
+    const current = await getDirectPaymentInstructions();
+    const now = new Date().toISOString();
+    const updated: DirectPaymentInstructionsConfig = {
+      ...current,
+      ...parsed.data,
+      deleted: false,
+      enabled: parsed.data.enabled,
+      updatedAt: now,
+    };
 
-    if (!order) {
+    await db.models.SiteSetting.updateOne(
+      { key: 'direct_payment_instructions' },
+      { $set: { value: updated, updatedAt: now } },
+      { upsert: true }
+    );
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'payment_instructions_updated',
+      entityType: 'site_setting',
+      entityId: 'direct_payment_instructions',
+      details: { enabled: updated.enabled, upiId: updated.upiId },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({ ok: true, message: 'Direct Payment Instructions updated.', instructions: updated });
+  });
+
+  router.delete('/payment-instructions', requirePermission('orders'), async (req, res) => {
+    const now = new Date().toISOString();
+    const cleared: DirectPaymentInstructionsConfig = {
+      enabled: false,
+      deleted: true,
+      heading: '',
+      introTemplate: '',
+      methodLabel: '',
+      upiId: '',
+      beneficiary: '',
+      footerNote: '',
+      extraDetails: '',
+      updatedAt: now,
+    };
+
+    await db.models.SiteSetting.updateOne(
+      { key: 'direct_payment_instructions' },
+      { $set: { value: cleared, updatedAt: now } },
+      { upsert: true }
+    );
+
+    await logAudit(db, {
+      actorId: req.user?.id || 'admin',
+      actorEmail: req.user?.email || 'admin@sethandsons.com',
+      action: 'payment_instructions_deleted',
+      entityType: 'site_setting',
+      entityId: 'direct_payment_instructions',
+      details: { deleted: true },
+      ipAddress: req.ip || '',
+    });
+
+    res.json({ ok: true, message: 'Direct Payment Instructions deleted and hidden from customer emails.', instructions: cleared });
+  });
+
+  router.post('/orders/preview-payment-reminder', requirePermission('orders'), async (req, res) => {
+    const rawOrderNumbers = Array.isArray(req.body?.orderNumbers)
+      ? req.body.orderNumbers.map((x: any) => String(x).trim()).filter(Boolean)
+      : [];
+    const singleOrderNumber = String(req.body?.orderNumber || '').trim();
+    const targetNumbers = rawOrderNumbers.length > 0 ? rawOrderNumbers : singleOrderNumber ? [singleOrderNumber] : [];
+
+    if (targetNumbers.length === 0) {
+      res.status(400).json({ error: 'orderNumber or orderNumbers is required.' });
+      return;
+    }
+
+    const matchedOrders = await db.models.Order.find({
+      $or: [{ orderNumber: { $in: targetNumbers } }, { id: { $in: targetNumbers } }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (matchedOrders.length === 0) {
       res.status(404).json({ error: 'Order not found.' });
       return;
     }
 
     const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
-    const preview = await buildPaymentReminderEmail(order, origin);
+    const override = req.body?.directPaymentInstructions || null;
+    const preview = await buildConsolidatedPaymentReminderEmail(matchedOrders, origin, override);
 
     res.json({
       html: preview.html,
       subject: preview.subject,
+      customerKey: preview.customerKey,
       customerName: preview.customerName,
       customerEmail: preview.customerEmail,
       totalAmount: preview.totalAmount,
       totalStr: preview.totalStr,
       orderNumber: preview.orderNumber,
+      orderNumbers: preview.orderNumbers,
+      orderCount: preview.orderCount,
       itemsCount: preview.itemsCount,
       date: preview.date,
+      directPaymentInstructionsUsed: preview.directPaymentInstructionsUsed,
     });
   });
 
   router.post('/orders/send-payment-reminders', requirePermission('orders'), async (req, res) => {
     const rawOrderNumbers = req.body?.orderNumbers;
-    let query: Record<string, any> = {
+    const globalOverride = req.body?.directPaymentInstructions || null;
+    const rawOverrides = req.body?.customerOverrides;
+    const customerOverrideMap = new Map<string, Partial<DirectPaymentInstructionsConfig>>();
+    if (Array.isArray(rawOverrides)) {
+      for (const entry of rawOverrides) {
+        if (entry && typeof entry === 'object' && entry.instructions && typeof entry.instructions === 'object') {
+          if (typeof entry.customerKey === 'string' && entry.customerKey) {
+            customerOverrideMap.set(entry.customerKey, entry.instructions);
+          }
+          if (typeof entry.customerEmail === 'string' && entry.customerEmail) {
+            customerOverrideMap.set(`email:${normalizeEmail(entry.customerEmail)}`, entry.instructions);
+          }
+        }
+      }
+    } else if (rawOverrides && typeof rawOverrides === 'object') {
+      for (const [k, v] of Object.entries(rawOverrides as Record<string, Partial<DirectPaymentInstructionsConfig>>)) {
+        if (v && typeof v === 'object') customerOverrideMap.set(k, v);
+      }
+    }
+
+    const query: Record<string, any> = {
       paymentStatus: { $in: ['pending', 'unpaid', 'cod'] },
       status: { $nin: ['cancelled', 'returned'] },
     };
@@ -3062,10 +3441,12 @@ export function createAdminErpRouter(
       query.orderNumber = { $in: rawOrderNumbers.map(String) };
     }
 
-    const eligibleOrders = await db.models.Order.find(query).lean();
+    const eligibleOrders = await db.models.Order.find(query).sort({ createdAt: -1 }).lean();
     if (eligibleOrders.length === 0) {
       res.json({
         dispatchedCount: 0,
+        customerCount: 0,
+        orderCount: 0,
         totalEligible: 0,
         message: 'No eligible unpaid orders found.',
         results: [],
@@ -3073,29 +3454,60 @@ export function createAdminErpRouter(
       return;
     }
 
-    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
-    const results: Array<{ orderNumber: string; customerEmail: string; status: 'sent' | 'skipped' | 'failed'; error?: string }> = [];
-    let dispatched = 0;
-
+    // Group eligible unpaid orders by Customer (so multiple pending orders for one customer become ONE single email)
+    const groupedMap = new Map<string, any[]>();
     for (const ord of eligibleOrders) {
-      // Safety check: ensure not paid
-      if (ord.paymentStatus === 'paid' || ord.paymentStatus === 'refunded') {
-        results.push({ orderNumber: ord.orderNumber, customerEmail: '', status: 'skipped', error: 'Order already paid/refunded' });
-        continue;
-      }
+      if (ord.paymentStatus === 'paid' || ord.paymentStatus === 'refunded') continue;
+      const cust = await resolveOrderCustomer(ord);
+      const list = groupedMap.get(cust.key) || [];
+      list.push(ord);
+      groupedMap.set(cust.key, list);
+    }
 
+    const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
+    const results: Array<{
+      customerKey: string;
+      orderNumber: string;
+      orderNumbers: string[];
+      customerEmail: string;
+      totalAmount: number;
+      status: 'sent' | 'skipped' | 'failed';
+      error?: string;
+    }> = [];
+    let dispatched = 0;
+    let totalOrdersNotified = 0;
+
+    for (const [customerKey, custOrders] of groupedMap.entries()) {
+      const custOrderNumbers = custOrders.map(o => String(o.orderNumber));
       try {
-        const mailData = await buildPaymentReminderEmail(ord, origin);
+        const firstCust = await resolveOrderCustomer(custOrders[0]);
+        const custOverride =
+          customerOverrideMap.get(customerKey) ||
+          (firstCust.email ? customerOverrideMap.get(`email:${firstCust.email}`) : undefined) ||
+          null;
+        const effectiveOverride = custOverride
+          ? { ...(globalOverride || {}), ...custOverride }
+          : globalOverride;
+
+        const mailData = await buildConsolidatedPaymentReminderEmail(custOrders, origin, effectiveOverride);
         if (!mailData.customerEmail) {
-          results.push({ orderNumber: ord.orderNumber, customerEmail: '', status: 'skipped', error: 'No recipient email on record' });
+          results.push({
+            customerKey,
+            orderNumber: custOrderNumbers[0],
+            orderNumbers: custOrderNumbers,
+            customerEmail: '',
+            totalAmount: mailData.totalAmount,
+            status: 'skipped',
+            error: 'No recipient email on record',
+          });
           continue;
         }
 
         const job = await queue.enqueue({
           recipient: mailData.customerEmail,
-          customerId: ord.customerId,
+          customerId: custOrders[0].customerId,
           emailType: 'admin_direct_message',
-          relatedOrderId: ord.id,
+          relatedOrderId: custOrders[0].id,
           subject: mailData.subject,
           html: mailData.html,
           text: mailData.text,
@@ -3105,9 +3517,10 @@ export function createAdminErpRouter(
           await queue.processJobNow(job.jobId);
         }
 
-        await db.models.Order.updateOne(
-          { id: ord.id },
-          { $set: { lastPaymentReminderSentAt: new Date().toISOString() } }
+        const sentAt = new Date().toISOString();
+        await db.models.Order.updateMany(
+          { id: { $in: custOrders.map(o => o.id) } },
+          { $set: { lastPaymentReminderSentAt: sentAt } }
         );
 
         await logAudit(db, {
@@ -3115,17 +3528,34 @@ export function createAdminErpRouter(
           actorEmail: req.user?.email || 'admin@sethandsons.com',
           action: 'payment_reminder_sent',
           entityType: 'order',
-          entityId: ord.orderNumber,
-          details: { recipient: mailData.customerEmail, amount: ord.totalAmount },
+          entityId: custOrderNumbers.join(','),
+          details: {
+            recipient: mailData.customerEmail,
+            amount: mailData.totalAmount,
+            orderNumbers: custOrderNumbers,
+            consolidated: custOrders.length > 1,
+            directPaymentVisible: mailData.directPaymentInstructionsUsed.enabled,
+          },
           ipAddress: req.ip || '',
         });
 
         dispatched++;
-        results.push({ orderNumber: ord.orderNumber, customerEmail: mailData.customerEmail, status: 'sent' });
+        totalOrdersNotified += custOrders.length;
+        results.push({
+          customerKey,
+          orderNumber: custOrderNumbers[0],
+          orderNumbers: custOrderNumbers,
+          customerEmail: mailData.customerEmail,
+          totalAmount: mailData.totalAmount,
+          status: 'sent',
+        });
       } catch (err) {
         results.push({
-          orderNumber: ord.orderNumber,
+          customerKey,
+          orderNumber: custOrderNumbers[0],
+          orderNumbers: custOrderNumbers,
           customerEmail: '',
+          totalAmount: 0,
           status: 'failed',
           error: err instanceof Error ? err.message : 'Send failed',
         });
@@ -3134,8 +3564,10 @@ export function createAdminErpRouter(
 
     res.json({
       dispatchedCount: dispatched,
+      customerCount: dispatched,
+      orderCount: totalOrdersNotified,
       totalEligible: eligibleOrders.length,
-      message: `Payment request reminder dispatched to ${dispatched} customer(s).`,
+      message: `Dispatched ${dispatched} consolidated payment request email(s) covering ${totalOrdersNotified} pending order(s).`,
       results,
     });
   });
@@ -3143,7 +3575,7 @@ export function createAdminErpRouter(
   router.post('/orders/:orderNumber/send-payment-reminder', requirePermission('orders'), async (req, res) => {
     const orderNumber = req.params.orderNumber;
     const order = await db.models.Order.findOne({
-      $or: [{ orderNumber }, { id: orderNumber }]
+      $or: [{ orderNumber }, { id: orderNumber }],
     }).lean();
 
     if (!order) {
@@ -3161,8 +3593,27 @@ export function createAdminErpRouter(
       return;
     }
 
+    let targetOrders = [order];
+    if (req.body?.includeAllPendingForCustomer) {
+      const cust = await resolveOrderCustomer(order);
+      const allPending = await db.models.Order.find({
+        paymentStatus: { $in: ['pending', 'unpaid', 'cod'] },
+        status: { $nin: ['cancelled', 'returned'] },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const matching: any[] = [];
+      for (const candidate of allPending) {
+        const candCust = await resolveOrderCustomer(candidate);
+        if (candCust.key === cust.key) matching.push(candidate);
+      }
+      if (matching.length > 0) targetOrders = matching;
+    }
+
     const origin = getRequestOrigin(req, config?.appUrl || 'http://localhost:3000');
-    const mailData = await buildPaymentReminderEmail(order, origin);
+    const override = req.body?.directPaymentInstructions || null;
+    const mailData = await buildConsolidatedPaymentReminderEmail(targetOrders, origin, override);
 
     if (!mailData.customerEmail) {
       res.status(400).json({ error: 'No customer email address on file for this order.' });
@@ -3183,8 +3634,8 @@ export function createAdminErpRouter(
       await queue.processJobNow(job.jobId);
     }
 
-    await db.models.Order.updateOne(
-      { id: order.id },
+    await db.models.Order.updateMany(
+      { id: { $in: targetOrders.map(o => o.id) } },
       { $set: { lastPaymentReminderSentAt: new Date().toISOString() } }
     );
 
@@ -3193,15 +3644,23 @@ export function createAdminErpRouter(
       actorEmail: req.user?.email || 'admin@sethandsons.com',
       action: 'payment_reminder_sent',
       entityType: 'order',
-      entityId: order.orderNumber,
-      details: { recipient: mailData.customerEmail, amount: order.totalAmount },
+      entityId: mailData.orderNumbers.join(','),
+      details: {
+        recipient: mailData.customerEmail,
+        amount: mailData.totalAmount,
+        consolidated: targetOrders.length > 1,
+      },
       ipAddress: req.ip || '',
     });
 
     res.json({
       ok: true,
-      message: `Payment request reminder sent directly to ${mailData.customerName} (${mailData.customerEmail}).`,
+      message: `Payment request reminder sent directly to ${mailData.customerName} (${mailData.customerEmail})${
+        targetOrders.length > 1 ? ` — consolidated ${targetOrders.length} orders (${mailData.totalStr})` : ''
+      }.`,
       recipient: mailData.customerEmail,
+      orderCount: targetOrders.length,
+      totalAmount: mailData.totalAmount,
     });
   });
 

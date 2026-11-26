@@ -14,6 +14,8 @@ import {
   RotateCcw,
   FileText,
   Eye,
+  EyeOff,
+  Save,
   PlusCircle,
   Phone,
   MessageCircle,
@@ -185,13 +187,48 @@ export default function AdminOrders() {
   const [editShippingOverride, setEditShippingOverride] = useState('');
   const [editInternalNotes, setEditInternalNotes] = useState('');
 
-  // Payment Request Reminders State
+  // Payment Request Reminders & Direct Payment Instructions State
+  interface DirectPaymentInstructionsConfig {
+    enabled: boolean;
+    deleted: boolean;
+    heading: string;
+    introTemplate: string;
+    methodLabel: string;
+    upiId: string;
+    beneficiary: string;
+    footerNote: string;
+    extraDetails: string;
+  }
+
+  const EMPTY_PAYMENT_INSTRUCTIONS: DirectPaymentInstructionsConfig = {
+    enabled: true,
+    deleted: false,
+    heading: 'Direct Payment Instructions',
+    introTemplate: 'To settle your invoice balance of {amount}, please complete payment via UPI:',
+    methodLabel: 'Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)',
+    upiId: 'aseth9588-1@okhdfcbank',
+    beneficiary: 'Seth And Sons DryFruits',
+    footerNote:
+      'Once completed, please reply directly to this email or share your payment screenshot / UTR with our Whatsapp Number at +91 6356038361 for instant ledger clearance.',
+    extraDetails: '',
+  };
+
   const [remindersModalOpen, setRemindersModalOpen] = useState(false);
   const [selectedReminderOrderNumbers, setSelectedReminderOrderNumbers] = useState<string[]>([]);
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [paymentInstructions, setPaymentInstructions] = useState<DirectPaymentInstructionsConfig>(EMPTY_PAYMENT_INSTRUCTIONS);
+  const [editingPaymentInstructions, setEditingPaymentInstructions] = useState(false);
+  const [savingPaymentInstructions, setSavingPaymentInstructions] = useState(false);
+  const [customerInstructionOverrides, setCustomerInstructionOverrides] = useState<
+    Record<string, Partial<DirectPaymentInstructionsConfig>>
+  >({});
+  const [editingCustomerInstructionKey, setEditingCustomerInstructionKey] = useState<string | null>(null);
   const [reminderPreviewModal, setReminderPreviewModal] = useState<{
     open: boolean;
+    customerKey?: string;
     orderNumber: string;
+    orderNumbers: string[];
+    orderCount: number;
     html: string;
     subject: string;
     customerName: string;
@@ -199,6 +236,7 @@ export default function AdminOrders() {
     totalStr: string;
     itemsCount: number;
     date: string;
+    directPaymentInstructionsUsed?: DirectPaymentInstructionsConfig;
   } | null>(null);
   const [reminderPreviewLoading, setReminderPreviewLoading] = useState(false);
   const [reminderPreviewDevice, setReminderPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -1042,23 +1080,172 @@ export default function AdminOrders() {
     o => o.paymentStatus !== 'paid' && o.paymentStatus !== 'refunded' && !['cancelled', 'returned'].includes(o.status)
   );
 
-  const handlePreviewOrderReminder = async (orderNumber: string) => {
+  const unpaidCustomerGroups = (() => {
+    const map = new Map<
+      string,
+      {
+        customerKey: string;
+        customerName: string;
+        customerEmail: string;
+        customerPhone: string;
+        orders: typeof unpaidOrders;
+        totalPendingAmount: number;
+      }
+    >();
+    for (const ord of unpaidOrders) {
+      const email = String(ord.customerObj?.email || ord.deliveryAddressObj?.email || '')
+        .trim()
+        .toLowerCase();
+      const name = String(ord.customerObj?.name || ord.deliveryAddressObj?.fullName || 'Guest').trim();
+      const phone = String(
+        ord.customerObj?.phone ||
+          ord.deliveryAddressObj?.mobileNumber ||
+          ord.deliveryAddressObj?.whatsappNumber ||
+          ''
+      ).trim();
+      const key = email
+        ? `email:${email}`
+        : ord.customerId
+          ? `id:${ord.customerId}`
+          : `order:${ord.orderNumber}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.orders.push(ord);
+        existing.totalPendingAmount += Number(ord.totalAmount || 0);
+        if (!existing.customerPhone && phone) existing.customerPhone = phone;
+      } else {
+        map.set(key, {
+          customerKey: key,
+          customerName: name,
+          customerEmail: email,
+          customerPhone: phone,
+          orders: [ord],
+          totalPendingAmount: Number(ord.totalAmount || 0),
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalPendingAmount - a.totalPendingAmount);
+  })();
+
+  const loadPaymentInstructions = async () => {
+    try {
+      const res = await apiRequest<{ instructions: DirectPaymentInstructionsConfig }>(
+        '/api/admin/payment-instructions'
+      );
+      if (res.instructions) {
+        setPaymentInstructions(res.instructions);
+      }
+    } catch {
+      // Keep default instructions on transient fetch failure
+    }
+  };
+
+  const handleSavePaymentInstructions = async (
+    nextCfg: DirectPaymentInstructionsConfig = paymentInstructions,
+    successMsg = 'Direct Payment Instructions updated.'
+  ) => {
+    setSavingPaymentInstructions(true);
+    try {
+      const res = await apiRequest<{ instructions: DirectPaymentInstructionsConfig; message?: string }>(
+        '/api/admin/payment-instructions',
+        {
+          method: 'PUT',
+          body: { ...nextCfg, deleted: false },
+        }
+      );
+      setPaymentInstructions(res.instructions);
+      setEditingPaymentInstructions(false);
+      setToast({ type: 'ok', text: successMsg || res.message || 'Direct Payment Instructions updated.' });
+      if (reminderPreviewModal?.open) {
+        void handlePreviewOrderReminder(reminderPreviewModal.orderNumbers, {
+          customerKey: reminderPreviewModal.customerKey,
+          overrideInstructions: res.instructions,
+        });
+      }
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to update payment instructions.',
+      });
+    } finally {
+      setSavingPaymentInstructions(false);
+    }
+  };
+
+  const handleDeletePaymentInstructions = async () => {
+    setSavingPaymentInstructions(true);
+    try {
+      const res = await apiRequest<{ instructions: DirectPaymentInstructionsConfig; message?: string }>(
+        '/api/admin/payment-instructions',
+        { method: 'DELETE' }
+      );
+      setPaymentInstructions(res.instructions);
+      setEditingPaymentInstructions(false);
+      setToast({
+        type: 'ok',
+        text: res.message || 'Direct Payment Instructions deleted and hidden from customer emails.',
+      });
+      if (reminderPreviewModal?.open) {
+        void handlePreviewOrderReminder(reminderPreviewModal.orderNumbers, {
+          customerKey: reminderPreviewModal.customerKey,
+          overrideInstructions: res.instructions,
+        });
+      }
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to delete payment instructions.',
+      });
+    } finally {
+      setSavingPaymentInstructions(false);
+    }
+  };
+
+  const handlePreviewOrderReminder = async (
+    target: string | string[],
+    options?: {
+      customerKey?: string;
+      overrideInstructions?: Partial<DirectPaymentInstructionsConfig>;
+    }
+  ) => {
+    const orderNumbers = Array.isArray(target) ? target : [target];
+    if (orderNumbers.length === 0) return;
     setReminderPreviewLoading(true);
     try {
+      const custOverride = options?.customerKey
+        ? customerInstructionOverrides[options.customerKey]
+        : undefined;
+      const effectiveOverride = options?.overrideInstructions
+        ? { ...paymentInstructions, ...(custOverride || {}), ...options.overrideInstructions }
+        : custOverride
+          ? { ...paymentInstructions, ...custOverride }
+          : paymentInstructions;
+
       const res = await apiRequest<{
         html: string;
         subject: string;
+        customerKey?: string;
         customerName: string;
         customerEmail: string;
         totalStr: string;
         orderNumber: string;
+        orderNumbers: string[];
+        orderCount: number;
         itemsCount: number;
         date: string;
+        directPaymentInstructionsUsed?: DirectPaymentInstructionsConfig;
       }>('/api/admin/orders/preview-payment-reminder', {
         method: 'POST',
-        body: { orderNumber },
+        body: {
+          orderNumbers,
+          directPaymentInstructions: effectiveOverride,
+        },
       });
-      setReminderPreviewModal({ open: true, ...res });
+      setReminderPreviewModal({
+        open: true,
+        customerKey: options?.customerKey || res.customerKey,
+        ...res,
+      });
     } catch (err) {
       setToast({
         type: 'err',
@@ -1074,12 +1261,48 @@ export default function AdminOrders() {
     try {
       const res = await apiRequest<{ message: string; recipient: string }>(
         `/api/admin/orders/${encodeURIComponent(orderNumber)}/send-payment-reminder`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          body: { directPaymentInstructions: paymentInstructions },
+        }
       );
       setToast({ type: 'ok', text: res.message || 'Payment request email sent successfully.' });
       if (reminderPreviewModal) {
         setReminderPreviewModal(null);
       }
+      await loadOrders(statusFilter);
+    } catch (err) {
+      setToast({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Failed to send payment request reminder.',
+      });
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
+  const handleDispatchPreviewedReminder = async () => {
+    if (!reminderPreviewModal) return;
+    setSendingReminders(true);
+    try {
+      const res = await apiRequest<{ message: string; dispatchedCount: number }>(
+        '/api/admin/orders/send-payment-reminders',
+        {
+          method: 'POST',
+          body: {
+            orderNumbers: reminderPreviewModal.orderNumbers,
+            directPaymentInstructions:
+              reminderPreviewModal.directPaymentInstructionsUsed || paymentInstructions,
+          },
+        }
+      );
+      setToast({
+        type: 'ok',
+        text:
+          res.message ||
+          `Consolidated payment request sent to ${reminderPreviewModal.customerName}.`,
+      });
+      setReminderPreviewModal(null);
       await loadOrders(statusFilter);
     } catch (err) {
       setToast({
@@ -1098,14 +1321,28 @@ export default function AdminOrders() {
     }
     setSendingReminders(true);
     try {
-      const res = await apiRequest<{ message: string; dispatchedCount: number }>(
-        '/api/admin/orders/send-payment-reminders',
-        {
-          method: 'POST',
-          body: { orderNumbers: selectedReminderOrderNumbers },
-        }
-      );
-      setToast({ type: 'ok', text: res.message || `Dispatched to ${res.dispatchedCount} customer(s).` });
+      const res = await apiRequest<{
+        message: string;
+        dispatchedCount: number;
+        customerCount?: number;
+        orderCount?: number;
+      }>('/api/admin/orders/send-payment-reminders', {
+        method: 'POST',
+        body: {
+          orderNumbers: selectedReminderOrderNumbers,
+          directPaymentInstructions: paymentInstructions,
+          customerOverrides: Object.entries(customerInstructionOverrides).map(
+            ([customerKey, instructions]) => ({
+              customerKey,
+              instructions,
+            })
+          ),
+        },
+      });
+      setToast({
+        type: 'ok',
+        text: res.message || `Dispatched consolidated email(s) to ${res.dispatchedCount} customer(s).`,
+      });
       setRemindersModalOpen(false);
       await loadOrders(statusFilter);
     } catch (err) {
@@ -1167,13 +1404,19 @@ export default function AdminOrders() {
               <button
                 onClick={() => {
                   setSelectedReminderOrderNumbers(unpaidOrders.map(o => o.orderNumber));
+                  setEditingPaymentInstructions(false);
+                  setEditingCustomerInstructionKey(null);
+                  void loadPaymentInstructions();
                   setRemindersModalOpen(true);
                 }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#8F6C2B] hover:bg-[#735520] text-white cursor-pointer shadow-sm transition-all"
-                title="Send Payment Request Emails with Items Breakdown to Unpaid Customers"
+                title="Send Consolidated Payment Request Emails with Items & Quantity Breakdown"
               >
                 <CreditCard className="w-3.5 h-3.5 text-[#E9E4D9]" />
-                <span>Send Payment Requests ({unpaidOrders.length})</span>
+                <span>
+                  Send Payment Requests ({unpaidCustomerGroups.length}{' '}
+                  {unpaidCustomerGroups.length === 1 ? 'Customer' : 'Customers'} · {unpaidOrders.length})
+                </span>
               </button>
             )}
             <Link
@@ -3264,196 +3507,688 @@ export default function AdminOrders() {
           onClose={() => setPdfPreview(null)}
         />
 
-        {/* BATCH PAYMENT REMINDERS MODAL */}
+        {/* BATCH PAYMENT REMINDERS MODAL (CONSOLIDATED BY CUSTOMER) */}
         <AdminModal
           open={remindersModalOpen}
           onClose={() => setRemindersModalOpen(false)}
           title="Send Payment Request Reminders"
-          subtitle={`Send luxury itemized invoices to customers with unpaid / pending orders (${unpaidOrders.length} eligible)`}
-          maxWidth="max-w-3xl"
+          subtitle={`Multiple pending orders for the same customer are automatically consolidated into ONE email (${unpaidCustomerGroups.length} customer(s), ${unpaidOrders.length} pending order(s))`}
+          maxWidth="max-w-4xl"
         >
           <div className="space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
               <div>
-                <strong className="block font-bold">Itemized Outstanding Payment Notice</strong>
+                <strong className="block font-bold">Consolidated Customer Payment Statement</strong>
                 <span>
-                  Each selected patron will receive a bespoke Seth And Sons luxury email with their exact purchase items, pack weights, quantities, total amount due, and direct UPI payment instructions.
+                  If a customer has multiple unpaid orders, they receive <strong>one single email</strong> listing their total outstanding balance along with every pending order, product details, and quantities purchased.
                 </span>
               </div>
+            </div>
+
+            {/* DIRECT PAYMENT INSTRUCTIONS MANAGEMENT PANEL (Edit / Update / Hide / Delete) */}
+            <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#C8A96B]/70 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-[#183D32]" />
+                  <div>
+                    <div className="font-bold text-[#183D32] flex items-center gap-2">
+                      <span>Direct Payment Instructions (Default Template)</span>
+                      {paymentInstructions.deleted ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                          Deleted
+                        </span>
+                      ) : paymentInstructions.enabled ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Visible to Customers
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300">
+                          Hidden from Customers
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-[#5C6058]">
+                      {paymentInstructions.deleted
+                        ? 'Direct Payment Instructions are currently deleted and will not appear in customer emails.'
+                        : paymentInstructions.enabled
+                          ? `UPI: ${paymentInstructions.upiId || '—'} · Beneficiary: ${paymentInstructions.beneficiary || '—'}`
+                          : 'Currently hidden — customers will see itemized orders & balance without UPI/Direct Payment block.'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {paymentInstructions.deleted ? (
+                    <button
+                      type="button"
+                      disabled={savingPaymentInstructions}
+                      onClick={() => {
+                        const restored = { ...EMPTY_PAYMENT_INSTRUCTIONS, enabled: true, deleted: false };
+                        setPaymentInstructions(restored);
+                        setEditingPaymentInstructions(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#183D32] hover:bg-[#245746] text-white text-[11px] font-semibold cursor-pointer"
+                    >
+                      <PlusCircle className="w-3 h-3 text-[#C8A96B]" />
+                      <span>Add / Restore Instructions</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={savingPaymentInstructions}
+                        onClick={() => setEditingPaymentInstructions(v => !v)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-[#E9E4D9] hover:border-[#183D32] text-[#183D32] text-[11px] font-semibold cursor-pointer"
+                      >
+                        <Edit3 className="w-3 h-3 text-[#C8A96B]" />
+                        <span>{editingPaymentInstructions ? 'Close Editor' : 'Edit / Update'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={savingPaymentInstructions}
+                        onClick={() => {
+                          const toggled = { ...paymentInstructions, enabled: !paymentInstructions.enabled };
+                          void handleSavePaymentInstructions(
+                            toggled,
+                            toggled.enabled
+                              ? 'Direct Payment Instructions are now visible to customers.'
+                              : 'Direct Payment Instructions hidden from customers.'
+                          );
+                        }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold cursor-pointer ${
+                          paymentInstructions.enabled
+                            ? 'bg-white border-[#E9E4D9] text-[#5C6058] hover:text-[#183D32]'
+                            : 'bg-[#183D32] border-[#183D32] text-white'
+                        }`}
+                        title={
+                          paymentInstructions.enabled
+                            ? 'Hide Direct Payment Instructions from customer emails'
+                            : 'Show Direct Payment Instructions in customer emails'
+                        }
+                      >
+                        {paymentInstructions.enabled ? (
+                          <>
+                            <EyeOff className="w-3 h-3" />
+                            <span>Hide</span>
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3 h-3 text-[#C8A96B]" />
+                            <span>Show</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={savingPaymentInstructions}
+                        onClick={() => void handleDeletePaymentInstructions()}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-red-200 text-red-700 hover:bg-red-50 text-[11px] font-semibold cursor-pointer"
+                        title="Delete Direct Payment Instructions permanently"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Inline Editor Form for Direct Payment Instructions */}
+              {editingPaymentInstructions && !paymentInstructions.deleted && (
+                <div className="pt-3 border-t border-[#E9E4D9] space-y-2.5 bg-white p-3 rounded-xl border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#252923] mb-1">Heading</label>
+                      <input
+                        value={paymentInstructions.heading}
+                        onChange={e => setPaymentInstructions(p => ({ ...p, heading: e.target.value }))}
+                        placeholder="Direct Payment Instructions"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                        Payment Method Label
+                      </label>
+                      <input
+                        value={paymentInstructions.methodLabel}
+                        onChange={e => setPaymentInstructions(p => ({ ...p, methodLabel: e.target.value }))}
+                        placeholder="Store UPI ID (Google Pay / PhonePe / Paytm / BHIM)"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                        UPI ID / Payment Handle
+                      </label>
+                      <input
+                        value={paymentInstructions.upiId}
+                        onChange={e => setPaymentInstructions(p => ({ ...p, upiId: e.target.value }))}
+                        placeholder="aseth9588-1@okhdfcbank"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                        Beneficiary Name
+                      </label>
+                      <input
+                        value={paymentInstructions.beneficiary}
+                        onChange={e => setPaymentInstructions(p => ({ ...p, beneficiary: e.target.value }))}
+                        placeholder="Seth And Sons DryFruits"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                      Intro Text <span className="font-normal text-[#888B83]">(use {'{amount}'} for total pending balance)</span>
+                    </label>
+                    <input
+                      value={paymentInstructions.introTemplate}
+                      onChange={e => setPaymentInstructions(p => ({ ...p, introTemplate: e.target.value }))}
+                      placeholder="To settle your invoice balance of {amount}, please complete payment via UPI:"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                      Bank / Custom Extra Details (Optional)
+                    </label>
+                    <input
+                      value={paymentInstructions.extraDetails}
+                      onChange={e => setPaymentInstructions(p => ({ ...p, extraDetails: e.target.value }))}
+                      placeholder="e.g., Bank A/C, IFSC code, or custom payment note..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#252923] mb-1">
+                      Confirmation &amp; WhatsApp Footer Note
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={paymentInstructions.footerNote}
+                      onChange={e => setPaymentInstructions(p => ({ ...p, footerNote: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-[#F8F6F0] text-xs resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentInstructions(EMPTY_PAYMENT_INSTRUCTIONS)}
+                      className="px-3 py-1.5 rounded-lg border border-[#E9E4D9] text-[#5C6058] hover:text-[#183D32] text-[11px] font-semibold cursor-pointer"
+                    >
+                      Reset Default Text
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingPaymentInstructions}
+                      onClick={() => void handleSavePaymentInstructions()}
+                      className="inline-flex items-center gap-1 px-4 py-1.5 rounded-lg bg-[#183D32] hover:bg-[#245746] text-white text-[11px] font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5 text-[#C8A96B]" />
+                      <span>{savingPaymentInstructions ? 'Updating...' : 'Update & Save Instructions'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Select All Controls */}
-            <div className="flex items-center justify-between px-1">
-              <div className="text-[11px] text-[#5C6058]">
-                Selected: <strong>{selectedReminderOrderNumbers.length}</strong> of {unpaidOrders.length} orders
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedReminderOrderNumbers(unpaidOrders.map(o => o.orderNumber))}
-                  className="text-[11px] font-semibold text-[#183D32] hover:underline cursor-pointer"
-                >
-                  Select All
-                </button>
-                <span className="text-[#888B83]">·</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReminderOrderNumbers([])}
-                  className="text-[11px] font-semibold text-[#888B83] hover:underline cursor-pointer"
-                >
-                  Clear Selection
-                </button>
-              </div>
-            </div>
-
-            {/* Orders List Table */}
-            <div className="max-h-[380px] overflow-y-auto rounded-xl border border-[#E9E4D9] bg-white divide-y divide-[#E9E4D9]">
-              {unpaidOrders.map(ord => {
-                const isSelected = selectedReminderOrderNumbers.includes(ord.orderNumber);
-                const itemsSummary = (ord.items || [])
-                  .map(it => `${it.quantity}x ${it.productName}`)
-                  .join(', ');
-                return (
-                  <div
-                    key={ord.id}
-                    onClick={() => {
-                      setSelectedReminderOrderNumbers(prev =>
-                        prev.includes(ord.orderNumber)
-                          ? prev.filter(n => n !== ord.orderNumber)
-                          : [...prev, ord.orderNumber]
-                      );
-                    }}
-                    className={`p-3 flex items-start justify-between gap-3 cursor-pointer transition ${
-                      isSelected ? 'bg-[#FAF8F5]' : 'hover:bg-[#F8F6F0]'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}} // handled by parent div
-                        className="mt-0.5 rounded border-[#C8A96B] text-[#183D32] focus:ring-[#C8A96B] cursor-pointer"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-[#183D32]">#{ord.orderNumber}</span>
-                          <span className="text-[10px] px-2 py-0.2 rounded-full font-bold bg-[#FFF4E5] text-[#B25E09] border border-[#FFE2B8]">
-                            {ord.paymentStatus.toUpperCase()} ({ord.paymentMethod})
-                          </span>
-                        </div>
-                        <div className="text-[11px] font-medium text-[#252923] mt-0.5">
-                          {ord.customerObj?.name || 'Guest'} &lt;{ord.customerObj?.email || ord.deliveryAddressObj?.email || 'No email'}&gt;
-                        </div>
-                        <div className="text-[10px] text-[#888B83] truncate max-w-[400px] mt-0.5" title={itemsSummary}>
-                          Items: {itemsSummary || 'Standard harvest selections'}
-                        </div>
-                      </div>
+            {(() => {
+              const selectedCustomerCount = unpaidCustomerGroups.filter(g =>
+                g.orders.some(o => selectedReminderOrderNumbers.includes(o.orderNumber))
+              ).length;
+              return (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <div className="text-[11px] text-[#5C6058]">
+                      Selected: <strong>{selectedReminderOrderNumbers.length}</strong> of {unpaidOrders.length} orders{' '}
+                      &rarr;{' '}
+                      <strong className="text-[#183D32]">
+                        {selectedCustomerCount} Consolidated {selectedCustomerCount === 1 ? 'Email' : 'Emails'}
+                      </strong>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="font-bold text-sm text-[#183D32] tabular-nums">
-                        {formatINR(ord.totalAmount)}
-                      </div>
-                      <div className="text-[10px] text-[#888B83]">
-                        {new Date(ord.createdAt).toLocaleDateString('en-IN')}
-                      </div>
+                    <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          void handlePreviewOrderReminder(ord.orderNumber);
-                        }}
-                        className="mt-1 text-[10px] text-[#8F6C2B] font-semibold hover:underline inline-flex items-center gap-0.5"
+                        onClick={() => setSelectedReminderOrderNumbers(unpaidOrders.map(o => o.orderNumber))}
+                        className="text-[11px] font-semibold text-[#183D32] hover:underline cursor-pointer"
                       >
-                        <Eye className="w-2.5 h-2.5" /> Preview Email
+                        Select All
+                      </button>
+                      <span className="text-[#888B83]">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReminderOrderNumbers([])}
+                        className="text-[11px] font-semibold text-[#888B83] hover:underline cursor-pointer"
+                      >
+                        Clear Selection
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Modal Actions */}
-            <div className="flex justify-between items-center pt-2 border-t border-[#E9E4D9]">
-              <button
-                type="button"
-                onClick={() => setRemindersModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-[#E9E4D9] text-[#5C6058] hover:bg-[#F8F6F0] cursor-pointer font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSendBatchOrderReminders}
-                disabled={sendingReminders || selectedReminderOrderNumbers.length === 0}
-                className="px-5 py-2 rounded-xl bg-[#8F6C2B] hover:bg-[#735520] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition"
-              >
-                <Send className="w-3.5 h-3.5 text-[#E9E4D9]" />
-                <span>
-                  {sendingReminders
-                    ? 'Dispatching Reminders...'
-                    : `Dispatch Reminders to ${selectedReminderOrderNumbers.length} Patrons`}
-                </span>
-              </button>
-            </div>
+                  {/* Customer-Grouped Pending Orders List */}
+                  <div className="max-h-[380px] overflow-y-auto rounded-xl border border-[#E9E4D9] bg-white divide-y divide-[#E9E4D9]">
+                    {unpaidCustomerGroups.map(group => {
+                      const groupOrderNums = group.orders.map(o => o.orderNumber);
+                      const selectedInGroup = group.orders.filter(o =>
+                        selectedReminderOrderNumbers.includes(o.orderNumber)
+                      );
+                      const selectedTotal = selectedInGroup.reduce(
+                        (sum, o) => sum + Number(o.totalAmount || 0),
+                        0
+                      );
+                      const allSelected = selectedInGroup.length === group.orders.length;
+
+                      const custOverride = customerInstructionOverrides[group.customerKey] || {};
+                      const custInstrEffective: DirectPaymentInstructionsConfig = {
+                        ...paymentInstructions,
+                        ...custOverride,
+                        enabled:
+                          paymentInstructions.deleted && custOverride.deleted !== false
+                            ? false
+                            : typeof custOverride.enabled === 'boolean'
+                              ? custOverride.enabled
+                              : paymentInstructions.enabled,
+                      };
+                      const isCustEditorOpen = editingCustomerInstructionKey === group.customerKey;
+
+                      return (
+                        <div key={group.customerKey} className="p-3.5 space-y-2.5 bg-white">
+                          {/* Customer Group Header */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F1EDE4]">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={() => {
+                                  setSelectedReminderOrderNumbers(prev => {
+                                    if (allSelected) {
+                                      return prev.filter(n => !groupOrderNums.includes(n));
+                                    }
+                                    const set = new Set([...prev, ...groupOrderNums]);
+                                    return Array.from(set);
+                                  });
+                                }}
+                                className="rounded border-[#C8A96B] text-[#183D32] focus:ring-[#C8A96B] cursor-pointer"
+                                title="Select or deselect all pending orders for this customer"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="font-bold text-sm text-[#183D32]">{group.customerName}</span>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#183D32] text-[#DFC471]">
+                                    {group.orders.length > 1
+                                      ? `${group.orders.length} Orders → 1 Consolidated Email`
+                                      : '1 Pending Order'}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-[#5C6058]">
+                                  &lt;{group.customerEmail || 'No email'}&gt;
+                                  {group.customerPhone ? ` · ${group.customerPhone}` : ''}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-right mr-1">
+                                <div className="text-[10px] text-[#888B83] uppercase font-semibold">
+                                  Outstanding ({selectedInGroup.length}/{group.orders.length})
+                                </div>
+                                <div className="font-extrabold text-sm text-[#8F6C2B] tabular-nums">
+                                  {formatINR(selectedTotal)}
+                                </div>
+                              </div>
+
+                              {/* Per-Customer Hide / Show Direct Payment Instructions Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomerInstructionOverrides(prev => ({
+                                    ...prev,
+                                    [group.customerKey]: {
+                                      ...(prev[group.customerKey] || {}),
+                                      deleted: false,
+                                      enabled: !custInstrEffective.enabled,
+                                    },
+                                  }));
+                                }}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-semibold cursor-pointer transition ${
+                                  custInstrEffective.enabled
+                                    ? 'bg-[#F8F6F0] border-[#E9E4D9] text-[#183D32] hover:border-[#183D32]'
+                                    : 'bg-gray-100 border-gray-300 text-gray-700'
+                                }`}
+                                title={
+                                  custInstrEffective.enabled
+                                    ? 'Hide Direct Payment Instructions for this customer'
+                                    : 'Show Direct Payment Instructions for this customer'
+                                }
+                              >
+                                {custInstrEffective.enabled ? (
+                                  <>
+                                    <Eye className="w-3 h-3 text-[#245746]" />
+                                    <span>Instructions: Shown</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOff className="w-3 h-3 text-gray-500" />
+                                    <span>Instructions: Hidden</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {/* Per-Customer Edit Payment Instructions */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingCustomerInstructionKey(prev =>
+                                    prev === group.customerKey ? null : group.customerKey
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#E9E4D9] bg-white hover:border-[#C8A96B] text-[#183D32] text-[10px] font-semibold cursor-pointer"
+                                title="Customize Direct Payment Instructions for this customer"
+                              >
+                                <Edit3 className="w-3 h-3 text-[#C8A96B]" />
+                                <span>{isCustEditorOpen ? 'Done' : 'Edit'}</span>
+                              </button>
+
+                              {/* Preview Consolidated Email for this Customer */}
+                              <button
+                                type="button"
+                                disabled={selectedInGroup.length === 0 || reminderPreviewLoading}
+                                onClick={() =>
+                                  void handlePreviewOrderReminder(
+                                    selectedInGroup.map(o => o.orderNumber),
+                                    { customerKey: group.customerKey }
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FAF3E3] border border-[#E8D5A7] text-[#8F6C2B] hover:bg-[#F3E6C8] text-[10px] font-bold cursor-pointer disabled:opacity-40"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Preview Consolidated</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Per-Customer Direct Payment Instructions Quick Customizer */}
+                          {isCustEditorOpen && (
+                            <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#D9C48C] space-y-2">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-[#183D32]">
+                                <span>Custom Direct Payment Instructions for {group.customerName}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomerInstructionOverrides(prev => {
+                                      const next = { ...prev };
+                                      delete next[group.customerKey];
+                                      return next;
+                                    });
+                                    setEditingCustomerInstructionKey(null);
+                                  }}
+                                  className="text-[10px] text-red-700 hover:underline font-semibold cursor-pointer"
+                                >
+                                  Delete / Reset Custom Override
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  value={custInstrEffective.upiId}
+                                  onChange={e =>
+                                    setCustomerInstructionOverrides(prev => ({
+                                      ...prev,
+                                      [group.customerKey]: {
+                                        ...(prev[group.customerKey] || {}),
+                                        deleted: false,
+                                        enabled: true,
+                                        upiId: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  placeholder="Custom UPI ID for this customer"
+                                  className="px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-white font-mono text-[11px]"
+                                />
+                                <input
+                                  value={custInstrEffective.extraDetails}
+                                  onChange={e =>
+                                    setCustomerInstructionOverrides(prev => ({
+                                      ...prev,
+                                      [group.customerKey]: {
+                                        ...(prev[group.customerKey] || {}),
+                                        deleted: false,
+                                        enabled: true,
+                                        extraDetails: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  placeholder="Custom payment note / bank instruction for this customer..."
+                                  className="px-2.5 py-1.5 rounded-lg border border-[#E9E4D9] bg-white text-[11px]"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Pending Orders belonging to this Customer */}
+                          <div className="space-y-1.5 pl-6">
+                            {group.orders.map(ord => {
+                              const isSelected = selectedReminderOrderNumbers.includes(ord.orderNumber);
+                              const itemsList = (ord.items || []).map(
+                                it => `${it.productName} (Qty: ${it.quantity} · ${it.weightLabel || it.unit || 'unit'})`
+                              );
+                              return (
+                                <div
+                                  key={ord.id}
+                                  onClick={() => {
+                                    setSelectedReminderOrderNumbers(prev =>
+                                      prev.includes(ord.orderNumber)
+                                        ? prev.filter(n => n !== ord.orderNumber)
+                                        : [...prev, ord.orderNumber]
+                                    );
+                                  }}
+                                  className={`p-2.5 rounded-xl border flex items-start justify-between gap-3 cursor-pointer transition ${
+                                    isSelected
+                                      ? 'bg-[#FAF8F5] border-[#C8A96B]/70'
+                                      : 'bg-[#FBFBF9] border-[#E9E4D9] opacity-65 hover:opacity-100'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => {}}
+                                      className="mt-0.5 rounded border-[#C8A96B] text-[#183D32] focus:ring-[#C8A96B] cursor-pointer"
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="font-bold text-[#183D32]">#{ord.orderNumber}</span>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-[#FFF4E5] text-[#B25E09] border border-[#FFE2B8]">
+                                          {ord.paymentStatus.toUpperCase()} ({ord.paymentMethod})
+                                        </span>
+                                        <span className="text-[10px] text-[#888B83]">
+                                          {new Date(ord.createdAt).toLocaleDateString('en-IN')}
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-[#5C6058] mt-1 flex flex-wrap gap-1">
+                                        {itemsList.length > 0 ? (
+                                          itemsList.map((txt, idx) => (
+                                            <span
+                                              key={idx}
+                                              className="inline-block px-1.5 py-0.5 rounded bg-white border border-[#E9E4D9] text-[10px]"
+                                            >
+                                              {txt}
+                                            </span>
+                                          ))
+                                        ) : (
+                                          <span className="text-[10px] text-[#888B83]">Standard harvest selections</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right shrink-0">
+                                    <div className="font-bold text-xs text-[#183D32] tabular-nums">
+                                      {formatINR(ord.totalAmount)}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Modal Actions */}
+                  <div className="flex justify-between items-center pt-2 border-t border-[#E9E4D9]">
+                    <button
+                      type="button"
+                      onClick={() => setRemindersModalOpen(false)}
+                      className="px-4 py-2 rounded-xl border border-[#E9E4D9] text-[#5C6058] hover:bg-[#F8F6F0] cursor-pointer font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendBatchOrderReminders}
+                      disabled={sendingReminders || selectedReminderOrderNumbers.length === 0}
+                      className="px-5 py-2 rounded-xl bg-[#8F6C2B] hover:bg-[#735520] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition"
+                    >
+                      <Send className="w-3.5 h-3.5 text-[#E9E4D9]" />
+                      <span>
+                        {sendingReminders
+                          ? 'Dispatching Consolidated Emails...'
+                          : `Send ${selectedCustomerCount} Consolidated ${
+                              selectedCustomerCount === 1 ? 'Email' : 'Emails'
+                            } (${selectedReminderOrderNumbers.length} Orders)`}
+                      </span>
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </AdminModal>
 
-        {/* SINGLE / SAMPLE PAYMENT REMINDER EMAIL PREVIEW MODAL */}
+        {/* CONSOLIDATED / SINGLE PAYMENT REMINDER EMAIL PREVIEW MODAL */}
         <AdminModal
           open={Boolean(reminderPreviewModal)}
           onClose={() => setReminderPreviewModal(null)}
-          title={`Payment Reminder Preview — #${reminderPreviewModal?.orderNumber || ''}`}
-          subtitle={`Recipient: ${reminderPreviewModal?.customerName || ''} (${reminderPreviewModal?.customerEmail || ''}) • Due: ${reminderPreviewModal?.totalStr || ''}`}
+          title={
+            reminderPreviewModal && reminderPreviewModal.orderCount > 1
+              ? `Consolidated Payment Request Preview (${reminderPreviewModal.orderCount} Orders)`
+              : `Payment Reminder Preview — #${reminderPreviewModal?.orderNumber || ''}`
+          }
+          subtitle={`Recipient: ${reminderPreviewModal?.customerName || ''} (${reminderPreviewModal?.customerEmail || ''}) • Outstanding Due: ${reminderPreviewModal?.totalStr || ''}`}
           maxWidth="max-w-4xl"
         >
           {reminderPreviewModal && (
             <div className="space-y-4 text-xs">
-              {/* Meta Header */}
+              {/* Meta Header + Direct Payment Instructions Toggle */}
               <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E9E4D9] flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[#888B83] font-semibold w-16">Subject:</span>
                     <span className="font-bold text-[#183D32] text-sm">{reminderPreviewModal.subject}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
                     <span className="text-[#888B83] font-semibold w-16">Recipient:</span>
                     <span className="font-medium text-[#245746] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                       {reminderPreviewModal.customerName} &lt;{reminderPreviewModal.customerEmail}&gt;
                     </span>
                     <span className="font-bold text-[#8F6C2B] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Amount Due: {reminderPreviewModal.totalStr}
+                      Total Due: {reminderPreviewModal.totalStr} ({reminderPreviewModal.orderCount}{' '}
+                      {reminderPreviewModal.orderCount === 1 ? 'Order' : 'Orders'})
                     </span>
                   </div>
                 </div>
 
-                {/* Device Switcher */}
-                <div className="flex items-center gap-1 p-1 bg-white rounded-lg border border-[#E9E4D9]">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Live Toggle Direct Payment Instructions in Preview */}
                   <button
                     type="button"
-                    onClick={() => setReminderPreviewDevice('desktop')}
-                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
-                      reminderPreviewDevice === 'desktop'
-                        ? 'bg-[#183D32] text-white'
-                        : 'text-[#5C6058] hover:text-[#183D32]'
+                    disabled={reminderPreviewLoading}
+                    onClick={() => {
+                      const currentlyVisible = Boolean(
+                        reminderPreviewModal.directPaymentInstructionsUsed?.enabled &&
+                          !reminderPreviewModal.directPaymentInstructionsUsed?.deleted
+                      );
+                      const nextEnabled = !currentlyVisible;
+                      const nextCfg: DirectPaymentInstructionsConfig = {
+                        ...(reminderPreviewModal.directPaymentInstructionsUsed || paymentInstructions),
+                        deleted: false,
+                        enabled: nextEnabled,
+                      };
+                      if (reminderPreviewModal.customerKey) {
+                        setCustomerInstructionOverrides(prev => ({
+                          ...prev,
+                          [reminderPreviewModal.customerKey!]: {
+                            ...(prev[reminderPreviewModal.customerKey!] || {}),
+                            deleted: false,
+                            enabled: nextEnabled,
+                          },
+                        }));
+                      }
+                      void handlePreviewOrderReminder(reminderPreviewModal.orderNumbers, {
+                        customerKey: reminderPreviewModal.customerKey,
+                        overrideInstructions: nextCfg,
+                      });
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition ${
+                      reminderPreviewModal.directPaymentInstructionsUsed?.enabled &&
+                      !reminderPreviewModal.directPaymentInstructionsUsed?.deleted
+                        ? 'bg-white border-[#C8A96B] text-[#183D32] hover:bg-[#F8F6F0]'
+                        : 'bg-[#183D32] border-[#183D32] text-white'
                     }`}
                   >
-                    <Monitor className="w-3.5 h-3.5" />
-                    <span>Desktop</span>
+                    {reminderPreviewModal.directPaymentInstructionsUsed?.enabled &&
+                    !reminderPreviewModal.directPaymentInstructionsUsed?.deleted ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-[#8F6C2B]" />
+                        <span>Hide Direct Payment Instructions</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-[#C8A96B]" />
+                        <span>Show Direct Payment Instructions</span>
+                      </>
+                    )}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setReminderPreviewDevice('mobile')}
-                    className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
-                      reminderPreviewDevice === 'mobile'
-                        ? 'bg-[#183D32] text-white'
-                        : 'text-[#5C6058] hover:text-[#183D32]'
-                    }`}
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>Mobile</span>
-                  </button>
+
+                  {/* Device Switcher */}
+                  <div className="flex items-center gap-1 p-1 bg-white rounded-lg border border-[#E9E4D9]">
+                    <button
+                      type="button"
+                      onClick={() => setReminderPreviewDevice('desktop')}
+                      className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                        reminderPreviewDevice === 'desktop'
+                          ? 'bg-[#183D32] text-white'
+                          : 'text-[#5C6058] hover:text-[#183D32]'
+                      }`}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                      <span>Desktop</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReminderPreviewDevice('mobile')}
+                      className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition ${
+                        reminderPreviewDevice === 'mobile'
+                          ? 'bg-[#183D32] text-white'
+                          : 'text-[#5C6058] hover:text-[#183D32]'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      <span>Mobile</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -3481,13 +4216,17 @@ export default function AdminOrders() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSendSingleOrderReminder(reminderPreviewModal.orderNumber)}
+                  onClick={() => void handleDispatchPreviewedReminder()}
                   disabled={sendingReminders}
                   className="px-6 py-2 rounded-xl bg-[#8F6C2B] hover:bg-[#735520] text-white font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition"
                 >
                   <Send className="w-3.5 h-3.5 text-[#E9E4D9]" />
                   <span>
-                    {sendingReminders ? 'Dispatching...' : `Dispatch Reminder Now (${reminderPreviewModal.totalStr})`}
+                    {sendingReminders
+                      ? 'Dispatching...'
+                      : `Dispatch ${reminderPreviewModal.orderCount > 1 ? 'Consolidated ' : ''}Reminder (${
+                          reminderPreviewModal.totalStr
+                        })`}
                   </span>
                 </button>
               </div>
