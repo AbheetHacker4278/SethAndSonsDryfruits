@@ -1,3 +1,4 @@
+import zlib from 'zlib';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
@@ -7,6 +8,26 @@ import { clearRateLimitStore } from '../server/middleware/security.ts';
 import { createCloudinaryStorage, type MediaStorageService } from '../server/services/cloudinaryService.ts';
 import { loadConfig } from '../server/config.ts';
 import { type EmailTransport, type OutboundEmailPayload } from '../server/services/emailProvider.ts';
+import { generateOrderInvoicePdf } from '../server/services/exportService.ts';
+
+function extractPdfText(pdfBuffer: Buffer): string {
+  const raw = pdfBuffer.toString('latin1');
+  const lines: string[] = [];
+  for (const match of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+    try {
+      const decoded = zlib.inflateSync(Buffer.from(match[1], 'latin1')).toString('latin1');
+      for (const tjMatch of decoded.matchAll(/\[([^\]]+)\]\s*TJ/g)) {
+        const hexParts = [...tjMatch[1].matchAll(/<([0-9a-fA-F]+)>/g)]
+          .map(h => Buffer.from(h[1], 'hex').toString('latin1'))
+          .join('');
+        if (hexParts) lines.push(hexParts);
+      }
+    } catch {
+      // Ignore non-deflate streams such as font/image streams
+    }
+  }
+  return lines.join('\n');
+}
 
 function createSpyMediaStorage(): MediaStorageService & { uploaded: Array<{ folder: string; filename: string; url: string }> } {
   const uploaded: Array<{ folder: string; filename: string; url: string }> = [];
@@ -980,5 +1001,109 @@ describe('Seth And Sons DryFruits ERP — RBAC, Catalog, Inventory, Purchases, R
     expect(pubRes.body.business.defaultGstRate).toBe(12);
     expect(pubRes.body.business.defaultShippingCharge).toBe(150);
     expect(pubRes.body.business.freeShippingThreshold).toBe(3000);
+  });
+
+  it('omits GSTIN and GST 0% on all invoices and omits complimentary shipping only on Surat invoices', async () => {
+    const { agent: adminAgent, csrf: adminInitCsrf } = await getAgentWithCsrf(instance.app);
+    await loginAdminViaOtp(adminAgent, adminInitCsrf, spyTransport.sent, 'aseth9588@gmail.com');
+
+    const { agent: custAgent, csrf: custCsrf0 } = await getAgentWithCsrf(instance.app);
+    const custLogin = await custAgent
+      .post('/api/auth/login')
+      .set('x-csrf-token', custCsrf0)
+      .send({ email: 'vikram.seth@heritage.in', password: 'Patron@2026!' });
+    expect(custLogin.status).toBe(200);
+    const custCsrf = extractCookieValue(custLogin.headers['set-cookie'], 'as_csrf') || custCsrf0;
+
+    // 1. Surat order (free shipping) -> PDF must NOT show GSTIN, GST (0%), Shipping, or Complimentary
+    const suratOrderRes = await custAgent
+      .post('/api/orders')
+      .set('x-csrf-token', custCsrf)
+      .send({
+        items: [{ productId: 'badam', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'Kinjal Shah',
+          mobileNumber: '9725394956',
+          deliveryAddress: 'PRATIBHA, 401-404, PIPLOD',
+          city: 'Surat',
+          state: 'Gujarat',
+          pincode: '395007',
+        },
+        paymentMethod: 'upi',
+      });
+    expect(suratOrderRes.status).toBe(201);
+
+    const suratInvoiceRes = await adminAgent
+      .get(`/api/admin/orders/${encodeURIComponent(suratOrderRes.body.order.orderNumber)}/invoice.pdf`)
+      .buffer(true)
+      .parse(binaryParser);
+    expect(suratInvoiceRes.status).toBe(200);
+    const suratPdfText = extractPdfText(suratInvoiceRes.body as Buffer);
+    expect(suratPdfText).toContain('TAX INVOICE');
+    expect(suratPdfText).toContain('Subtotal:');
+    expect(suratPdfText).toContain('Grand Total:');
+    expect(suratPdfText).not.toContain('GSTIN');
+    expect(suratPdfText).not.toContain('GST (0%)');
+    expect(suratPdfText).not.toContain('Shipping:');
+    expect(suratPdfText).not.toContain('Complimentary');
+
+    // 2. Non-Surat order with paid shipping -> PDF must NOT show GSTIN or GST (0%), but MUST show Shipping
+    const nonSuratPaidRes = await custAgent
+      .post('/api/orders')
+      .set('x-csrf-token', custCsrf)
+      .send({
+        items: [{ productId: 'badam', quantity: 1 }],
+        deliveryAddress: {
+          fullName: 'Vikramaditya Seth',
+          mobileNumber: '9812345678',
+          deliveryAddress: '14 Heritage Lane, Talab Tillo',
+          city: 'Jammu',
+          state: 'Jammu & Kashmir',
+          pincode: '180002',
+        },
+        paymentMethod: 'upi',
+      });
+    expect(nonSuratPaidRes.status).toBe(201);
+
+    const nonSuratInvoiceRes = await adminAgent
+      .get(`/api/admin/orders/${encodeURIComponent(nonSuratPaidRes.body.order.orderNumber)}/invoice.pdf`)
+      .buffer(true)
+      .parse(binaryParser);
+    expect(nonSuratInvoiceRes.status).toBe(200);
+    const nonSuratPdfText = extractPdfText(nonSuratInvoiceRes.body as Buffer);
+    expect(nonSuratPdfText).toContain('Shipping:');
+    expect(nonSuratPdfText).not.toContain('GSTIN');
+    expect(nonSuratPdfText).not.toContain('GST (0%)');
+
+    // 3. Non-Surat order with complimentary shipping (e.g. > free threshold) -> MUST keep Shipping: Complimentary
+    const nonSuratFreeBuf = await generateOrderInvoicePdf({
+      businessName: 'Seth And Sons DryFruits',
+      businessAddress: 'Surat, Gujarat',
+      gstin: 'NIL',
+      contactNumber: '+91 6356038361',
+      businessEmail: 'aseth9588@gmail.com',
+      invoiceNumber: 'AS-INV-TEST-2',
+      orderNumber: 'ORD-TEST-2',
+      orderDate: new Date().toISOString(),
+      paymentMethod: 'UPI',
+      paymentStatus: 'paid',
+      customerName: 'Vikramaditya Seth',
+      customerPhone: '9812345678',
+      customerAddress: '14 Heritage Lane, Jammu, Jammu & Kashmir, 180002',
+      customerCity: 'Jammu',
+      isSuratCustomer: false,
+      items: [{ productName: 'California Almonds', quantity: 5, unit: 'kg', unitPrice: 1200, subtotal: 6000 }],
+      subtotal: 6000,
+      discountAmount: 0,
+      couponCode: null,
+      shippingCharge: 0,
+      taxAmount: 0,
+      totalAmount: 6000,
+    });
+    const nonSuratFreeText = extractPdfText(nonSuratFreeBuf);
+    expect(nonSuratFreeText).toContain('Shipping:');
+    expect(nonSuratFreeText).toContain('Complimentary');
+    expect(nonSuratFreeText).not.toContain('GSTIN');
+    expect(nonSuratFreeText).not.toContain('GST (0%)');
   });
 });

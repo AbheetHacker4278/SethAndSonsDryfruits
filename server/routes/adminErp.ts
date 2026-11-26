@@ -2132,6 +2132,13 @@ export function createAdminErpRouter(
     const biz = await getBusinessSettingsDoc(db);
     const addr = hydrated.deliveryAddressObj || {};
     const customerAddrStr = [addr.deliveryAddress, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ');
+    const isSuratOrder =
+      isSuratCity(addr.city) ||
+      isSuratCity(hydrated.shippingCity) ||
+      (!addr.city && (
+        /\bsurat\b/i.test(String(addr.deliveryAddress || '')) ||
+        /^395\d{3}$/.test(String(addr.pincode || '').trim())
+      ));
 
     const pdfBuf = await generateOrderInvoicePdf({
       businessName: biz.businessName,
@@ -2147,6 +2154,8 @@ export function createAdminErpRouter(
       customerName: addr.fullName || hydrated.customerObj?.name || 'Patron',
       customerPhone: addr.mobileNumber || hydrated.customerObj?.phone || '',
       customerAddress: customerAddrStr,
+      customerCity: String(addr.city || hydrated.shippingCity || ''),
+      isSuratCustomer: isSuratOrder,
       items: hydrated.items || [],
       subtotal: Number(hydrated.subtotal || 0),
       discountAmount: Number(hydrated.discountAmount || 0),

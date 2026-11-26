@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import { parseWeightGrams } from '../../shared/catalogSeed.ts';
+import { isSuratCity, parseWeightGrams } from '../../shared/catalogSeed.ts';
 
 export interface ReportTableData {
   title: string;
@@ -219,7 +219,7 @@ export const calculateItemRate = calculateItemRatePerKg;
 export function generateOrderInvoicePdf(params: {
   businessName: string;
   businessAddress: string;
-  gstin: string;
+  gstin?: string;
   contactNumber: string;
   businessEmail: string;
   invoiceNumber: string;
@@ -230,6 +230,8 @@ export function generateOrderInvoicePdf(params: {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
+  customerCity?: string;
+  isSuratCustomer?: boolean;
   items: Array<{
     productName: string;
     quantity: number;
@@ -257,7 +259,7 @@ export function generateOrderInvoicePdf(params: {
     doc.rect(0, 0, doc.page.width, 96).fill('#183D32');
     doc.fillColor('#C8A96B').fontSize(20).text(params.businessName, 45, 24);
     doc.fillColor('#F8F6F0').fontSize(9).text(params.businessAddress, 45, 50);
-    doc.text(`GSTIN: ${params.gstin}  |  Tel: ${params.contactNumber}  |  ${params.businessEmail}`, 45, 65);
+    doc.text(`Tel: ${params.contactNumber}  |  ${params.businessEmail}`, 45, 65);
 
     doc.fillColor('#183D32').fontSize(15).text('TAX INVOICE', 45, 114);
     doc.fillColor('#252923').fontSize(10);
@@ -314,13 +316,28 @@ export function generateOrderInvoicePdf(params: {
       y += 16;
     }
 
-    doc.text('Shipping:', summaryX, y);
-    doc.text(params.shippingCharge > 0 ? `Rs. ${params.shippingCharge}` : 'Complimentary', 455, y);
-    y += 16;
+    const isSurat =
+      typeof params.isSuratCustomer === 'boolean'
+        ? params.isSuratCustomer
+        : isSuratCity(params.customerCity);
 
-    doc.text('GST (0%):', summaryX, y);
-    doc.text(`Rs. ${params.taxAmount.toLocaleString('en-IN')}`, 455, y);
-    y += 20;
+    if (!(isSurat && params.shippingCharge <= 0)) {
+      doc.text('Shipping:', summaryX, y);
+      doc.text(
+        params.shippingCharge > 0 ? `Rs. ${params.shippingCharge.toLocaleString('en-IN')}` : 'Complimentary',
+        455,
+        y
+      );
+      y += 16;
+    }
+
+    if (params.taxAmount > 0) {
+      doc.text('GST:', summaryX, y);
+      doc.text(`Rs. ${params.taxAmount.toLocaleString('en-IN')}`, 455, y);
+      y += 16;
+    }
+
+    y += 4;
 
     doc.rect(summaryX - 8, y - 4, 218, 24).fill('#F8F6F0');
     doc.fillColor('#183D32').fontSize(12).text('Grand Total:', summaryX, y + 2);
