@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import CartDrawer from './components/CartDrawer';
@@ -6,6 +6,14 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import { isSuratCity } from './data/products';
 import { getProductPackOptions } from './utils/priceCalculator';
+import { apiRequest } from './services/api';
+import {
+  CART_ITEMS_STORAGE_KEY,
+  CART_TIMESTAMPS_STORAGE_KEY,
+  getNextCartExpiryDelayMs,
+  purgeExpiredCartItems,
+  reconcileCartTimestamps,
+} from './utils/cartExpiry';
 
 function parseCartKey(cartKey: string): { productId: string; variantId: string | null } {
   const sepIdx = cartKey.indexOf('::');
@@ -41,6 +49,8 @@ const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
 const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory'));
 const AdminCustomers = lazy(() => import('./pages/admin/AdminCustomers'));
+const AdminAbandonedCarts = lazy(() => import('./pages/admin/AdminAbandonedCarts'));
+const AdminCustomerSegments = lazy(() => import('./pages/admin/AdminCustomerSegments'));
 const AdminSuppliers = lazy(() => import('./pages/admin/AdminSuppliers'));
 const AdminPurchases = lazy(() => import('./pages/admin/AdminPurchases'));
 const AdminSales = lazy(() => import('./pages/admin/AdminSales'));
@@ -190,14 +200,52 @@ function AppRoutes() {
   const { products, user, isSurat } = useAuth();
   const isSuratUser = Boolean(user && (isSurat || isSuratCity(user?.shippingAddress?.city)));
 
-  const [cartItems, setCartItems] = useState<Record<string, number>>(() => {
+  const autoExpiredClearRef = useRef(false);
+
+  const [cartState, setCartState] = useState<{
+    items: Record<string, number>;
+    timestamps: Record<string, number>;
+  }>(() => {
     try {
-      const saved = localStorage.getItem('as_cart_items');
-      return saved ? JSON.parse(saved) : DEFAULT_CART;
+      const savedItemsRaw = localStorage.getItem(CART_ITEMS_STORAGE_KEY);
+      const savedItems: Record<string, number> = savedItemsRaw ? JSON.parse(savedItemsRaw) : DEFAULT_CART;
+      const savedTsRaw = localStorage.getItem(CART_TIMESTAMPS_STORAGE_KEY);
+      const savedTs: Record<string, number> = savedTsRaw ? JSON.parse(savedTsRaw) : {};
+      const { activeItems, activeTimestamps, expiredKeys } = purgeExpiredCartItems(savedItems, savedTs);
+      if (expiredKeys.length > 0 && Object.keys(activeItems).length === 0) {
+        autoExpiredClearRef.current = true;
+      }
+      localStorage.setItem(CART_ITEMS_STORAGE_KEY, JSON.stringify(activeItems));
+      localStorage.setItem(CART_TIMESTAMPS_STORAGE_KEY, JSON.stringify(activeTimestamps));
+      return { items: activeItems, timestamps: activeTimestamps };
     } catch {
-      return DEFAULT_CART;
+      return { items: DEFAULT_CART, timestamps: {} };
     }
   });
+
+  const cartItems = cartState.items;
+  const cartTimestamps = cartState.timestamps;
+
+  const setCartItems = (
+    updater:
+      | Record<string, number>
+      | ((prev: Record<string, number>) => Record<string, number>),
+    options?: { resetTimestamps?: boolean; clearReason?: 'user_cleared' | 'item_expired' }
+  ) => {
+    setCartState(prev => {
+      const nextItems = typeof updater === 'function' ? updater(prev.items) : updater;
+      const now = Date.now();
+      const nextTimestamps = options?.resetTimestamps
+        ? reconcileCartTimestamps(nextItems, {}, now)
+        : reconcileCartTimestamps(nextItems, prev.timestamps, now);
+      if (Object.keys(nextItems).length === 0 && options?.clearReason === 'item_expired') {
+        autoExpiredClearRef.current = true;
+      } else if (Object.keys(nextItems).length === 0) {
+        autoExpiredClearRef.current = false;
+      }
+      return { items: nextItems, timestamps: nextTimestamps };
+    });
+  };
 
   // Reconcile active cart for Surat patrons against live variant inventory
   useEffect(() => {
@@ -227,11 +275,93 @@ function AppRoutes() {
     });
   }, [isSuratUser, products]);
 
+  // Persist cart items and addedAt timestamps locally
   useEffect(() => {
     try {
-      localStorage.setItem('as_cart_items', JSON.stringify(cartItems));
+      localStorage.setItem(CART_ITEMS_STORAGE_KEY, JSON.stringify(cartItems));
+      localStorage.setItem(CART_TIMESTAMPS_STORAGE_KEY, JSON.stringify(cartTimestamps));
     } catch {}
-  }, [cartItems]);
+  }, [cartItems, cartTimestamps]);
+
+  // Automatically remove any cart item kept >= 1 hour without ordering
+  useEffect(() => {
+    const evictExpired = () => {
+      setCartState(prev => {
+        const { activeItems, activeTimestamps, expiredKeys } = purgeExpiredCartItems(
+          prev.items,
+          prev.timestamps
+        );
+        if (expiredKeys.length === 0) return prev;
+        if (Object.keys(activeItems).length === 0) {
+          autoExpiredClearRef.current = true;
+        }
+        return { items: activeItems, timestamps: activeTimestamps };
+      });
+    };
+
+    const delayMs = getNextCartExpiryDelayMs(cartItems, cartTimestamps);
+    const timer = delayMs !== null ? setTimeout(evictExpired, Math.min(delayMs, 2147483647)) : null;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') evictExpired();
+    };
+    window.addEventListener('focus', evictExpired);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('focus', evictExpired);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [cartItems, cartTimestamps]);
+
+  // Background cart synchronization for Abandoned Cart Tracker (non-admin storefront sessions)
+  useEffect(() => {
+    if (user?.role === 'admin') return;
+    let visitorToken = '';
+    try {
+      visitorToken = localStorage.getItem('as_cart_visitor_token') || '';
+      if (!visitorToken) {
+        visitorToken = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+        localStorage.setItem('as_cart_visitor_token', visitorToken);
+      }
+    } catch {
+      return;
+    }
+
+    const entries = Object.entries(cartItems).filter(([, qty]) => Number(qty) > 0);
+    if (
+      !user &&
+      entries.length === 0 &&
+      !autoExpiredClearRef.current &&
+      !sessionStorage.getItem('as_cart_synced_once')
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        sessionStorage.setItem('as_cart_synced_once', '1');
+      } catch {}
+      const clearReason =
+        entries.length === 0 && autoExpiredClearRef.current ? 'item_expired' : undefined;
+      if (clearReason) autoExpiredClearRef.current = false;
+
+      void apiRequest('/api/cart/sync', {
+        method: 'POST',
+        body: {
+          visitorToken,
+          clearReason,
+          items: entries.map(([cartKey, quantity]) => {
+            const { productId, variantId } = parseCartKey(cartKey);
+            return { productId, variantId, quantity };
+          }),
+        },
+      }).catch(() => {});
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [cartItems, user?.id, user?.role]);
 
   // Legacy hash support (#catalog, #orders, #login, #custom-order)
   useEffect(() => {
@@ -299,7 +429,7 @@ function AppRoutes() {
   };
 
   const handleClearCart = () => {
-    setCartItems({});
+    setCartItems({}, { resetTimestamps: true, clearReason: 'user_cleared' });
   };
 
   const handleReorder = (items: { productId: string; quantity: number; variantId?: string | null }[]) => {
@@ -308,7 +438,7 @@ function AppRoutes() {
       const key = it.variantId ? `${it.productId}::${it.variantId}` : it.productId;
       newCart[key] = it.quantity;
     });
-    setCartItems(newCart);
+    setCartItems(newCart, { resetTimestamps: true });
   };
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -505,6 +635,22 @@ function AppRoutes() {
                 element={
                   <AdminRoute permission="customers">
                     <AdminCustomers />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/abandoned-carts"
+                element={
+                  <AdminRoute permission="customers">
+                    <AdminAbandonedCarts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/customer-segments"
+                element={
+                  <AdminRoute permission="customers">
+                    <AdminCustomerSegments />
                   </AdminRoute>
                 }
               />

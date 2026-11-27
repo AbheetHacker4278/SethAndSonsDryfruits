@@ -8,6 +8,7 @@ import {
   getCustomerLoyaltyHistory,
   reverseLoyaltyPoints,
 } from '../services/loyaltyService.ts';
+import { markCartRecoveredForOrder } from '../services/cartRecoveryService.ts';
 
 export interface WebhookRecoveryOptions {
   maxAgeMs?: number; // default 60_000
@@ -111,6 +112,19 @@ export async function executeWebhookEventProcessing(
             reason: `Earned from Order #${order.orderNumber} (Webhook)`,
             idempotencyKey: `earn_${order.id}`,
           });
+        }
+
+        // Idempotently recover any open abandoned/active cart tied to this customer
+        try {
+          await markCartRecoveredForOrder(db, {
+            id: String(order.id),
+            orderNumber: String(order.orderNumber),
+            customerId: String(order.customerId),
+            totalAmount: Number(order.totalAmount || 0),
+            status: String(order.status || 'placed'),
+          });
+        } catch {
+          // Non-fatal recovery tracking hook
         }
       } else if (['refund.processed', 'refund.created'].includes(eventType)) {
         const refundAmount =

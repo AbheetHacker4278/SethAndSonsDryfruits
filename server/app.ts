@@ -16,7 +16,12 @@ import { createAccountRouter } from './routes/account.ts';
 import { createAdminRouter } from './routes/admin.ts';
 import { createAdminErpRouter } from './routes/adminErp.ts';
 import { createAdminQuickNotesRouter } from './routes/adminQuickNotes.ts';
+import {
+  createAdminAbandonedCartsRouter,
+  createAdminSegmentsRouter,
+} from './routes/adminSegmentation.ts';
 import { createAuthRouter } from './routes/auth.ts';
+import { createCartRouter } from './routes/cart.ts';
 import { createOrdersRouter } from './routes/orders.ts';
 import { createPaymentsRouter } from './routes/payments.ts';
 import { createPublicRouter } from './routes/public.ts';
@@ -160,9 +165,12 @@ export async function createApp(overrides?: {
   app.use('/api', wrapRouterAsync(createPublicRouter(db, config, { transport, queue, mediaStorage, cache })));
   app.use('/api/auth', wrapRouterAsync(createAuthRouter(db, config, emailService)));
   app.use('/api/account', wrapRouterAsync(createAccountRouter(db, config, emailService, mediaStorage)));
+  app.use('/api/cart', wrapRouterAsync(createCartRouter(db)));
   app.use('/api/orders', wrapRouterAsync(createOrdersRouter(db, emailService)));
   app.use('/api/payments', wrapRouterAsync(createPaymentsRouter(db, config)));
   app.use('/api/support', wrapRouterAsync(createSupportRouter(db, mediaStorage, emailService)));
+  app.use('/api/admin/abandoned-carts', wrapRouterAsync(createAdminAbandonedCartsRouter(db)));
+  app.use('/api/admin/segments', wrapRouterAsync(createAdminSegmentsRouter(db)));
   app.use('/api/admin', wrapRouterAsync(createAdminRouter(db, config, transport, queue, emailService, mediaStorage)));
   app.use('/api/admin', wrapRouterAsync(createAdminErpRouter(db, transport, queue, mediaStorage, emailService, config)));
   app.use('/api/admin/support', wrapRouterAsync(createAdminSupportRouter(db, mediaStorage, emailService)));

@@ -30,6 +30,8 @@ import {
   Store,
   LifeBuoy,
   MapPin,
+  ShoppingCart,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
@@ -51,6 +53,8 @@ const NAV_ITEMS: AdminNavItem[] = [
   { to: '/admin/categories', label: 'Categories', icon: FolderTree, perm: 'categories' },
   { to: '/admin/inventory', label: 'Inventory', icon: Boxes, perm: 'inventory' },
   { to: '/admin/customers', label: 'Customers', icon: Users, perm: 'customers' },
+  { to: '/admin/abandoned-carts', label: 'Abandoned Carts', icon: ShoppingCart, perm: 'customers' },
+  { to: '/admin/customer-segments', label: 'Customer Segments', icon: Layers, perm: 'customers' },
   { to: '/admin/suppliers', label: 'Suppliers', icon: Truck, perm: 'suppliers' },
   { to: '/admin/purchases', label: 'Purchases', icon: ClipboardList, perm: 'purchases' },
   { to: '/admin/sales', label: 'Sales & Revenue', icon: IndianRupee, perm: 'sales' },

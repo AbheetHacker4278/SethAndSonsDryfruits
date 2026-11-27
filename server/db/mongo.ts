@@ -1220,6 +1220,90 @@ function createModels(conn: Connection) {
   );
   AdminQuickNoteSchema.index({ adminId: 1, pinned: -1, updatedAt: -1 });
 
+  const CartSessionSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      openCartKey: { type: String, default: null },
+      customerId: { type: String, default: null, index: true },
+      visitorToken: { type: String, default: null, index: true },
+      customerName: { type: String, default: '' },
+      customerEmail: { type: String, default: '' },
+      customerPhone: { type: String, default: '' },
+      items: { type: [Schema.Types.Mixed], default: [] },
+      cartTotal: { type: Number, default: 0 },
+      status: {
+        type: String,
+        enum: ['active', 'abandoned', 'recovered', 'expired'],
+        default: 'active',
+        index: true,
+      },
+      lastActivityAt: { type: String, required: true, index: true },
+      abandonedAt: { type: String, default: null, index: true },
+      recoveredAt: { type: String, default: null },
+      recoveredOrderId: { type: String, default: null },
+      recoveredOrderNumber: { type: String, default: null },
+      recoveredAmount: { type: Number, default: 0 },
+      expiredAt: { type: String, default: null },
+      followUpCount: { type: Number, default: 0 },
+      lastFollowUpAt: { type: String, default: null },
+      followUps: { type: [Schema.Types.Mixed], default: [] },
+      isTest: { type: Boolean, default: false, index: true },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+  CartSessionSchema.index(
+    { openCartKey: 1 },
+    { unique: true, partialFilterExpression: { openCartKey: { $type: 'string' } } }
+  );
+  CartSessionSchema.index(
+    { recoveredOrderId: 1 },
+    { unique: true, partialFilterExpression: { recoveredOrderId: { $type: 'string' } } }
+  );
+  CartSessionSchema.index({ customerId: 1, status: 1, updatedAt: -1 });
+  CartSessionSchema.index({ status: 1, lastActivityAt: -1 });
+
+  const AdminCrmSettingSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      data: { type: Schema.Types.Mixed, required: true },
+      updatedBy: { type: String, default: null },
+      updatedAt: { type: String, required: true },
+    },
+    baseOpts
+  );
+
+  const SegmentCampaignLogSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      campaignType: { type: String, enum: ['whatsapp_campaign', 'segment_offer'], required: true, index: true },
+      segmentKey: { type: String, required: true, index: true },
+      title: { type: String, required: true },
+      messageTemplate: { type: String, default: '' },
+      offerCode: { type: String, default: null },
+      discountType: { type: String, default: null },
+      discountValue: { type: Number, default: null },
+      minOrderValue: { type: Number, default: 0 },
+      validDays: { type: Number, default: null },
+      idempotencyKey: { type: String, default: null },
+      targetCount: { type: Number, default: 0 },
+      eligibleCount: { type: Number, default: 0 },
+      skippedOptOutCount: { type: Number, default: 0 },
+      skippedMissingPhoneCount: { type: Number, default: 0 },
+      appliedCount: { type: Number, default: 0 },
+      recipients: { type: [Schema.Types.Mixed], default: [] },
+      createdByAdminId: { type: String, required: true },
+      createdByAdminName: { type: String, required: true },
+      createdAt: { type: String, required: true, index: true },
+    },
+    baseOpts
+  );
+  SegmentCampaignLogSchema.index(
+    { idempotencyKey: 1 },
+    { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+  );
+
   function getOrCompile<T>(name: string, schema: Schema<T>): Model<T> {
     return (conn.models[name] as Model<T>) || conn.model<T>(name, schema);
   }
@@ -1269,6 +1353,9 @@ function createModels(conn: Connection) {
     LoyaltyLedger: getOrCompile('LoyaltyLedger', LoyaltyLedgerSchema),
     PaymentWebhookEvent: getOrCompile('PaymentWebhookEvent', PaymentWebhookEventSchema),
     AdminQuickNote: getOrCompile('AdminQuickNote', AdminQuickNoteSchema),
+    CartSession: getOrCompile('CartSession', CartSessionSchema),
+    AdminCrmSetting: getOrCompile('AdminCrmSetting', AdminCrmSettingSchema),
+    SegmentCampaignLog: getOrCompile('SegmentCampaignLog', SegmentCampaignLogSchema),
   };
 }
 

@@ -30,6 +30,7 @@ import {
   creditLoyaltyPoints,
   reverseLoyaltyPoints,
 } from '../services/loyaltyService.ts';
+import { markCartRecoveredForOrder } from '../services/cartRecoveryService.ts';
 
 export function computeOrderFingerprint(
   customerId: string,
@@ -1093,6 +1094,19 @@ export function createOrdersRouter(db: MongoDatabase, emailService: EmailService
         await emailService.sendAdminOrderAlertEmail(savedOrderObj);
       } catch {
         // non-fatal admin alert notification
+      }
+
+      // Idempotently mark any open active/abandoned cart recovered by this successful order
+      try {
+        await markCartRecoveredForOrder(db, {
+          id: orderId,
+          orderNumber,
+          customerId: customer.id,
+          totalAmount,
+          status: 'placed',
+        });
+      } catch {
+        // Non-fatal recovery tracking hook
       }
 
       const responseSnapshot = {
