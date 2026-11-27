@@ -1205,6 +1205,21 @@ function createModels(conn: Connection) {
   PaymentWebhookEventSchema.index({ gateway: 1, eventId: 1 }, { unique: true });
   PaymentWebhookEventSchema.index({ status: 1, receivedAt: 1 });
 
+  const AdminQuickNoteSchema = new Schema(
+    {
+      id: { type: String, required: true, unique: true, index: true },
+      adminId: { type: String, required: true, index: true },
+      title: { type: String, required: true },
+      description: { type: String, default: '' },
+      pinned: { type: Boolean, default: false, index: true },
+      status: { type: String, enum: ['note', 'pending', 'done'], default: 'note' },
+      createdAt: { type: String, required: true, index: true },
+      updatedAt: { type: String, required: true, index: true },
+    },
+    baseOpts
+  );
+  AdminQuickNoteSchema.index({ adminId: 1, pinned: -1, updatedAt: -1 });
+
   function getOrCompile<T>(name: string, schema: Schema<T>): Model<T> {
     return (conn.models[name] as Model<T>) || conn.model<T>(name, schema);
   }
@@ -1253,6 +1268,7 @@ function createModels(conn: Connection) {
     RefundOperation: getOrCompile('RefundOperation', RefundOperationSchema),
     LoyaltyLedger: getOrCompile('LoyaltyLedger', LoyaltyLedgerSchema),
     PaymentWebhookEvent: getOrCompile('PaymentWebhookEvent', PaymentWebhookEventSchema),
+    AdminQuickNote: getOrCompile('AdminQuickNote', AdminQuickNoteSchema),
   };
 }
 

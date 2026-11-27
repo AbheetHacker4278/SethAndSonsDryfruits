@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
+import AdminQuickNotesPopover from './admin/AdminQuickNotesPopover';
 
 interface AdminNavItem {
   to: string;
@@ -84,6 +85,7 @@ export default function AdminLayout({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>(null);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -367,13 +369,18 @@ export default function AdminLayout({
             )}
           </div>
 
-          {/* Right Controls: Quick Action + Notifications + Profile */}
+          {/* Right Controls: Quick Action + Quick Notes + Notifications + Profile */}
           <div className="flex items-center gap-2.5">
             {/* Quick Action */}
             <div className="relative hidden sm:block">
               <button
                 type="button"
-                onClick={() => setQuickAddOpen(o => !o)}
+                onClick={() => {
+                  setNotesOpen(false);
+                  setNotifOpen(false);
+                  setProfileOpen(false);
+                  setQuickAddOpen(o => !o);
+                }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#183D32] hover:bg-[#245746] text-white cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 text-[#C8A96B]" />
@@ -397,11 +404,28 @@ export default function AdminLayout({
               )}
             </div>
 
+            {/* Quick Notes (beside Notification Bell) */}
+            <AdminQuickNotesPopover
+              isOpen={notesOpen}
+              onToggle={() => {
+                setNotifOpen(false);
+                setQuickAddOpen(false);
+                setProfileOpen(false);
+                setNotesOpen(o => !o);
+              }}
+              onClose={() => setNotesOpen(false)}
+            />
+
             {/* Notification Bell */}
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setNotifOpen(o => !o)}
+                onClick={() => {
+                  setNotesOpen(false);
+                  setQuickAddOpen(false);
+                  setProfileOpen(false);
+                  setNotifOpen(o => !o);
+                }}
                 className="relative p-2 rounded-xl bg-white border border-[#E9E4D9] text-[#183D32] hover:bg-[#FAF3E3] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#183D32]"
                 aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
               >
@@ -483,7 +507,12 @@ export default function AdminLayout({
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setProfileOpen(o => !o)}
+                onClick={() => {
+                  setNotesOpen(false);
+                  setNotifOpen(false);
+                  setQuickAddOpen(false);
+                  setProfileOpen(o => !o);
+                }}
                 className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-[#E9E4D9] hover:border-[#C8A96B] cursor-pointer"
               >
                 <span className="w-7 h-7 rounded-full bg-[#183D32] text-[#C8A96B] text-xs font-bold flex items-center justify-center">

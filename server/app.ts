@@ -15,6 +15,7 @@ import {
 import { createAccountRouter } from './routes/account.ts';
 import { createAdminRouter } from './routes/admin.ts';
 import { createAdminErpRouter } from './routes/adminErp.ts';
+import { createAdminQuickNotesRouter } from './routes/adminQuickNotes.ts';
 import { createAuthRouter } from './routes/auth.ts';
 import { createOrdersRouter } from './routes/orders.ts';
 import { createPaymentsRouter } from './routes/payments.ts';
@@ -165,6 +166,7 @@ export async function createApp(overrides?: {
   app.use('/api/admin', wrapRouterAsync(createAdminRouter(db, config, transport, queue, emailService, mediaStorage)));
   app.use('/api/admin', wrapRouterAsync(createAdminErpRouter(db, transport, queue, mediaStorage, emailService, config)));
   app.use('/api/admin/support', wrapRouterAsync(createAdminSupportRouter(db, mediaStorage, emailService)));
+  app.use('/api/admin/quick-notes', wrapRouterAsync(createAdminQuickNotesRouter(db)));
 
   // Production static SPA serving when dist exists
   const distDir = path.resolve(process.cwd(), 'dist');
